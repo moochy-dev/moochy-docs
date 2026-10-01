@@ -141,7 +141,7 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 
 **Motion:** subtle and functional only — state changes, list insertions, page transitions, the mascot's small expressions; first-view fades limited to one per section; `prefers-reduced-motion` turns it all off.
 
-**Vocabulary (product owner):** the key phrase is **"Donate tokens"** — the primary call to action, the button label, and the headline language. Never "donate AI compute" or "donate compute" in user-facing copy. (Internally, money stays µ$; tokens are what donors give.)
+**Vocabulary and voice (product owner):** the key phrase is **"Donate tokens"**. Every user-facing word follows `docs/brand/VOICE.md` (normative): "pledge" is never shown (it is a **donation**; budget → monthly limit; reclaim → stop donating; station → Dashboard; console → Project settings; …), with its tone rules and banned words. Internal identifiers keep their names.
 
 **Donate button studio:** the app includes a small studio where a maintainer (or donor) builds a "Donate tokens" button for a GitHub README: pick the repo, label, style (mascot + text, text only, compact), theme (light, dark, or auto via `<picture>` / `prefers-color-scheme`), size; live preview; one-click copy of the Markdown snippet (`[![Donate tokens](https://moochy.dev/p/{owner}/{repo}/button.svg?...)](https://moochy.dev/p/{owner}/{repo}/donate)`) and the HTML `<picture>` snippet. `button.svg` is a static-safe SVG (no script, no external refs, escaped text, strict query-parameter allowlist, `Content-Type: image/svg+xml`, `Cache-Control` suited to GitHub's image proxy) so it renders in GitHub READMEs.
 
