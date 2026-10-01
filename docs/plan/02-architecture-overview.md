@@ -236,7 +236,7 @@ flowchart LR
 |---|---|---|---|
 | Relay language | Go (current stable) | Goroutines fit 10k+ long-lived sockets; static binaries; stdlib crypto | — |
 | HTTP routing | `net/http` `ServeMux` (method + wildcard patterns, Go ≥ 1.22) | Covers `GET /p/{owner}/{repo}` natively | `chi` (not needed) |
-| WebSocket (Go) | `github.com/coder/websocket` | Small, context-aware, maintained | — |
+| Node ↔ Relay transport | **gRPC** (`google.golang.org/grpc`, Rust `tonic` + `prost`), TLS 1.3, one stream per task (ADR-33) | Typed shared schema, per-stream flow control, cancellation, deadlines | Custom WebSocket framing |
 | SQLite (Go) | `modernc.org/sqlite` (CGO-free) | Static builds, one binary | — |
 | Key log | Merkle hashing and proofs from `golang.org/x/mod/sumdb/tlog`, signed notes from `golang.org/x/mod/sumdb/note`, C2SP tlog-tiles paths (own thin layer, or the transparency-dev Tessera library) | Battle-tested in the Go checksum database; standard formats; witnesses can be added later | Plain audit table |
 | OAuth | `golang.org/x/oauth2` | Standard | — |

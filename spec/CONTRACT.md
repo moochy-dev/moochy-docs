@@ -6,7 +6,9 @@ Normative for every implementer. The design rationale lives in `docs/plan/` (03 
 
 | Path | Language | Owner (agent) | Notes |
 |---|---|---|---|
-| `spec/` | — | integrator | This contract; `spec/vectors/*.json` are written by `mo-proto` |
+| `spec/` | — | integrator | This contract; `spec/proto/moochy/v1/link.proto` (shared gRPC link, integrator-owned); `spec/vectors/*.json` written by `mo-proto` |
+| `spec/proto/moochy/v1/local.proto` | protobuf | `mo-node` | Node local control plane (CLI / MCP shim ↔ Node over a 0600 Unix socket) |
+| `spec/proto/moochy/v1/admin.proto` | protobuf | `mo-relay` | Relay operator admin plane (over a 0600 Unix socket) |
 | `cli/` | Rust workspace | — | `cli/Cargo.toml` = workspace root (members + profiles only; owned by integrator) |
 | `cli/crates/proto` | Rust lib `moochy-proto` | `mo-proto` | Wire types, `lp`, labels, crypto, frames, receipts, vector generator |
 | `cli/crates/worker` | Rust lib `moochy-worker` | `mo-worker` | Provider-facing logic, **no dependency on `moochy-proto`**: firewall tables + recursive validator, provider adapters (anthropic, openrouter, deepseek, openai), safe mutations, SSE/usage parsers for both dialects, tool-call inspection (structural checks + tripwire), outbox file, served-task set, local reservation counters |
@@ -20,7 +22,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 ## 1. Encodings (both languages)
 
-- Text frames: UTF-8 JSON objects. Unknown fields ignored. Required field `t` (message type).
+- **Machine-to-machine messages are protobuf over gRPC** (§12, `spec/proto/moochy/v1/link.proto`). **Signed artifacts stay JSON bytes** carried verbatim in `bytes` fields: route header, inner payload, receipts, projections, catalog. They are signed and stored as exact bytes and parsed with the strict rules below.
 - **Parser-differential rule:** every JSON parse that feeds a security or money decision (route header, receipts, provider request bodies in the Worker firewall, provider responses for usage, MCP messages) MUST reject duplicate object keys, invalid UTF-8, lone surrogates, numbers outside i64/f64, and nesting deeper than 64. Go must not use plain `encoding/json` for these (use a decoder that detects duplicates); Rust must not rely on last-key-wins `serde_json::Value`. When the Worker mutates a body, it re-serializes from the validated tree; it never forwards bytes that a different parser could read differently.
 - Bytes in JSON: **base64url without padding** (`RFC 4648 §5`). Ids: `task` = ULID canonical 26-char string; `device_id` = `d_` + ULID; `user_id` = `u_` + ULID; `repo_id` = `r_` + ULID; `pledge_id` = `p_` + ULID. Money: JSON integer µ$ (`*_uusd`).
 - `lp(a, b, …)` = concatenation of `u32_be(len(x)) || x` for each field. Integers inside `lp` are encoded as `u64_be` (8 bytes). Strings as UTF-8 bytes.
@@ -52,17 +54,18 @@ JSON: `{"v":1,"body_b64":..., "body_sha256":..., "headers": {"anthropic-version"
 
 ## 5. Messages
 
-Exactly the catalog of docs/plan/03 §5 with these field names: `t`, `task`, `attempt`, `route_b64`, `wraps` (`[{"worker_device","wrap"}]`), `body_len`, `body_chunks`, `worker_device`, `R`, `code`, `retryable`, `retry_after_ms`, `sealed_detail`, `receipt_b64`, `donor_sig`, `projection_b64`, `projection_sig`, `seq`, `running_hash`, `sig`, `slots_free`, `models` (`[{"dialect","model","rl_headroom"}]`), `pledges`, `window_open`, `local_cap_left`, `tasks` (known_tasks), `since`.
+**Superseded by `spec/proto/moochy/v1/link.proto`** (gRPC, §12). The plan's message catalog (03 §5) maps 1:1 onto it; the 23-byte binary frame header of plan 03 §4.2 is gone (the gRPC stream identifies the task; `Chunk{attempt, seq, last, ct}` carries the rest; the AEAD AAD in §3 is unchanged). Historical field list, kept for reference: `t`, `task`, `attempt`, `route_b64`, `wraps` (`[{"worker_device","wrap"}]`), `body_len`, `body_chunks`, `worker_device`, `R`, `code`, `retryable`, `retry_after_ms`, `sealed_detail`, `receipt_b64`, `donor_sig`, `projection_b64`, `projection_sig`, `seq`, `running_hash`, `sig`, `slots_free`, `models` (`[{"dialect","model","rl_headroom"}]`), `pledges`, `window_open`, `local_cap_left`, `tasks` (known_tasks), `since`.
 Route header JSON fields (03 §7.1): `repo_id, dialect, model, effort, max_tokens, est_input_tokens, cache_ttl, stream, affinity, flags`.
 Binary frame header: 03 §4.2 (23 bytes).
 
 ## 6. Process interface (what the e2e harness runs)
 
 ### Relay
-`relay serve --addr 127.0.0.1:0 --db <path> --tls-cert <pem> --tls-key <pem> [--dev] [--catalog <json>]`
-- Prints exactly one JSON line to stdout when ready: `{"event":"ready","addr":"127.0.0.1:PORT"}`. Logs go to stderr (JSON, `log/slog`).
+`relay serve --addr 127.0.0.1:0 --grpc-addr 127.0.0.1:0 --db <path> --tls-cert <pem> --tls-key <pem> [--admin-socket <path>] [--dev] [--catalog <json>]`
+- `--addr` serves HTTP (web, dev API); `--grpc-addr` serves the gRPC `NodeLink` service (TLS 1.3, h2). Separate listeners so the gRPC server keeps its native HTTP/2 hardening.
+- Prints exactly one JSON line to stdout when ready: `{"event":"ready","addr":"127.0.0.1:P1","grpc_addr":"127.0.0.1:P2"}`. Logs go to stderr (JSON, `log/slog`).
 - `--dev` is refused unless `--addr` is a loopback address. It enables the dev API below.
-- Endpoints: `wss://…/v1/node` (subprotocol `moochy.v1`), `POST /api/device/start`, `POST /api/device/poll`, the web routes, and with `--dev`:
+- Endpoints: gRPC `moochy.v1.NodeLink` on `--grpc-addr` (Session, Submit, Serve, DeviceStart, DevicePoll); on `--addr` the web routes, and with `--dev`:
   - `POST /dev/user {"username"}` → `{"user_id","pseudonym","session"}` (session = cookie value)
   - `POST /dev/repo {"owner","name","owner_username"}` → `{"repo_id"}`
   - `POST /dev/member {"repo_id","username","cap_uusd_month"?}`
@@ -74,12 +77,13 @@ Binary frame header: 03 §4.2 (23 bytes).
 
 ### Node
 `moochy --home <dir> <command>`; all state under `<dir>`. Keystore backend for tests: encrypted file, passphrase from env `MOOCHY_PASSPHRASE`.
-- `moochy login --relay wss://127.0.0.1:PORT --ca-file <pem> --roles gateway,worker --headless` → prints `{"event":"device_code","user_code":"XXXX-XXXX"}` then blocks until approved, then `{"event":"logged_in","device_id":"d_…"}`.
+- `moochy login --relay https://127.0.0.1:GRPCPORT --ca-file <pem> --roles gateway,worker --headless` → prints `{"event":"device_code","user_code":"XXXX-XXXX"}` then blocks until approved, then `{"event":"logged_in","device_id":"d_…"}`.
 - `moochy keys add <anthropic|openrouter|deepseek|openai> --key-stdin [--base-url http://127.0.0.1:PORT]` — `--base-url` is accepted **only** for loopback hosts **and** only when env `MOOCHY_INSECURE_DEV=1`; otherwise refused.
 - `moochy config set <key> <value>` for `device_monthly_cap_uusd`, `slots_max`, `gateway_addr` (default `127.0.0.1:0`).
 - `moochy up --foreground` → when ready writes `<dir>/state/node.json` `{"device_id","gateway_url":"http://127.0.0.1:P","mcp_url":"http://127.0.0.1:P/mcp","pid"}` and prints `{"event":"ready",...same}`.
 - `moochy env --repo owner/name --json` → `{"anthropic_base_url","openai_base_url","token"}`.
-- `moochy mcp --repo owner/name` → stdio MCP server (JSON-RPC 2.0, newline-delimited).
+- `moochy mcp --repo owner/name` → stdio MCP server (JSON-RPC 2.0, newline-delimited); the shim talks to the running Node through the gRPC `LocalControl` service on the 0600 Unix socket `<dir>/state/node.sock`.
+- All other CLI commands that act on a running Node (`status`, `pause`, `resume`, `approve`, `members`, `journal`) use the same `LocalControl` service.
 - Exit codes: 0 ok, 2 usage, 3 auth/approval refused, 4 network, 10 internal.
 
 ## 7. Fake providers (e2e) — behaviour switches
@@ -155,3 +159,47 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 | Web session | `id_hash` |
 
 The dev API (§6) uses `username` = this handle.
+
+## 12. gRPC: where and how
+
+**Where gRPC is used (machine-to-machine):**
+1. **Node ↔ Relay** — `moochy.v1.NodeLink` (`link.proto`): Session (control), Submit (one stream per task, gateway), Serve (one stream per attempt, worker), device login. Per-task streams give HTTP/2 flow control, clean cancellation (stream cancel = provider call aborted), and deadlines for free.
+2. **CLI / MCP stdio shim ↔ running Node** — `moochy.v1.LocalControl` (`local.proto`, owner `mo-node`) over the Unix socket `<home>/state/node.sock` (mode 0600, peer uid checked).
+3. **Operator ↔ Relay** — `moochy.v1.RelayAdmin` (`admin.proto`, owner `mo-relay`) over a 0600 Unix socket (`--admin-socket`), used by `relay admin …` (suspend, catalog publish, drain, state). Never exposed on the network.
+4. Later: regional Edge ↔ central Scheduler (plan 10 §9) reuses `NodeLink` messages.
+
+**Where it is NOT used (external compatibility decides):** the provider-compatible API door (Anthropic/OpenAI HTTP+SSE), the MCP door (MCP stdio / Streamable HTTP per the MCP spec), the browser (HTML/HTMX/SSE), OAuth callbacks, badges, the dev API used by tests.
+
+**Libraries:** Go `google.golang.org/grpc` + `google.golang.org/protobuf`; Rust `tonic` (no default TLS features; our own rustls connector) + `prost`. Generated code is **committed** (Go: `relay/internal/pb`; Rust: `cli/crates/proto/src/pb/`) so builds never need `protoc`; regenerate with `spec/proto/gen.sh` (pinned `protoc` + plugins).
+
+**Connection, auth, channel binding:** one HTTP/2 connection = one authenticated session (header of `link.proto`). Go: a custom `credentials.TransportCredentials` wrapping TLS tags each connection with an id and the RFC 9266 exporter (`tls.ConnectionState.ExportKeyingMaterial("EXPORTER-Channel-Binding", nil, 32)`); handlers read it via `peer.FromContext`. Rust: a custom tonic connector (`Endpoint::connect_with_connector`) built on `tokio-rustls` that captures `export_keying_material` from the client connection; one `Channel` per TLS connection, rebuilt (and re-authenticated) on any transport error.
+
+**Hardening (all mandatory, all tested):**
+- TLS 1.3 only, ALPN `h2`; no plaintext h2c anywhere except the local Unix sockets.
+- Server: `MaxConcurrentStreams` 64 per connection; `MaxRecvMsgSize`/`MaxSendMsgSize` 128 KiB (a chunk is ≤ 64 KiB); `MaxHeaderListSize` 16 KiB; keepalive enforcement (`MinTime` 10 s, `PermitWithoutStream` true) + server pings every 15 s, 2 missed = dead; per-connection limit on stream-open rate (HTTP/2 Rapid Reset, CVE-2023-44487) and on resets; current grpc-go / x/net with the CONTINUATION-flood fixes (2024) and HPACK limits; per-IP connection cap; `DeviceStart`/`DevicePoll` rate-limited per IP; unauthenticated calls other than Session/Device* rejected before any allocation of task state.
+- Client (Rust): same message-size caps, `http2_max_header_list_size`, connect/request timeouts, bounded per-stream buffers, no gRPC compression.
+- gRPC reflection and channelz disabled in production; `grpc.health.v1` allowed.
+- Status mapping: Relay policy errors travel as `Failed{code, retryable}` messages inside the stream (not as gRPC status), so the Gateway can map them to provider-native errors (plan 03 §10.3). gRPC status codes are reserved for transport/auth failures (`UNAUTHENTICATED`, `RESOURCE_EXHAUSTED`, `UNAVAILABLE`, `DEADLINE_EXCEEDED`).
+- Protobuf parsing is NOT trusted for security decisions that need strictness (proto3 merges repeated singular fields, last wins): every security/money decision reads the signed JSON bytes with the strict parser of §1.
+
+## 13. Responsiveness budgets ("drastic responsiveness" — product owner requirement)
+
+Responsiveness is a feature with numbers. Every budget below is measured by E22 on the dev box (fake provider answering instantly, loopback network) and is a release blocker.
+
+| Path | Budget (p50 / p99) | How |
+|---|---|---|
+| Gateway: client request accepted → first sealed byte on the gRPC stream (100 KB body) | ≤ 1 ms / ≤ 3 ms | zstd level 1–3 chosen by size, sealing streamed chunk-by-chunk while compressing, no full-body copies |
+| Relay: Submit received → Assign sent (scheduler + durable reservation) | ≤ 2 ms / ≤ 8 ms | **adaptive group commit**: commit immediately when the writer is idle, batch only while a commit is in flight (never wait for a timer when idle) |
+| Worker: Assign last body chunk → Ack | ≤ 1 ms / ≤ 3 ms | open/verify/firewall without re-copying; local reservation in memory, persisted asynchronously-but-before-receipt |
+| Per response chunk, provider byte → client byte (Worker seal + Relay forward + Gateway open + write) | ≤ 300 µs / ≤ 1 ms added | no batching of tokens anywhere: every chunk flushed immediately, `TCP_NODELAY` on every socket, HTTP/2 / gRPC message flushed per chunk, SSE flushed per event |
+| End-to-end added time-to-first-token (all hops on loopback, instant fake) | ≤ 5 ms / ≤ 15 ms | sum of the above |
+| `moochy status` / MCP shim start / `moochy env` | ≤ 20 ms | Unix-socket gRPC to the warm Node |
+| Node `up` → ready (relay reachable) | ≤ 300 ms | keys cached in memory after one unlock, connection pre-warm |
+| Web: TTFB for `/` and `/p/{owner}/{repo}` | ≤ 30 ms / ≤ 80 ms | precompiled templates, in-memory aggregates, no N+1 queries |
+| Web: live update visible after a task settles | ≤ 500 ms | SSE coalescing window 250 ms |
+
+Mandatory techniques: warm connections everywhere (provider HTTP/2 pools, the relay link, the local socket); HTTP/2 windows sized so a 1 MiB body never stalls (initial stream window ≥ 1 MiB, connection window ≥ 4 MiB); no lock or allocation in the per-chunk path that can be avoided; no synchronous fsync in the per-chunk path; timeouts tight and explicit. Any change that regresses a budget must show the measurement in its commit message.
+
+| ID | Scenario |
+|---|---|
+| E22 | Responsiveness budgets: run 1,000 tasks with an instant fake provider and measure every row of §13 from timestamps (client, Gateway, Relay, Worker, fake); fail if any p50/p99 budget is exceeded; print the table |
