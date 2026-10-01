@@ -42,7 +42,7 @@ Long delegations send MCP progress notifications. Some clients time out tool cal
 
 ### What is verified by our end-to-end tests
 
-Our end-to-end suite runs the real `moochy` and relay binaries against fake providers. It exercises the **doors**, with plain HTTP and MCP clients, not the third-party applications themselves:
+Our internal end-to-end suite runs the real `moochy` and relay binaries against fake providers. It exercises the **doors**, with plain HTTP and MCP clients, not the third-party applications themselves:
 
 | Door | Scenario |
 |---|---|
