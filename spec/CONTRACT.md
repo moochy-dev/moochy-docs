@@ -1,6 +1,15 @@
-# Moochy implementation contract (Phase 1 walking skeleton → beta)
+# Moochy implementation contract (Phase 1 walking skeleton → beta) — CLOSED SOURCE (internal)
 
 Normative for every implementer. The design rationale lives in `docs/plan/` (03 = wire protocol, 05 = ledger, 06 = security, 07 = client). When this file and the plan disagree, **this file wins** for encodings and interfaces; raise the conflict in your final report.
+
+## 0a. Source boundary (product owner decision, 2026-10-01)
+
+| Side | Paths | License |
+|---|---|---|
+| **Open source** (published as `moochy-cli`) | `cli/**`, `spec/proto/**`, `spec/vectors/**`, `spec/protocol.md` (public protocol spec), `docs/guides/**`, client release tooling under `deploy/client/**` | **Apache-2.0**, contributions with DCO sign-off (`Signed-off-by:`) |
+| **Closed source** (the `moochy-core` monorepo: backend + frontend) | `relay/**` (incl. `relay/internal/web/**`), `e2e/**`, `deploy/**` except `deploy/client/**`, `docs/plan/**`, `docs/ops/**`, `docs/security/**`, `docs/TRACEABILITY.md`, `spec/CONTRACT.md` | Proprietary, all rights reserved |
+
+Rules: **open code never imports, links, or copies closed code** (the Rust client depends only on open crates and `spec/`); closed code may use open code. Everything that touches donor keys, maintainer code, or cryptography is in the open client, so users never need to trust the closed relay (it only sees ciphertext). Self-hosting the relay is **not** offered; the Node's relay URL stays configurable for development and tests. The product stays **100% free** (no fees, no commission, no paid tier). Public wording: **"Open-source client (Apache-2.0) · 100% free"** — never "100% open source".
 
 ## 0. Repository layout and ownership
 
@@ -125,7 +134,11 @@ IDs are stable; each is one Go test `TestE<NN>_<name>`. A scenario may `t.Skip("
 
 Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handler` and the `Source` interface (read-only queries: repo by slug, pool summary, goal numbers, recent projections, donor station data) plus `func (h) Publish(topic string, ev Event)` for SSE. `mo-web` defines the interface and ships a fake `Source` for its own tests; `mo-relay` implements it.
 
-**Palette (fixed):** white `#FFFFFF`, dark `#0B1220` (ink / dark background), light blue `#7DD3FC` (accent fills, highlights, focus rings) with `#0369A1` for small text links on white (contrast). Dark theme: background `#0B1220`, text `#F8FAFC`, accent `#7DD3FC`. Hand-written CSS with custom properties, no framework, no web fonts; total CSS ≤ 12 KB; htmx + sse extension vendored locally.
+**Palette (fixed):** white `#FFFFFF`, dark `#0B1220` (ink / dark background), light blue `#7DD3FC` (accent fills, highlights, focus rings, glows) with `#0369A1` for small text links on white (contrast). Dark theme: background `#0B1220`, text `#F8FAFC`, accent `#7DD3FC`. Tints/shades of these three only (e.g. light-blue at reduced opacity for glows, gradients between them).
+
+**Design and motion (product owner: "the best of the best in design, animations, transitions, atomic animations, effects, responsiveness … be extremely creative"):** a real motion system, built on native platform features first: CSS scroll-driven animations (`animation-timeline: scroll()/view()`), cross-document View Transitions (`@view-transition`), `linear()` spring easings, `@property`-animated numbers, SVG stroke animations; a small vanilla JS motion layer only for what CSS cannot do (pointer-follow spotlight, theme-switch circular reveal, IntersectionObserver fallback). Animate only `transform`/`opacity` (and `filter` sparingly); 60 fps on a mid-range phone; `prefers-reduced-motion` turns every non-essential motion off; no layout shift.
+
+**Budgets (replace the earlier 12 KB / no-font rule):** CSS ≤ 48 KB raw (≤ 12 KB gzip); motion JS ≤ 12 KB gzip, no framework, no CDN, external files only (strict CSP, no inline script or style attributes); htmx + sse extension vendored; at most one self-hosted variable font (OFL, Latin subset, woff2 ≤ 45 KB, `font-display: swap`, preloaded); landing page ≤ 150 KB transferred, dashboards ≤ 100 KB; LCP ≤ 1.0 s on 4G, CLS = 0, INP ≤ 100 ms; TTFB budgets of §13 unchanged.
 
 ## 10. Build and test entry points
 
