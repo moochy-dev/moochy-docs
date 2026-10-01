@@ -1,6 +1,8 @@
 # 13 — Review Log
 
-> The plan went through five review passes before being saved. Each pass used a different lens. This file records what was challenged, what changed, and what was deliberately *not* changed, so readers can see why the documents look the way they do.
+> The plan went through five review passes before being saved. Each pass used a different lens. This file records what was challenged, what changed, and what was deliberately *not* changed, so readers can see why the documents look the way they do. A later traceability review against `spec/CONTRACT.md` is recorded at the end.
+
+> **Updated 2026-10-01:** added the traceability review (C1–C12, D1–D18) and the product-owner decisions of the same day. Changes: new final section and summary row; past entries kept as history, with short "superseded by" notes where an entry states something that is no longer the current design (source boundary ADR-01, gRPC ADR-33, OpenAI adapter phase D13, key-log library ADR-39, Gateway port C5).
 
 | Pass | Lens | Reviewer | Findings | Accepted | Adapted | Declined |
 |---|---|---|---|---|---|---|
@@ -10,6 +12,7 @@
 | 3 | Distributed systems, money correctness, operations | Independent reviewer | 15 | 12 | 3 | — |
 | 4 | Simplicity, requirement fit, factual risk | Independent reviewer | 15 | 13 | 1 | 1 |
 | 5 | Final consistency after all changes | Author (scripted checks + read-through) | 9 | 9 | — | — |
+| 6 | Traceability against `spec/CONTRACT.md` (2026-10-01) | Traceability matrix + integrator | 30 | 30 | — | — |
 
 Passes 2–4 ran in parallel without seeing each other's output. Their overlap is itself a signal: **all three independently found the same critical key/nonce-reuse flaw.**
 
@@ -21,7 +24,7 @@ Passes 2–4 ran in parallel without seeing each other's output. Their overlap i
 
 | Change | Documents |
 |---|---|
-| **Everything open source**: the draft's closed `moochy-core` becomes part of one public monorepo (`relay/`, `cli/`, `spec/`), Apache-2.0 OR MIT; self-hosting first-class; confidentiality still never depends on trusting the operator | 00, 01, 02, 03, 06, 10, 11, 12 |
+| **Everything open source**: the draft's closed `moochy-core` becomes part of one public monorepo (`relay/`, `cli/`, `spec/`), Apache-2.0 OR MIT; self-hosting first-class; confidentiality still never depends on trusting the operator (superseded by revised ADR-01, 2026-10-01: open-source client under Apache-2.0, closed-source relay and web, no relay self-hosting) | 00, 01, 02, 03, 06, 10, 11, 12 |
 | **Free forever**: no fees, commission, or paid tier; sponsor-funded public instance with a public cost page (`/open`); statement on every web page | 00, 01, 06, 08, 10, 12 |
 | **MCP as a first-class universal door** (stdio + Streamable HTTP, `moochy connect <client>`, `npx -y moochy mcp`, headless agents), next to the provider-compatible API door; integration matrix covering OpenCode, Claude Code, Cursor, Cline, Zed, Goose, agent frameworks, SDKs | 00, 01, 02, 07, 08, 11 |
 | **OpenRouter and DeepSeek first-class** in Phase 1: adapters, usage mappings, firewall rules, catalog import | 05, 06, 07, 09, 11 |
@@ -41,7 +44,7 @@ Method: a script resolved every `[NN §X]` reference to an existing heading, and
 | 1.5 | Body-size limit phrased two ways | One rule |
 | 1.6 | CI devices had scope and caps in 07 but nothing in 04/09 | Device scope, caps, and eligibility rule |
 | 1.7 | Model aliases missing from the catalog schema | Added (later replaced by public slugs in pass 4) |
-| 1.8 | OpenAI adapter phase ambiguous | Phase 2 |
+| 1.8 | OpenAI adapter phase ambiguous | Phase 2 (superseded by D13: Phase 1) |
 | 1.9 | MCP delegate dialect selection unspecified; `files` could leak `.env` | Dialect chosen by the Node; file rules (hardened further in pass 2) |
 | 1.10 | Token-equivalent display had no formula | One documented formula; mock number corrected |
 | 1.11 | "Up to 400×" price-ratio claim | Corrected to 200× |
@@ -63,10 +66,10 @@ Method: a script resolved every `[NN §X]` reference to an existing heading, and
 | 2.9 | Medium | Tripwire covered only Anthropic `tool_use`; MCP delegate results unprotected | **Accepted.** OpenAI `tool_calls` per index; name-in-`tools[]` and schema checks; denied block types; model match; untrusted-content framing for MCP results |
 | 2.10 | Medium | Auth signed a relay-supplied origin; no channel binding; unprefixed fields | **Accepted.** Dialed origin + TLS exporter channel binding + `lp()` everywhere ([03 §3](03-wire-protocol.md)) |
 | 2.11 | Medium | Public receipts leaked device ids and millisecond timestamps forever; affinity key was guessable | **Accepted.** Public **projections** (day granularity, no device or task ids); affinity key is an HMAC under a per-device secret |
-| 2.12 | Medium | `connect --write` could commit tokens; another local user could squat the port | **Accepted.** User-scoped configs only, refuse git-tracked files, token rotation, port held by the service manager, `doctor` uid check |
+| 2.12 | Medium | `connect --write` could commit tokens; another local user could squat the port | **Accepted.** User-scoped configs only, refuse git-tracked files, token rotation, port held by the service manager (superseded by C5: port picked at first run, persisted, and reused), `doctor` uid check |
 | 2.13 | Low | Countersign plausibility checks failed on hidden reasoning and ignored input/cache inflation | **Adapted.** Same checks moved into the dispute rules (countersigning itself deferred per 4.2) |
 | 2.14 | Low | Labels not prefix-free; one salt for three commitments; CK dual use; Ed25519 verification differences; no version binding; catalog rollback | **Accepted.** `lp()` labels, HKDF-derived salts and keys, ZIP-215 in both languages with vectors, suite id in HPKE info and `KEY_ADDED`, monotonic catalog |
-| 2.15 | Low | `x/mod/sumdb/tlog` does not provide C2SP paths or witnesses; `hpke` not independently audited; computer use is client-executed; header claim false | **Adapted.** Library wording hedged (own path layer or Tessera); `hpke` under `cargo-vet`; firewall table corrected |
+| 2.15 | Low | `x/mod/sumdb/tlog` does not provide C2SP paths or witnesses; `hpke` not independently audited; computer use is client-executed; header claim false | **Adapted.** Library wording hedged (own path layer or Tessera; superseded by ADR-39: own layer, no Tessera); `hpke` under `cargo-vet`; firewall table corrected |
 
 ---
 
@@ -81,7 +84,7 @@ Method: a script resolved every `[NN §X]` reference to an existing heading, and
 | 3.5 | High | Deploy handoff lost releases and receipts | **Adapted.** v1 uses drain-and-restart (pass 4.9), which removes the overlap entirely; the fixes are recorded as requirements for a future blue/green design ([10 §3](10-operations.md)) |
 | 3.6 | High | Worker device cap checked only settled spend | **Accepted.** Worker local reservations before ack; Relay decrements `local_cap_left` |
 | 3.7 | High | Period rollover attribution made the audit drift monthly; CHECK failures aborted whole batches | **Accepted.** Settle into the start period's row; boot applies missed rollovers; SAVEPOINT per op; constraint violations are fatal and recover by replay |
-| 3.8 | Medium | Gateway disconnect didn't cancel; dedupe was global; frames forwarded from any connection | **Accepted.** Cancel on Gateway disconnect; dedupe per `(gateway_device, task_id)`; resubmission rules; forwarding checks the expected source connection |
+| 3.8 | Medium | Gateway disconnect didn't cancel; dedupe was global; frames forwarded from any connection | **Accepted.** Cancel on Gateway disconnect; dedupe per `(gateway_device, task_id)`; resubmission rules; forwarding checks the expected source connection (with gRPC, ADR-33: each task has its own stream, and streams must arrive on the authenticated connection) |
 | 3.9 | Medium | Inbox backpressure could stall readers or deadlock with the writer | **Accepted.** Sheddable submit queue, never-blocking lifecycle queue, slice-swap writer handoff, separate completion channel |
 | 3.10 | Medium | Stale session's offline event could remove a live worker | **Accepted.** Presence keyed by `(device, session)` |
 | 3.11 | Medium | Device caps had no counters | **Accepted.** `device_usage` table, state, invariants, audit |
@@ -131,3 +134,24 @@ Method: the reference resolver re-run, **plus a semantic check of every link int
 | 5.9 | Mermaid labels contained `;` and `->`, which some renderers misparse | Normalized in 11 labels |
 
 **Result:** 0 broken references, 0 retired terms outside deliberate "deferred" contexts, consistent parameters (ACK 500 ms, start 30 s, routing 5 s after the last body frame, ≤ 8 wraps, ≤ 3 attempts, ±10 min freshness, 7-day outbox retention, `synchronous=FULL`, $5 default per-task cap, 90-day metadata retention).
+
+---
+
+## Traceability review (2026-10-01)
+
+Method: after `spec/CONTRACT.md`, `link.proto`, and the first components existed, every normative statement in plans 00–13, the CONTRACT (including §11–§13), and AGENTS was traced to an owner and a test (`docs/TRACEABILITY.md`). The trace found 12 contradictions between plan documents (C1–C12) and 18 conflicts between the CONTRACT and the plan (D1–D18). The integrator resolved all of them in CONTRACT §14 and ADR-35 to ADR-42; the plan text was then rewritten to match (this pass).
+
+| Group | What was stale | Resolution |
+|---|---|---|
+| Transport (C2, C7, C9, D3, D5, D6, D7, D8, D9) | WebSocket, "WSS", text/binary frames, the 23-byte header, `route_b64`, `wss://` dialed origin, `worker.offer.window`, 64 streams per connection | gRPC `NodeLink` (ADR-33); `https://host:port` dialed origin; route bytes raw in `SubmitOpen.route` / `Assign.route`; constant `kind_byte` 0x01 kept in the request AAD; ciphertext ≤ 64 KiB, gRPC message cap 128 KiB, 128 streams per connection; `window_open`; E17 injects into the Gateway's own `Submit` stream |
+| Durability and speed (C1, D18) | Fixed 10 ms group-commit window; persisted served-task set | Adaptive group commit (ADR-34); in-memory set with a boot-time floor (ADR-37); CONTRACT §13 budgets measured by E22 |
+| Money and errors (C3, C4) | Window close paused the pledge; `over_task_cap` / `quota_exceeded` mapping unclear | Window = eligibility only (ADR-41); 400 / 403, never 429 (ADR-42) |
+| Identity (D10, D11) | Pseudonym shared the `u_` prefix; case-sensitive repo uniqueness | `ps_` random pseudonyms (ADR-40); CONTRACT §11 uniqueness table, unique handles (ADR-35, E21) |
+| Client shape (D1, D2, D4, D13, C5, C8) | One crate; `ed25519-dalek`; `lp` widths implicit; OpenAI adapter in Phase 2; fresh Gateway port per start; inner payload field names | Three crates + `moochy-keylog` (ADR-36); `ed25519-zebra`; explicit widths; OpenAI in Phase 1; port persisted at first run; CONTRACT §4 payload, whole JSON zstd-compressed |
+| Relay and ops (C6, D15, D16) | `moochy-relay` binary; no metrics/config/autocert/read-only flags; Tessera | `relay`; optional `--config`, `--metrics-addr`, `--autocert-domain`, `--read-only`; `x/mod` tlog + note with own tiles (ADR-39) |
+| Web (C10, C11, C12, D17) | Tailwind; native model ids in the UI; mixed SSE cadences | Hand-written CSS within the CONTRACT §9 budgets; public slugs first; 250 ms coalescing for audit, pool, and station, goal ≤ 1/30 s, rankings ≤ 1/60 s |
+| Scope (D12, D14) | Failover, cancel, chaos, tamper/replay/injection, tool gating, throughput, budgets in later phases; key log deferred | E01–E22 due now ([11 §6](11-roadmap-and-testing.md)); key log in scope now, relay-asserted membership only under `MOOCHY_INSECURE_DEV=1` (ADR-38) |
+
+The same day the product owner also changed the source boundary (revised ADR-01, CONTRACT §0a): the client, `spec/proto`, vectors, the public protocol spec, and guides are Apache-2.0 with DCO (`moochy-cli`); the relay, web, e2e, and internal docs are proprietary (`moochy-core`); self-hosting the relay is not offered. The plan's trust argument no longer relies on self-hosting: everything that touches keys, code, and cryptography runs in the open client, and the relay only sees ciphertext plus routing and accounting metadata.
+
+**Result:** plans 00–13 rewritten in place with an "Updated 2026-10-01" banner each; no section renumbered; past review entries kept as history with "superseded by" notes.

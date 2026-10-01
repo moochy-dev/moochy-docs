@@ -2,11 +2,11 @@
 
 > **Moochy lets developers donate a capped slice of their own LLM API budget to open-source projects, and lets maintainers use it from any AI client or agent. The donor's key never leaves their machine, and every request is end-to-end encrypted and accountable.**
 >
-> **100% open source** (relay, client, spec, docs: Apache-2.0 OR MIT) · **100% free** (no fees, no commission, no paid tier; Moochy never holds anyone's money) · **works with anything** (any MCP client or agent, any tool with a base URL; Anthropic, OpenRouter, DeepSeek, OpenAI, and OpenAI-compatible donors).
+> **Open-source client (Apache-2.0) · 100% free** (no fees, no commission, no paid tier; Moochy never holds anyone's money) · **works with anything** (any MCP client or agent, any tool with a base URL; Anthropic, OpenRouter, DeepSeek, OpenAI, and OpenAI-compatible donors).
 
-> **Updated 2026-10-01:** the index and summary now match `spec/CONTRACT.md` and ADR-33 to ADR-42. Changes: gRPC streams replace the WebSocket link and binary frames (ADR-33); adaptive group commit and responsiveness budgets (ADR-34, CONTRACT §13); unique ASCII usernames with tombstones (ADR-35, CONTRACT §11); key log in scope now, not deferred (ADR-38, ADR-39); three Rust crates (ADR-36); the CONTRACT §8 E2E table (E01–E22) is the definition of "working".
+> **Updated 2026-10-01:** the index and summary now match `spec/CONTRACT.md`, revised ADR-01, and ADR-33 to ADR-42. Changes: open-source client (Apache-2.0, DCO) with a closed-source relay and web, no relay self-hosting (ADR-01, CONTRACT §0a); gRPC streams replace the WebSocket link and binary frames (ADR-33); adaptive group commit and responsiveness budgets (ADR-34, CONTRACT §13); unique ASCII usernames with tombstones (ADR-35, CONTRACT §11); key log in scope now, not deferred (ADR-38, ADR-39); three Rust crates (ADR-36); the CONTRACT §8 E2E table (E01–E22) is the definition of "working".
 
-Status: architecture plan; implementation is under way against `spec/CONTRACT.md` (normative for encodings and interfaces; it wins when it and this plan disagree) and `spec/proto/moochy/v1/link.proto`. Date: 2026-10-01. Input: `draft-spec.md`, which this plan **supersedes**. In particular, its "closed-source monorepo" section no longer applies: everything is open source. The draft is kept unchanged for reference.
+Status: architecture plan; implementation is under way against `spec/CONTRACT.md` (normative for encodings and interfaces; it wins when it and this plan disagree) and `spec/proto/moochy/v1/link.proto`. Date: 2026-10-01. Input: `draft-spec.md`, which this plan **supersedes**. Its split between a closed-source core and an open-source client is the design again (ADR-01): the client and protocol definition are open source, the relay and web are proprietary. The draft is kept unchanged for reference.
 
 ---
 
@@ -15,14 +15,16 @@ Status: architecture plan; implementation is under way against `spec/CONTRACT.md
 The draft had the right instincts: a Go + HTMX + SQLite monolith, a Rust client, one persistent connection per Node (a WebSocket in the draft; gRPC over HTTP/2 in this plan, ADR-33), a fast in-memory router, signed results, and a public audit page. Taking it to production-grade depth, and through three independent adversarial reviews, changed the design in seven ways:
 
 1. **What is donated is money, not tokens.** Budgets are integer micro-dollars (µ$), because a token of one model can cost 200× a token of another.
-2. **The relay is blind, and cannot cheat with keys.** Requests are sealed end-to-end to donor devices with a fresh key per body and a Worker-salted key per attempt. Every task is signed by the maintainer's device. The relay is open source, but nobody can verify what a server runs, so confidentiality is enforced cryptographically by the client.
+2. **The relay is blind, and cannot cheat with keys.** Requests are sealed end-to-end to donor devices with a fresh key per body and a Worker-salted key per attempt. Every task is signed by the maintainer's device. The relay is closed source, and nobody could verify what a server runs anyway, so confidentiality is enforced cryptographically by the open-source client that users can read and verify.
 3. **Two universal doors.** An MCP server (stdio + Streamable HTTP) for every MCP client and agent, and a local Anthropic/OpenAI-compatible API so donated compute can be any tool's *primary* model. OpenRouter and DeepSeek serve both API shapes, so even Anthropic-format clients like Claude Code can run on them.
 4. **Routing optimizes the money, not microseconds.** Session affinity keeps agent sessions on one donor key so provider prompt caches hit (input up to ~10× cheaper). The scheduler is a single-owner actor: correct by construction and replayable in tests.
 5. **Approvals and accountability are signed, not asserted.** Repo owners sign donor approvals and memberships into a public key log that every Node mirrors. Workers sign every streamed tool call and every receipt. Maintainers sign disputes. This addresses the biggest real risk, which the draft missed: **a malicious donor feeding poisoned tool calls to a maintainer's agent**.
 6. **Donor safety is layered.** A strict recursive allowlist firewall (modern provider APIs can execute code, read account files, and bill add-ons) plus caps enforced in three independent places, the strongest being the provider's own spend limit.
 7. **Build a vertical slice first, then thicken it.** A real Claude Code and OpenCode session running on real donor keys through every component by the end of Phase 1. About 6 months to public beta with 2 engineers.
 
-Decisions taken after the review passes, while the implementation contract was written (ADR-33 to ADR-42, [12](12-decisions-and-open-questions.md)):
+Decisions taken after the review passes, while the implementation contract was written (ADR-01 revised, ADR-33 to ADR-42, [12](12-decisions-and-open-questions.md)):
+
+- **Open-source client, closed-source core.** The `moochy` client, `spec/proto`, `spec/vectors`, the public protocol spec, and user guides are Apache-2.0 (DCO sign-off), published as `moochy-cli`. The relay and web are proprietary (`moochy-core`). Everything that touches keys, code, and cryptography runs in the open client, so nobody has to trust the closed relay: it only ever sees ciphertext plus the route header and accounting metadata. Self-hosting the relay is not offered.
 
 - **gRPC for every machine-to-machine link.** Node ↔ Relay is the `moochy.v1.NodeLink` service over HTTP/2 + TLS 1.3: one long-lived `Session` stream per connection, one `Submit` stream per task, one `Serve` stream per attempt. Cancellation, deadlines, and per-task flow control come from HTTP/2. The CLI and MCP shim reach the running Node through `LocalControl`, and operators reach the Relay through `RelayAdmin`, both over 0600 Unix sockets. Signed artifacts stay exact JSON bytes inside protobuf `bytes`.
 - **Responsiveness has numbers.** CONTRACT §13 budgets are release blockers, measured by E22. The ledger writer uses **adaptive group commit**: it commits at once when idle and batches only while a commit is in flight.
@@ -64,7 +66,7 @@ Decisions taken after the review passes, while the implementation contract was w
 | # | Document | Read it for |
 |---|---|---|
 | 01 | [Vision, scope, and draft review](01-vision-scope-and-draft-review.md) | Principles, invariants, metrics, verdict on every draft item |
-| 02 | [Architecture overview](02-architecture-overview.md) | Components, trust boundaries, main flows, stack, monorepo (three Rust crates + key log), latency budget, scale envelope |
+| 02 | [Architecture overview](02-architecture-overview.md) | Components, trust boundaries, main flows, stack, repositories (open `moochy-cli`, closed `moochy-core`; three Rust crates + key log), latency budget, scale envelope |
 | 03 | [Wire protocol](03-wire-protocol.md) | gRPC `NodeLink` (ADR-33), handshake with channel binding, messages, envelopes, task authenticity, failover, receipts, disputes, vectors |
 | 04 | [Routing engine](04-routing-engine.md) | Scheduler actor, backpressure, eligibility, affinity, P2C, commit-before-assign with adaptive group commit, deadlines, fairness |
 | 05 | [Ledger and accounting](05-ledger-and-accounting.md) | µ$, model ids and catalog, cost function, per-attempt reservations, caps, durability, reconciliation |
@@ -89,7 +91,7 @@ Decisions taken after the review passes, while the implementation contract was w
 | **NodeLink** | The gRPC service between Node and Relay (`spec/proto/moochy/v1/link.proto`): `Session`, `Submit`, `Serve`, `DeviceStart`, `DevicePoll` |
 | **Gateway** | Node role that consumes pooled compute; serves the MCP door and the API door on loopback |
 | **Worker** | Node role that serves tasks with the donor's provider key |
-| **Relay** | The open-source Go server that routes sealed tasks, keeps the ledger, runs the key log and the web app; anyone can self-host it |
+| **Relay** | The closed-source Go server (operated by Moochy) that routes sealed tasks, keeps the ledger, runs the key log and the web app; it only sees ciphertext plus routing and accounting metadata |
 | **Door** | A consumer entry point: the **MCP door** (stdio / Streamable HTTP) or the **API door** (Anthropic / OpenAI-compatible HTTP) |
 | **Dialect** | The API shape of a request: `anthropic.messages` or `openai.chat` |
 | **Model id** | Public OpenRouter-style slug (`vendor/model`); native ids are accepted and mapped |
