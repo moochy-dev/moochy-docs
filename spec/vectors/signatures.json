@@ -1,12 +1,5 @@
 {
-  "_schema": "Ed25519 (RFC 8032 signing, ZIP-215 verification). signer.seed → signer.public. cases[]: msg = the exact lp(...) byte string named by `name` (inputs listed), sig over msg; flipping the last byte of msg MUST fail. owner_key (PENDING, CONTRACT §15.4): msg = lp('moochy/v1/owner-key', pseudonym, owner_public, signer_device, u64(issued_at_ms)); owner_pop = Ed25519(owner key, msg), device_sig = Ed25519(device key of the same user, msg); approval: owner-key signature over lp('moochy/v1/keylog-sig', u32(kind), body), kinds 3-7. receipt/projection: *_text = exact signed JSON bytes, signature over lp(label, bytes); a receipt signature MUST NOT verify as a projection. headers_sha256 = SHA-256(headers_lp) where headers_lp = lp(name1, value1, name2, value2, …) over lowercase names sorted ascending by bytes (inputs.headers_lp pins the exact bytes); checkpoint_fields pins every field and width of the progress-signature message (u64 attempt, u64 seq); commitments: req_commit = SHA-256(lp('moochy/v1/req-commit', S_req, body)); resp_commit = SHA-256(lp('moochy/v1/resp-commit', S_resp, SHA-256(response plaintext))); provider_req_hash = SHA-256(lp('moochy/v1/provider-req', S_pid, request_id)).",
-  "approval": {
-    "body": "646f6e6f722d617070726f7665642d626f6479",
-    "kind": 4,
-    "msg": "000000146d6f6f6368792f76312f6b65796c6f672d736967000000040000000400000013646f6e6f722d617070726f7665642d626f6479",
-    "rule": "owner key signs lp('moochy/v1/keylog-sig', u32(kind), body) for kinds 3-7 only (spec/KEYLOG.md §2); same message as today, the signer becomes the owner key (PENDING)",
-    "sig": "53b8dd192a3b8dbd1e26ad6add0ca6bc217fb4dad3b0c9f6db43440cf45206a667b009e08b2b972c05f4d1f3bbb27258bb0eb0ce7c64005b4f56109f9f6b490e"
-  },
+  "_schema": "Ed25519 (RFC 8032 signing, ZIP-215 verification). signer.seed → signer.public. cases[]: msg = the exact lp(...) byte string named by `name` (inputs listed), sig over msg; flipping the last byte of msg MUST fail. receipt/projection: *_text = exact signed JSON bytes, signature over lp(label, bytes); a receipt signature MUST NOT verify as a projection. headers_sha256 = SHA-256(headers_lp) where headers_lp = lp(name1, value1, name2, value2, …) over lowercase names sorted ascending by bytes (inputs.headers_lp pins the exact bytes); checkpoint_fields pins every field and width of the progress-signature message (u64 attempt, u64 seq); commitments: req_commit = SHA-256(lp('moochy/v1/req-commit', S_req, body)); resp_commit = SHA-256(lp('moochy/v1/resp-commit', S_resp, SHA-256(response plaintext))); provider_req_hash = SHA-256(lp('moochy/v1/provider-req', S_pid, request_id)).",
   "cases": [
     {
       "msg": "0000000e6d6f6f6368792f76312f61757468000000209fba723fd3237832eef32b4124e8404e281e376f15b07480c7d9cc6bc0a4f03c0000001c68747470733a2f2f72656c61792e6d6f6f6368792e6465763a34343300000020d68f537b1a3df50b4f5077a188910234df533bc1d4a52f3cfaa99eada3374d9e0000001c645f30314b3641303030303030303030303030303030303030305731",
@@ -106,19 +99,6 @@
     "suite_text": "moochy.v1.hpke.x25519-sha256-chacha20poly1305",
     "task": "01K6A0000000000000000000T1",
     "tls_exporter": "d68f537b1a3df50b4f5077a188910234df533bc1d4a52f3cfaa99eada3374d9e"
-  },
-  "owner_key": {
-    "device_public": "1c83accc87059df11c1b8e3a7f63538eba6658cd8283172a649ad9eb39a28171",
-    "device_seed": "5c39cfc8e45370a48254ac73e8212a621f09499a26ca2d49d2aa0d7088ed68fb",
-    "device_sig": "d954f75badf2bb4360af0f8fce49604b5cee8906795ff4c59e9f1774b7ef3a381fa91345fad55d7b0c8d678a16e860fc0874e0a75a601f31c59ed12d2d026101",
-    "issued_at_ms": 1790000000000,
-    "msg": "000000136d6f6f6368792f76312f6f776e65722d6b65790000001370735f4b3751324d39584452423454574e384500000020b6cfd87bf55197e78da3733610f59eae87d884b9b8f0da06302f000c1687c34c0000001c645f30314b364130303030303030303030303030303030303030573100000008000001a0c4506c00",
-    "owner_pop": "4e01532489350b3f9ca4a91d9a211eac7a477914bba4e58be2ceb892e0775542fe5d2f28cad47312bab009952a023293736dc101ad16aa32bd8b22d38b24ad0d",
-    "owner_public": "b6cfd87bf55197e78da3733610f59eae87d884b9b8f0da06302f000c1687c34c",
-    "owner_seed": "f7cf77f9a55cddba17222474d9088a939f3c10f68c6a9e696096d7005868ef60",
-    "pseudonym_text": "ps_K7Q2M9XDRB4TWN8E",
-    "signer_device": "d_01K6A0000000000000000000W1",
-    "status": "PENDING: format proposed by mo-proto for CONTRACT §15.4; spec/KEYLOG.md does not define the owner-key entry yet"
   },
   "projection": {
     "msg": "000000146d6f6f6368792f76312f70726f6a656374696f6e000000ff7b2276223a312c22726563656970745f726566223a22574a73505352716d45547a4534556d38674f6c6f4477222c227265706f5f6964223a22725f30314b3641303030303030303030303030303030303030305231222c22646f6e6f72223a2270735f4b3751324d39584452423454574e3845222c226d6f64656c223a22616e7468726f7069632f636c617564652d736f6e6e65742d352e35222c22636f73745f75757364223a33343230302c22646179223a22323032362d30392d3231222c22726563656970745f736861323536223a22737432435a596572653771776a61644330304b5a5262694a574231566c47787a4d376276774a65584a3577227d",
