@@ -10,7 +10,7 @@ Owner: `mo-sec`. The running list of attacks on Moochy with the countermeasure t
 
 This document, `hardening-*.md` and `e2e/attacks/` are **internal** (closed side of §0a). Public security material for the client (a `SECURITY.md` disclosure policy, threat-model summary) belongs to the open side and must not copy closed internals.
 
-As of the 2026-10-01 round 2 run against `main` binaries (relay + `moochy`, built from source): **33 attack tests pass, 0 fail, 12 skip**. A35 and A46 (last round's product failures) now pass. Skips: A33 (stateless MCP, no session to hijack), A136–A139 (key-log, need a relay chaos hook), A56b (donate-button route not yet on main), A150–A155 (sandbox: `moochy run` and `cli/crates/sandbox` not yet on main). Statuses change only on a test result.
+As of the 2026-10-01 source-code audit round (two parallel auditors over the Rust client and Go relay): **3 confirmed vulnerabilities** — A180 (Critical, relay repo takeover), A173 (High, node gate bypass), A175 (node `--ca-file` MITM gate) — plus A174 (High, worker_approved fail-open) and 10 lower findings (§14b). Reproducers that can run FAIL until fixed (A173, A175 fail now; A180 skips pending harness tooling). Black-box attack suite otherwise: 34 pass, 16 skip (prior rounds). Statuses change only on a test result.
 
 ## 1. Cryptography and protocol (A01–A09)
 
@@ -264,20 +264,43 @@ Raw-frame DoS against the relay's gRPC (`--grpc-addr`) HTTP/2 listener, driven b
 | A134 | Misleading public wording ("100% open source", "self-host the relay", "audit the relay") creates trust users cannot exercise | docs, web | — | Users rely on audits that cannot happen | Wording fixed to "Open-source client (Apache-2.0) · 100% free"; CI grep on public pages and `docs/guides` for "100% open source" / "self-host"; the trust story says: verify the client, the relay only sees ciphertext | int, web, docs | M | **gap** (README table still says "self-hostable relay") |
 | A135 | Phishing build or config points users at an attacker relay (the relay URL is configurable for dev/tests) | node | A3, A5 | Ciphertext + metadata to an attacker; device-code phishing via a look-alike relay | Release builds default to the official relay; a non-default `--relay` needs `MOOCHY_INSECURE_DEV=1` (same gate as `--base-url`), prints a persistent warning, and keeps a **separate** key-log mirror and keystore per relay origin (the auth signature already binds `dialed_origin`, A08) | node | A135 | **implemented** (A135 passes: a Node pointed at a hostile relay fails closed within a bound, no panic; evil relay in e2e/attacks/evil) |
 
+## 14b. Source-code audit, 2026-10-01 (A170–A189)
+
+Read-the-code review of the Rust client (`cli/crates/node`, `proto`, `worker`) and the Go relay (`relay/internal/**`), two parallel auditors. Each finding is verified by reading the code; reproducers that can run FAIL until the owner fixes them (never skipped to hide a vuln). Owner = the component owner who must fix it.
+
+| ID | Sev | Finding | File:line | Owner | Verif. | Status |
+|---|---|---|---|---|---|---|
+| A180 | **Critical** | Repo takeover via a self-signed `REPO_CLAIMED`: a registered user claims another's repo over gRPC, wiping approvals/membership, then approves donors and spends their compute. `logEntry` appends any owner-signed kind-3..7 with no claim-verification gate; `logEffect` sets `ClaimedBy` without `ClaimVerifiedBy` (skips the provider admin check, 06 §5) | `relay/internal/edge/keylog.go:93`, `relay/internal/sched/keylog.go:226`, `tlog/state.go:104` | mo-relay | A180 (skip: needs PoP + claim encoder) | **VULN** |
+| A173 | High | Tool-call gate bypass via an unterminated SSE tail: `gate.rs finish()` forwards the trailing buffer the parser never split, so a lone-CR tool-call tail (SDKs treat CR as a line end) smuggles a `tool_use` past name/schema/tripwire/checkpoint. Works for both dialects; a malicious provider behind an honest worker triggers it too | `cli/crates/node/src/gate.rs:228` | mo-node | A173 (fails) | **VULN** |
+| A174 | High | `worker_approved` fails open and is checked once: `None => true` (no log key, or pinned but no verified checkpoint) is not gated on `insecure_dev`, and approval is re-checked only in `apply_pool_sync` (not at seal time in `pick`/`NeedWraps`), so a startup race keeps unapproved workers and a later `DONOR_REVOKED` never drops one | `cli/crates/node/src/node.rs:270,296`, `task.rs:159,402` | mo-node | A164 (evil relay) | **VULN** (overlaps A164) |
+| A181 | Medium | Donor undoes an operator pledge freeze: freeze reuses the "paused" status that a donor may `resume` | `relay/internal/sched/keylog.go:166`, `webview.go:154` | mo-relay | pending `--admin-socket` repro | gap |
+| A182 | Medium | MCP `moochy_delegate` error path shows raw, unframed donor text (ESC/OSC/BEL/bidi, `moochy:` prefix spoofing): stream `error.message` copied as-is, no `sanitize_text`, no untrusted frame | `cli/crates/node/src/mcp.rs:327,391,399` | mo-node | pending fake `#sseerror` | gap |
+| A183 | Medium | Owner approvals signed by the background process with no human confirmation: any same-uid (prompt-injected) process can `approve --yes`; empty `subject_pseudonym` skips the subject check | `cli/crates/node/src/approve.rs:78,114` | mo-node | E41–E44 | gap (§15.4 "approvals need the human") |
+| A184 | Medium | Checkpoint/receipt `sign_pub` taken from PoolSync even when the log is active (`worker_approved` compares only `enc_pub`): a relay-advertised throwaway key lets a donor repudiate `moochy report` evidence | `cli/crates/node/src/node.rs:295` | mo-node | evil relay | gap (accountability) |
+| A185 | Medium | Device-login rate limit bypass + unbounded pending codes: per-exact-IP bucket (no IPv6 /64), full flush at 100k, no global cap on device codes | `relay/internal/edge/conn.go:47`, `sched/admin.go:237` | mo-relay | U:relay | gap |
+| A186 | Low-Med | Failed Session logins retried without limit on one open connection (slot freed, connection kept) | `relay/internal/edge/link.go:159` | mo-relay | gRPC repro | gap |
+| A187 | Low-Med | `X-Forwarded-For` uses the client-controlled leftmost entry with `--trusted-proxy`, bypassing per-IP limits | `relay/cmd/relay/main.go:523` | mo-relay | HTTP repro | gap |
+| A175 | Low-Med | `--ca-file` accepted for the default relay without `MOOCHY_INSECURE_DEV` (proceeds to dial): a network MITM + pinned CA defeats the A135 keystore separation | `cli/crates/node/src/cli.rs:160` | mo-node | A175 (fails) | **VULN** |
+| A188 | Low | One receipt's cost not bounded by its reservation (only OpenRouter capped; output not bounded by route `max_tokens`); unchecked spend adds in `sched/money.go` | `relay/internal/ledger/ledger.go:270` | mo-relay, mo-proto | U:relay | gap |
+| A189 | Low | Untrusted-content frame closable/spoofable: only exact-case `</untrusted-content>` replaced; donor text can copy `[moochy]`/tripwire trailers; relay `donor_pseudonym` only `clean()`ed | `cli/crates/node/src/mcp.rs:341,348` | mo-node | fake `#echo` repro | gap |
+| A190 | Low | Dispute spam (no in-memory pre-check, ~2000/s/session); conflicting receipt not device-frozen; secrets left in freed memory (non-zeroized `String::from_utf8`, inherited `MOOCHY_PASSPHRASE` in `git` children) | `relay/internal/sched/core.go:795`, `edge/link.go:323`, `cli/crates/node/src/cli.rs:599` | mo-relay, mo-node | U | gap |
+
+**Sound (audited, no finding):** gateway token (HMAC + `subtle` constant-time, 512 B cap, no lookup table); Host/Origin exact-match fail-closed, no CORS; loopback body/header limits + timeouts; keystore 0600 at create, XChaCha20-Poly1305 fresh nonce, scrypt N=2¹⁵, ZeroizeOnDrop; config `deny_unknown_fields`, strict relay/base-URL parsing; LocalControl socket 0600 + peer-uid; worker firewall closed recursive objects (`Any` only for opaque tool schemas); strict JSON (duplicate keys after unescape, depth 64, i64/f64); crypto per-attempt RK/nonce, verify-before-parse on receipts/checkpoints, ZIP-215; relay money on the scheduler goroutine, overflow-checked, commit-before-assign; all SQL parameterized; relay CSRF on every web/OAuth POST; no content/secrets/codes in logs.
+
 ## 15. Top gaps (ranked)
 
 | Rank | ID | Gap | Owner | Severity |
 |---|---|---|---|---|
-| 1 | A156 | io_uring must be an explicit seccomp deny (ring ops bypass a syscall-name denylist); the sandbox is building now | sandbox | High |
-| 2 | A141 | MadeYouReset (CVE-2025-8671): count server-initiated resets, not only client RST | relay | High |
-| 3 | A39 | Donor-controlled strings reach the agent's context (model enum, pseudonyms, NACK details) | node, relay | High |
-| 4 | A77 | Provider terms on key sharing and resale: unresolved, possibly existential | int | High |
-| 5 | A136 | Forged `DONOR_APPROVED` must be refused by the Gateway (crux of the open-client trust story); needs a relay chaos hook | node, keylog, relay | High |
-| 6 | A145 | Strict SSE parser (CR-only, field injection, oversized lines) fail-closed in the worker | worker | Medium |
-| 7 | A41 | realpath→open race in MCP `files` (symlinks refused today; the race itself not exercised) | node | Medium |
-| 8 | A100 / A101 | Peer-uid check on `RelayAdmin`/`LocalControl` (perms pass; uid check unproven) | relay, node | Medium |
-| 9 | A131 / A132 | Open/closed boundary CI and allowlist export | int | Medium |
-| 10 | A80 / A81 / A87 | No CI yet: cargo-deny/vet, govulncheck, `--locked` | int | Medium |
+| 1 | A180 | **VULN** Repo takeover via self-signed `REPO_CLAIMED` (gate on `ClaimVerifiedBy`) | mo-relay | Critical |
+| 2 | A173 | **VULN** Tool-call gate bypass via an unterminated lone-CR SSE tail | mo-node | High |
+| 3 | A174 | **VULN** `worker_approved` fails open / checked only at pool-sync (seal-time + fail-closed) | mo-node | High |
+| 4 | A175 | **VULN** `--ca-file` accepted on the default relay without `MOOCHY_INSECURE_DEV` | mo-node | Med |
+| 5 | A136 | Forged `DONOR_APPROVED` refused by the Gateway (needs a relay chaos hook) | node, keylog, relay | High |
+| 6 | A77 | Provider terms on key sharing/resale: unresolved | int | High |
+| 7 | A182 / A189 | MCP error text + untrusted-frame: sanitize/frame donor-controlled strings | mo-node | Med |
+| 8 | A183 | Owner approvals need a human confirmation + separate owner key | mo-node | Med |
+| 9 | A188 | Bound a receipt's cost by its reservation + output by route `max_tokens` | mo-relay, mo-proto | Med |
+| 10 | A185 / A187 | Device-code rate limits (IPv6 /64, global cap) and XFF rightmost | mo-relay | Med |
 
 Also open: A135 (non-default relay gate), A21 (zstd window/FCS decoder config), A19 (gRPC reflection off), A121 (`TCP_NODELAY` tiny-packet rate limit), A113 (confusable repo slugs).
 
