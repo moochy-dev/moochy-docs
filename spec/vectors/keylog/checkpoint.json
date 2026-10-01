@@ -1,30 +1,30 @@
 {
   "description": "Signed-note checkpoints. 'valid' verify with vkey+origin; 'invalid' must be refused. 'fork' is validly signed but inconsistent with tree.json.",
   "fork": {
-    "note": "keylog.test/v1\n23\n/5d63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29G1KmTqtQVNL1HSnfEMakOPmimNNF+mKjHH2yPMeONGbMyHMVOHTdxVXcLE7ujVBe/F1P6gRR+OW3rNI5I37gQ8=\n",
+    "note": "keylog.test/v1\n23\npFoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29ClAckY2zPI8QuW1l2+blw7qR7GxC9nZkFTHuJHxinQ5Ug3Cp0KlgLdqccvcXmIlFkjFyC0DOA1RXYaVvwn4XQ0=\n",
     "size": 23
   },
   "invalid": {
-    "control character": "keylog.test/v1\u0001\n5\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29AtryqazZJGyYOsnOeycdjQFfCc7RJdM3WSGkbHWwFyaOvE2dLHxrLhHRRbU0c70ioSPPtOCZ1uu3NxsT2JIrwY=\n",
-    "extension line": "keylog.test/v1\n5\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\next\n\n— keylog.test/v1 okc29Nl86fN4SsqZZ7aPHV/RQNH8OUJiE2G004SKqSw5RGMeWPwsNNu0DFVoAn6aJEIENbcZ4By6f0Qm8np24o1PZwg=\n",
-    "leading zero size": "keylog.test/v1\n05\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29JnwcEXpz9Z+4pDtBhEJ6ApC8T/7gpgmvTiisOnvHLP5OrpfQXl+PgfiHF08EzNAEtInmqAXwRzBuKy14nGkqA8=\n",
-    "no signature": "keylog.test/v1\n5\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n",
-    "other key only": "keylog.test/v1\n5\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 pfuISv989mkyAV8jbfxgadyjLsldC/3AKX34hHMF1klslfknjNvT4xBpuffazH5R8sgP285PqZURnHEBtb3X1eXLtwU=\n",
-    "short root": "keylog.test/v1\n5\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXA==\n\n— keylog.test/v1 okc29OH0fo3bll5XhK3tr1oRXabvl2AHbxxRZ6c5AWXDJ+WxVtH/sTzzPR8BEGONmlNawlRg2nBRvnb6f6qBfW1vkgA=\n",
-    "tampered signature": "keylog.test/v1\n23\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29A/SlUUmhetReaiA18UVEK0Oz06hPJ81dLe+iC1e8jGGXlBFermrO4FzBxLjtxSu1XOmkXAVTXitlcMU2sv32A0=\n",
-    "tampered text": "keylog.test/v1\n24\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29A/SlUUmhetReaip18UVEK0Oz06hPJ81dLe+iC1e8jGGXlBFermrO4FzBxLjtxSu1XOmkXAVTXitlcMU2sv32A0=\n",
-    "wrong origin": "other.origin\n5\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29M/cDvTy8AWDuoHL3C3RKmj6S0EuxJ+93warGNv2fTB3Uuxc96hXceFBBVmT5+xxESfgASeHudlu2NKZ5S2xggc=\n"
+    "control character": "keylog.test/v1\u0001\n5\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29Pk39KpD/6yjp6+dtdx5TqnXn0jq2N4CXxe7tHpaNh+qIkzUJ3t/3UiQ7FrgLZsQzUYGmg2CtSzRUcWrmNmKfQ8=\n",
+    "extension line": "keylog.test/v1\n5\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\next\n\n— keylog.test/v1 okc29JjIh3P8ck2V633QGe7JYkOd4bap4uJ5T56dc6mg28Jr3jIWcMHcbRZwqUpoUVvk76wabzAmqmjqt36bTbSvjAI=\n",
+    "leading zero size": "keylog.test/v1\n05\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29D/dL4GwN/Lb7u64AmG0rE34KvS2mXGtxQ3jq0KxQFEa52VcIpEm78WVcGKVx4f6BEBnXE7jOboGyz1SW7Y+tg8=\n",
+    "no signature": "keylog.test/v1\n5\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n",
+    "other key only": "keylog.test/v1\n5\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 pfuISk+Zs3t+ilkFj2PMhnhZwPwvz6/yvqOdac68SWo1sS+7C2XqAINzznWujUMOfaP/k/r5EjsgwcQM/ZtFzTmsBwA=\n",
+    "short root": "keylog.test/v1\n5\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208A==\n\n— keylog.test/v1 okc29GfPHDRqdSarsQ7skh+UlIRi90K0nheiS5nVaJi+jW9CQfRHn83pSIZ9jjbhN7P6eQWyssT0/3uHgKaqfjDB6g8=\n",
+    "tampered signature": "keylog.test/v1\n23\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29DYAUHV86mQ6w5uA+QuK4vxYlgXyx9xR8lKlbgMp9VKby5E8D4zNSN30CVyAnKbb6mAtAdeYVylKSqnzHuzoHQg=\n",
+    "tampered text": "keylog.test/v1\n24\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29DYAUHV86mQ6w5up+QuK4vxYlgXyx9xR8lKlbgMp9VKby5E8D4zNSN30CVyAnKbb6mAtAdeYVylKSqnzHuzoHQg=\n",
+    "wrong origin": "other.origin\n5\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29CRbFn3EN17U7c5ySTv3zk0FtIXYLx04OBQ5meCxM+hXfF+9xS3jEM2QpIrJudhjcm1kcmdj0M3Jm6acDJIHYg4=\n"
   },
   "origin": "keylog.test/v1",
   "valid": [
     {
-      "note": "keylog.test/v1\n23\n/pd63fWzwQVKG0N4QzL9TyFGo1UcPkMGcLajeicNXIM=\n\n— keylog.test/v1 okc29A/SlUUmhetReaip18UVEK0Oz06hPJ81dLe+iC1e8jGGXlBFermrO4FzBxLjtxSu1XOmkXAVTXitlcMU2sv32A0=\n",
-      "root_hex": "fe977addf5b3c1054a1b43784332fd4f2146a3551c3e430670b6a37a270d5c83",
+      "note": "keylog.test/v1\n23\npVoNL2xQJ6mH54chJEunQ7N4dDTPMPz2tcfYWu208Hc=\n\n— keylog.test/v1 okc29DYAUHV86mQ6w5up+QuK4vxYlgXyx9xR8lKlbgMp9VKby5E8D4zNSN30CVyAnKbb6mAtAdeYVylKSqnzHuzoHQg=\n",
+      "root_hex": "a55a0d2f6c5027a987e78721244ba743b3787434cf30fcf6b5c7d85aedb4f077",
       "size": 23
     },
     {
-      "note": "keylog.test/v1\n300\nkcy6Aznn6fjG8LzhazhFzYfMuisI0BJtHBLltdDqp1U=\n\n— keylog.test/v1 pfuISk0VnIj4PW2Xl9DPkC5TBtrPZsXhwpjEHCk1YAJMbLkM48UlqFYkW3kxaTkCwqL6bedljLo2SuuhNwmo8VYJqQ8=\n— keylog.test/v1 okc29EmiwJwRWM4h35md8bAV6lKPv5jR7NXrEtjCbPgjjlHcOvOCEmXRIBnHED8Y2WH+Mkke2mOrfN9NlNCG5VailAQ=\n",
-      "root_hex": "91ccba0339e7e9f8c6f0bce16b3845cd87ccba2b08d0126d1c12e5b5d0eaa755",
+      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 pfuISnto+4M3xaKj/YLUIjOJvQ4DEiioRJ1hABXZOn6qkCUyxGd47LsKZ3kegt21gk9Nzz4hy2MC0bj8SK4hO3jWagk=\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n",
+      "root_hex": "7ca1d756779128d8255aa11c2036980db3f7dcaa20863f5ac610ac41fec1afe8",
       "size": 300
     }
   ],

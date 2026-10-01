@@ -1,0 +1,31 @@
+{
+  "cases": [
+    {
+      "name": "two cosignatures",
+      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n— witness.test/w1 H7q6VQAAAABqsTuAw1AkpdJPf1DJiNIPUJjICnCV4BJ9IW9sB9Zc1toeaw0tfz8evQaZJzLI9uOYFb0hsbWWaGya0n3Gfi1NihhBDA==\n— witness.test/w2 UP8p5AAAAABqsTuFQvGL1+1bUU/uxPP4UmYsNIsPA3Gf9JUWjTiKp/rtgK41/7KteX8Vgwr0zfJ/ctD6ZYxSqVBsbaVqXxiqrZqfBA==\n",
+      "timestamps": [
+        1790000000,
+        1790000005
+      ],
+      "valid": 2
+    },
+    {
+      "name": "log signature only",
+      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n",
+      "valid": 0
+    },
+    {
+      "name": "cosignature over other text",
+      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n— witness.test/w1 H7q6VQAAAABqsTuA8FVu9YikeqrxXdZHNQgG20aG0ymj6q1aqepLPjasx6mHPdZruhGtE/NYezoi1dHvnrAzpMIJ5wB1x8pbGsFTDg==\n",
+      "valid": 0
+    }
+  ],
+  "description": "Witness cosignatures (C2SP tlog-cosignature, cosignature/v1, key id alg 0x04, base64(id || u64 ts || sig)). 'witnesses' are the pinned cosigner vkeys; 'cases' give the number of valid cosignatures from pinned witnesses.",
+  "log_vkey": "keylog.test/v1+a24736f4+AZuq3jb7GZg1ot04IffxLJxguiUlkdbKlLt69yZCYEUu",
+  "origin": "keylog.test/v1",
+  "witnesses": [
+    "witness.test/w1+1fbaba55+BIqI4910CfGV/VLbLTy6XXLKZwm/HZQSG/N0iAG0D29c",
+    "witness.test/w2+50ff29e4+BIE5dw6ofRdfVqNUZsNMfszLjYqRtO43ol32D1uPybOU",
+    "witness.test/w3+53839b29+BO1JKMYo0cLG6ukDOJBZlWEpWSc6XGP5NjbBRhSshzfR"
+  ]
+}

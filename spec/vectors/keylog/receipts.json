@@ -1,0 +1,65 @@
+{
+  "checkpoint": "keylog.test/receipts\n5\nj2WIVg6Dsy8vJ61WrgYyjjB7DvixaD/kGHleNmgZP8M=\n\n— keylog.test/receipts lbTY5K9hxeUiI7+ab394KB0G2Pq3gw1opGRprN7YXCx0/yqrQWfqx3N7nOjER8gO3EAnPbtrR8c/9RWC0vFwKlwdtwk=\n",
+  "description": "Receipt transparency log: leaf record = lp(\"moochy/v1/receipt-log\", sha256(receipt bytes)). A donor proves inclusion of a receipt it holds with an inclusion proof against a signed checkpoint of origin 'origin'.",
+  "inclusion": [
+    {
+      "index": 0,
+      "size": 5,
+      "proof": [
+        "041f42b5adab7caf05c2ef2bb3edf2502e321b52170824d65626fbd2c4188d20",
+        "a99967cfad5290da42d6263998b34ecac3d22c92d7196986156921e7a4b23e6a",
+        "a98d8d2708b834623084e19fa5a169a32c43432aac5329d0a2f8d995a6b8781b"
+      ]
+    },
+    {
+      "index": 1,
+      "size": 5,
+      "proof": [
+        "45aadc32ec6371f3a977e2a8c56169925590882789f6c13bc87922a6ca2e09f6",
+        "a99967cfad5290da42d6263998b34ecac3d22c92d7196986156921e7a4b23e6a",
+        "a98d8d2708b834623084e19fa5a169a32c43432aac5329d0a2f8d995a6b8781b"
+      ]
+    },
+    {
+      "index": 2,
+      "size": 5,
+      "proof": [
+        "8fdcb31c3e738d76080283368226dea394ead258b65533f4f35725e2fddb5e28",
+        "2f0eaa379ac2b322d72b98c6670fb0fb7f5e1184d238194dd8c1673f189495b5",
+        "a98d8d2708b834623084e19fa5a169a32c43432aac5329d0a2f8d995a6b8781b"
+      ]
+    },
+    {
+      "index": 3,
+      "size": 5,
+      "proof": [
+        "798a98e5d857ed627980e78c77bf1641f4b2f8086ab5b641c1758c845e510bc9",
+        "2f0eaa379ac2b322d72b98c6670fb0fb7f5e1184d238194dd8c1673f189495b5",
+        "a98d8d2708b834623084e19fa5a169a32c43432aac5329d0a2f8d995a6b8781b"
+      ]
+    },
+    {
+      "index": 4,
+      "size": 5,
+      "proof": [
+        "4d9e5a71fc1fe37944954c53f0b881624bb7a67ab28edb164a5f6f6903d9b69d"
+      ]
+    }
+  ],
+  "leaf_hashes": [
+    "45aadc32ec6371f3a977e2a8c56169925590882789f6c13bc87922a6ca2e09f6",
+    "041f42b5adab7caf05c2ef2bb3edf2502e321b52170824d65626fbd2c4188d20",
+    "798a98e5d857ed627980e78c77bf1641f4b2f8086ab5b641c1758c845e510bc9",
+    "8fdcb31c3e738d76080283368226dea394ead258b65533f4f35725e2fddb5e28",
+    "a98d8d2708b834623084e19fa5a169a32c43432aac5329d0a2f8d995a6b8781b"
+  ],
+  "origin": "keylog.test/receipts",
+  "receipts_hex": [
+    "7b2276223a312c227461736b223a223031485a58303030303030303030303030303030303030303030222c22617474656d7074223a317d",
+    "7b2276223a312c227461736b223a223031485a58303030303030303030303030303030303030303031222c22617474656d7074223a317d",
+    "7b2276223a312c227461736b223a223031485a58303030303030303030303030303030303030303032222c22617474656d7074223a317d",
+    "7b2276223a312c227461736b223a223031485a58303030303030303030303030303030303030303033222c22617474656d7074223a317d",
+    "7b2276223a312c227461736b223a223031485a58303030303030303030303030303030303030303034222c22617474656d7074223a317d"
+  ],
+  "vkey": "keylog.test/receipts+95b4d8e4+ASfug4HloqEDA3ItIaojTlwxjg4KoPoxfNBcwbCVK3EN"
+}
