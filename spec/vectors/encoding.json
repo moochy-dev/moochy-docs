@@ -146,6 +146,22 @@
     {
       "label_text": "moochy/v1/detail",
       "lp": "000000106d6f6f6368792f76312f64657461696c"
+    },
+    {
+      "label_text": "moochy/v1/keylog",
+      "lp": "000000106d6f6f6368792f76312f6b65796c6f67"
+    },
+    {
+      "label_text": "moochy/v1/keylog-sig",
+      "lp": "000000146d6f6f6368792f76312f6b65796c6f672d736967"
+    },
+    {
+      "label_text": "moochy/v1/key-pop",
+      "lp": "000000116d6f6f6368792f76312f6b65792d706f70"
+    },
+    {
+      "label_text": "moochy/v1/owner-key",
+      "lp": "000000136d6f6f6368792f76312f6f776e65722d6b6579"
     }
   ],
   "lp": [
