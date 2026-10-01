@@ -108,6 +108,8 @@ message PoolSync {
   string repo_slug = 5;            // "owner/name" (lowercase), for repo-scoped local tokens
   string repo_provider = 6;        // "github" | "gitlab"
   bool auto_cache = 7;             // repo setting: Gateway adds top-level automatic caching to multi-turn Anthropic requests (plan 07 §4.2)
+  repeated string excluded_providers = 8;  // repo setting (§15.4): the Gateway never seals to a worker serving through these providers
+  bool allow_unsandboxed_tools = 9;        // repo setting (§15.4): release pooled tool calls to clients outside `moochy run` (default false)
 }
 
 message PoolWorker {
