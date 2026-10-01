@@ -1,0 +1,130 @@
+// Moochy Node local control plane. Owner: mo-node.
+//
+// Transport: gRPC over HTTP/2 cleartext on the Unix socket <home>/state/node.sock only
+// (directory 0700, socket 0600, peer uid must equal the Node's uid). Never on TCP.
+// Clients: the `moochy` CLI (status, pause, resume, env, down, journal, approve, members) and the
+// stdio MCP shim (`moochy mcp`, via McpPipe). The socket is the authentication: no tokens here.
+//
+// Every string a client prints from these messages may originate from the Relay or a donor:
+// clients strip/escape control characters before printing (CONTRACT §11).
+syntax = "proto3";
+
+package moochy.v1;
+
+service LocalControl {
+  // Node state at a glance. Must answer in well under 20 ms (CONTRACT §13).
+  rpc Status(StatusRequest) returns (StatusResponse);
+  // Local kill switch for the Worker role: instant, works offline, not persisted across restarts.
+  rpc Pause(PauseRequest) returns (PauseResponse);
+  rpc Resume(PauseRequest) returns (PauseResponse);
+  // Base URLs + repo-scoped local token for tools (`moochy env`). `rotate` invalidates every token.
+  rpc Env(EnvRequest) returns (EnvResponse);
+  // Repo owner: sign a donor approval / membership change with this device (plan 06 §5).
+  rpc Approve(ApproveRequest) returns (ApproveResponse);
+  rpc Members(MembersRequest) returns (MembersResponse);
+  // Local audit journal (metadata only). `follow` keeps the stream open for new entries.
+  rpc Journal(JournalRequest) returns (stream JournalEntry);
+  // stdio MCP shim: first message McpOpen, then raw newline-delimited JSON-RPC bytes both ways.
+  rpc McpPipe(stream McpUp) returns (stream McpDown);
+  // Graceful stop (`moochy down`).
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  string version = 1;
+  string device_id = 2;
+  repeated string roles = 3;
+  string relay = 4;
+  string link_state = 5;           // "down" | "up" | "refused: <code>" | "offline"
+  string gateway_url = 6;
+  string mcp_url = 7;
+  bool paused = 8;
+  uint32 slots_max = 9;
+  uint32 slots_busy = 10;
+  uint32 gateway_tasks = 11;       // in flight
+  repeated PoolSummary pools = 12;
+  uint32 pid = 13;
+}
+
+message PoolSummary {
+  string repo_id = 1;
+  string slug = 2;
+  uint32 workers = 3;
+  repeated string models = 4;
+}
+
+message PauseRequest {}
+
+message PauseResponse {
+  bool paused = 1;
+}
+
+message EnvRequest {
+  string repo = 1;                 // owner/name
+  bool rotate = 2;
+}
+
+message EnvResponse {
+  string anthropic_base_url = 1;
+  string openai_base_url = 2;
+  string mcp_url = 3;
+  string token = 4;
+}
+
+message ApproveRequest {
+  string repo = 1;                 // owner/name
+  string donor = 2;                // donor username (CONTRACT §11 handle)
+}
+
+message ApproveResponse {}
+
+message MembersRequest {
+  string repo = 1;
+  enum Op {
+    OP_UNSPECIFIED = 0;
+    OP_ADD = 1;
+    OP_REMOVE = 2;
+  }
+  Op op = 2;
+  string user = 3;                 // username
+  int64 cap_uusd_month = 4;        // 0 = repo default
+}
+
+message MembersResponse {}
+
+message JournalRequest {
+  bool follow = 1;
+}
+
+message JournalEntry {
+  int64 t_ms = 1;
+  string role = 2;                 // "gateway" | "worker"
+  string task = 3;
+  string repo = 4;
+  string model = 5;
+  string status = 6;               // ok | failed:<code> | cancelled | …
+  int64 cost_uusd = 7;
+  uint32 ms = 8;                   // duration
+}
+
+message McpOpen {
+  string repo = 1;                 // owner/name ("" = detect from cwd)
+  string cwd = 2;                  // shim working directory: fallback MCP `files` root
+}
+
+message McpUp {
+  oneof msg {
+    McpOpen open = 1;
+    bytes data = 2;
+  }
+}
+
+message McpDown {
+  bytes data = 1;
+}
+
+message ShutdownRequest {}
+
+message ShutdownResponse {}

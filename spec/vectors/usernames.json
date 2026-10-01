@@ -1,0 +1,333 @@
+{
+  "_schema": "Usernames (CONTRACT §11). canonical(input): reject any non-ASCII byte (confusables, zero-width, bidi) → ASCII-lowercase → ^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$ with no '--' → not in reserved. verdict(input) = first of: invalid | reserved | taken (canonical ∈ existing) | tombstoned (canonical ∈ tombstones) | ok. cases[]: kind is descriptive only; check canonical (null when refused before lookup) and verdict. display[]: Rust display_safe escapes C0/C1 controls, bidi controls, zero-width and other invisible format characters as \\u{XXXX}.",
+  "cases": [
+    {
+      "canonical": "abc",
+      "input": "abc",
+      "input_hex": "616263",
+      "kind": "valid",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "alice2",
+      "input": "alice2",
+      "input_hex": "616c69636532",
+      "kind": "valid",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "a-b",
+      "input": "a-b",
+      "input_hex": "612d62",
+      "kind": "valid",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "a1-b2-c3",
+      "input": "a1-b2-c3",
+      "input_hex": "61312d62322d6333",
+      "kind": "valid",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "0xff",
+      "input": "0xff",
+      "input_hex": "30786666",
+      "kind": "valid",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "abcdefghijklmnopqrstuvwxyz012345",
+      "input": "abcdefghijklmnopqrstuvwxyz012345",
+      "input_hex": "6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435",
+      "kind": "valid",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "alice",
+      "input": "Alice",
+      "input_hex": "416c696365",
+      "kind": "case variant",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "alice",
+      "input": "ALICE",
+      "input_hex": "414c494345",
+      "kind": "case variant",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "bob-smith",
+      "input": "Bob-Smith",
+      "input_hex": "426f622d536d697468",
+      "kind": "case variant",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "newuser",
+      "input": "NewUser",
+      "input_hex": "4e657755736572",
+      "kind": "case variant",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "alice",
+      "input": "alice",
+      "input_hex": "616c696365",
+      "kind": "taken",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "bob-smith",
+      "input": "bob-smith",
+      "input_hex": "626f622d736d697468",
+      "kind": "taken",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "old-name",
+      "input": "old-name",
+      "input_hex": "6f6c642d6e616d65",
+      "kind": "tombstoned",
+      "verdict": "tombstoned"
+    },
+    {
+      "canonical": "carol",
+      "input": "Carol",
+      "input_hex": "4361726f6c",
+      "kind": "tombstoned",
+      "verdict": "tombstoned"
+    },
+    {
+      "canonical": null,
+      "input": "admin",
+      "input_hex": "61646d696e",
+      "kind": "reserved",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "Admin",
+      "input_hex": "41646d696e",
+      "kind": "reserved",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "api",
+      "input_hex": "617069",
+      "kind": "reserved",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "moochy",
+      "input_hex": "6d6f6f636879",
+      "kind": "reserved",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "v1",
+      "input_hex": "7631",
+      "kind": "invalid (too short, also reserved)",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "anonymous",
+      "input_hex": "616e6f6e796d6f7573",
+      "kind": "reserved",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "ab",
+      "input_hex": "6162",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "x9",
+      "input_hex": "7839",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "abcdefghijklmnopqrstuvwxyz0123456",
+      "input_hex": "6162636465666768696a6b6c6d6e6f707172737475767778797a30313233343536",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "-abc",
+      "input_hex": "2d616263",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "abc-",
+      "input_hex": "6162632d",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "a--b",
+      "input_hex": "612d2d62",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "a_b",
+      "input_hex": "615f62",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "a.b",
+      "input_hex": "612e62",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "a b",
+      "input_hex": "612062",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": " abc",
+      "input_hex": "20616263",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "",
+      "input_hex": "",
+      "kind": "invalid",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "аlice",
+      "input_hex": "d0b06c696365",
+      "kind": "confusable",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "al​ice",
+      "input_hex": "616ce2808b696365",
+      "kind": "confusable",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "alice‮",
+      "input_hex": "616c696365e280ae",
+      "kind": "confusable",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "ａlice",
+      "input_hex": "efbd816c696365",
+      "kind": "confusable",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "aliсe",
+      "input_hex": "616c69d18165",
+      "kind": "confusable",
+      "verdict": "invalid"
+    },
+    {
+      "canonical": null,
+      "input": "ınfo",
+      "input_hex": "c4b16e666f",
+      "kind": "confusable",
+      "verdict": "invalid"
+    }
+  ],
+  "display": [
+    {
+      "display": "plain",
+      "input": "plain"
+    },
+    {
+      "display": "a\\u{001B}[2Jb",
+      "input": "a\u001b[2Jb"
+    },
+    {
+      "display": "rtl\\u{202E}txt",
+      "input": "rtl‮txt"
+    },
+    {
+      "display": "zero\\u{200B}width",
+      "input": "zero​width"
+    },
+    {
+      "display": "tab\\u{0009}nl\\u{000A}",
+      "input": "tab\tnl\n"
+    },
+    {
+      "display": "café ✓",
+      "input": "café ✓"
+    }
+  ],
+  "existing": [
+    "alice",
+    "bob-smith",
+    "x9"
+  ],
+  "reserved": [
+    "api",
+    "dev",
+    "p",
+    "r",
+    "log",
+    "open",
+    "connect",
+    "explore",
+    "station",
+    "console",
+    "device",
+    "devices",
+    "claim",
+    "leaderboard",
+    "auth",
+    "admin",
+    "static",
+    "mcp",
+    "v1",
+    "moochy",
+    "root",
+    "support",
+    "security",
+    "staff",
+    "official",
+    "system",
+    "null",
+    "undefined",
+    "anonymous",
+    "relay",
+    "node",
+    "bot"
+  ],
+  "tombstones": [
+    "old-name",
+    "carol"
+  ]
+}

@@ -2,6 +2,8 @@
 
 > How a task finds a donor: data structures, the eligibility predicate, selection, session affinity, capacity, rate-limit awareness, deadlines, failover, fairness, backpressure, and how all of it is tested deterministically.
 
+> **Updated 2026-10-01:** wording now matches the gRPC link and `spec/CONTRACT.md`; the Scheduler design (one actor goroutine) is unchanged. Changes: gRPC streams and `link.proto` message names replace WebSocket frames and dotted message names (ADR-33, C2); adaptive group commit replaces the fixed 10 ms window, with the Submit → Assign budget ≤ 2 ms p50 / ≤ 8 ms p99 (ADR-34, C1, CONTRACT §13); a closed device or pledge schedule is an eligibility condition (`window_open`), never a pledge status change (C3); `over_task_cap` → HTTP 400 `invalid_request_error`, `quota_exceeded` → HTTP 403 `permission_error` (C4); concurrency limits per CONTRACT §12 (D9).
+
 ---
 
 ## 1. Why the draft's design changes
@@ -14,7 +16,9 @@ The draft proposed a "lock-free `sync.Map` registry indexed by model, effort, ba
 
 **Decision: one goroutine owns all control-plane state (the actor pattern).** Every change is a message applied in order. No locks, no races. Every invariant can be checked after every message. The Scheduler is a **pure state machine**: given an event log, it replays deterministically, which gives simulation testing for free (§12).
 
-`sync.Map` keeps one legitimate job, in the **data plane**: the forwarding table `task_id → (expected source connection, destination connection)`, written once per attempt and read for every chunk ([02 §7](02-architecture-overview.md)).
+The move from a custom WebSocket framing to gRPC (ADR-33) changed only the edges of this picture: Edge handlers now read gRPC streams (`Session`, `Submit`, `Serve`) instead of WebSocket frames. The Scheduler actor, its state, and its rules are the same.
+
+`sync.Map` keeps one legitimate job, in the **data plane**: the forwarding table `task_id → (expected source stream, destination stream)` (the Gateway's `Submit` stream and the current attempt's `Serve` stream), written once per attempt and read for every chunk ([02 §7](02-architecture-overview.md)).
 
 ---
 
@@ -23,8 +27,8 @@ The draft proposed a "lock-free `sync.Map` registry indexed by model, effort, ba
 ```mermaid
 flowchart LR
   subgraph Inputs
-    S["Edge: task.submit<br/>(sheddable)"]
-    L["Edge: ack / nack / started / end / cancel /<br/>online / offline / offer"]
+    S["Edge: SubmitOpen<br/>(sheddable)"]
+    L["Edge: Ack / Nack / Started / end / Cancel /<br/>online / offline / WorkerOffer"]
     W["Web: pledge / repo / member / approval changes"]
     T["Timer: next deadline"]
     C["Store writer: commit completions"]
@@ -40,16 +44,16 @@ flowchart LR
   SQ --> LOOP{{"Scheduler loop<br/>apply(event) → state', commands"}}
   LQ --> LOOP
   CQ --> LOOP
-  LOOP --> O1["Edge writers: assign / cancel / accepted / failed"]
+  LOOP --> O1["Edge writers: AssignNotice + Assign / Cancel / Accepted / Failed"]
   LOOP --> O2["Store writer: op batch (slice swap, never blocks)"]
   LOOP --> O3["SSE hub: aggregated events (non-blocking)"]
   LOOP --> O4["Forwarding table: install / remove route"]
 ```
 
 - **Only submits are sheddable.** When the submit queue is full, the Edge rejects new submits with a retryable error. That is backpressure at the cheapest point, where no money has moved yet.
-- **Lifecycle events are never dropped and never block the Edge.** They are naturally bounded (each in-flight task produces a handful), and `worker.offer` is coalesced to the latest one per worker. Edge reader goroutines never stall, so WebSocket pongs keep flowing and a load spike cannot snowball into mass disconnects.
+- **Lifecycle events are never dropped and never block the Edge.** They are naturally bounded (each in-flight task produces a handful), and `WorkerOffer` is coalesced to the latest one per worker. gRPC stream handlers never stall, so HTTP/2 pings and `Session` traffic keep flowing and a load spike cannot snowball into mass disconnects.
 - **The Store writer never back-pressures the Scheduler.** The Scheduler appends ops to a slice that the writer swaps out on each group commit. Commit completions come back on **their own channel**, so there is no cycle between the Scheduler and the writer that could deadlock.
-- **Commands to connections** are non-blocking sends to per-connection writer queues. If one overflows, that connection is closed and handled like a disconnect.
+- **Commands to Nodes** are non-blocking sends to bounded per-stream writer queues (`Session`, `Submit`, `Serve`). If a task stream's queue overflows, that stream is cancelled; if a `Session` queue overflows, the connection is closed and handled like a disconnect.
 - **Timers**: a min-heap of short deadlines (ACK, start, routing) with one `time.Timer` reset to the earliest. Long-horizon items (24 h receipt waits) are **not** timers; they are periodic SQL sweeps (§8).
 
 ---
@@ -59,8 +63,8 @@ flowchart LR
 | Structure | Key → Value | Notes |
 |---|---|---|
 | `sessions` | `(device_id) → {session_id, conn}` | Only the current session counts; events from older sessions are ignored |
-| `workers` | `device_id → {donor_id, rtt_ewma, slots_free, slots_max, models{(dialect, model) → rl_state}, pledges_served, window_open, local_cap_left, fail_penalty}` | Updated by offers, pings, outcomes |
-| `pledges` | `pledge_id → {donor_id, repo_id, status, approved, budget, spent, reserved, per_task_cap, policy}` | Loaded at boot; live balances authoritative here, persisted by group commit |
+| `workers` | `device_id → {donor_id, rtt_ewma, slots_free, slots_max, models{(dialect, model) → rl_state}, pledges_served, window_open, local_cap_left, fail_penalty}` | Updated by `WorkerOffer`, pings, outcomes. `slots_max` ≤ 64 |
+| `pledges` | `pledge_id → {donor_id, repo_id, status, approved, schedule, budget, spent, reserved, per_task_cap, policy}` | Loaded at boot; live balances authoritative here, persisted by group commit. `status` changes only through explicit donor or owner action, never because a schedule window closed |
 | `pools` | `(repo_id, dialect, model) → [pledge_id]` | Rebuilt on pledge changes; usually a few entries |
 | `donorWorkers` | `donor_id → [device_id]` | — |
 | `members` | `(repo_id, user_id) → {cap, spent, reserved, month}` | Member quotas |
@@ -78,8 +82,8 @@ Memory at the design point (10k workers, 5k in-flight tasks, 50k affinity entrie
 A worker *w* serving pledge *p* is eligible for task *t* if **all** of the following hold. They are evaluated cheapest-first, and the evaluation records **which rule eliminated the most candidates**, so a policy failure can be reported precisely (§8.3).
 
 1. `p` is in `pools[(t.repo, t.dialect, t.model)]` (the model is allowed by policy and served by this pool).
-2. `p.status == ACTIVE` and `p.approved`. (Gateways additionally seal only to donors with an **owner-signed approval** in the key log, [06 §10](06-security-and-trust.md), so the Relay cannot add an unapproved donor even if it lies here.)
-3. `w` belongs to `p.donor`, has a current session, `window_open`, and `slots_free > 0`.
+2. `p.status == ACTIVE` and `p.approved`, and `p.schedule` (if any) is open now. (Gateways additionally seal only to donors with an **owner-signed approval** in the key log, [06 §10](06-security-and-trust.md), so the Relay cannot add an unapproved donor even if it lies here.)
+3. `w` belongs to `p.donor`, has a current session, `w.window_open` (from its latest `WorkerOffer`: the donor's device schedule is open), and `slots_free > 0`.
 4. `w` offers `(t.dialect, t.model)` and its rate-limit state is not cooling down.
 5. `t.effort ≤ p.policy.max_effort`, and every flag in `t.flags` is allowed by `p.policy`.
 6. `reserve(t, p) ≤ p.per_task_cap`.
@@ -87,7 +91,9 @@ A worker *w* serving pledge *p* is eligible for task *t* if **all** of the follo
 8. `reserve(t, p) ≤ w.local_cap_left` (the donor device's own cap, as reported and decremented on reservation).
 9. Member quota: `reserve(t, p) ≤ m.cap − m.spent − m.reserved`, and the same for the submitting device's cap when one is set.
 10. `w` is not in `t.tried` (no second attempt on the same worker within one task).
-11. `w` has a wrap in `t.wraps` (otherwise it may be proposed in `task.need_wraps`).
+11. `w` has a wrap in `t.wraps` (otherwise it may be proposed in `NeedWraps`).
+
+**Schedules are eligibility only.** A donor can set a schedule on a device (reported as `WorkerOffer.window_open`) and on a pledge. When either window is closed, rules 2–3 simply exclude the pair; nothing is written and the pledge stays `ACTIVE`. A pledge becomes `paused` only by explicit donor action ([05 §4](05-ledger-and-accounting.md)). This keeps schedule flips out of the database and out of the commit path.
 
 `reserve(t, p)` is defined in [05 §5](05-ledger-and-accounting.md). It uses **the candidate's own provider price**, since the same public model id can be served by different providers ([05 §2](05-ledger-and-accounting.md)).
 
@@ -137,9 +143,9 @@ Without affinity (or when the affinity worker is not eligible):
 
 The Gateway must seal the content key to specific workers **before** the Relay picks one ([03 §6](03-wire-protocol.md)):
 
-- `pool.sync` gives every Gateway the eligible workers for its repos (keys, models, approval proof) plus a coarse `hint` score, refreshed at most once per second.
+- `PoolSync` gives every Gateway the eligible workers for its repos (keys, models, approval proof) plus a coarse `hint` score, refreshed at most once per second.
 - The Gateway wraps for **the affinity worker first** (if known), then the top workers by `hint` for the requested model, up to **8 wraps** (about 640 bytes).
-- The Scheduler runs §4–§6 restricted to workers that have a wrap. If none is eligible, it sends `task.need_wraps{workers}` with its own top choices. That costs one RTT, and only when the snapshot was stale.
+- The Scheduler runs §4–§6 restricted to workers that have a wrap. If none is eligible, it sends `NeedWraps{workers}` on the task's `Submit` stream with its own top choices. That costs one RTT, and only when the snapshot was stale.
 
 ---
 
@@ -147,16 +153,18 @@ The Gateway must seal the content key to specific workers **before** the Relay p
 
 ### 8.1 Commit before assign
 
-A reservation is applied in memory, then the Scheduler emits `task.assign` **only after the group commit containing the reservation and the task row has completed** (completion arrives on the completion channel). That costs at most ~10 ms. In exchange, **a Worker never holds a task the database does not know about**, so a crash can never produce receipts for unknown tasks, and no reservation is lost.
+A reservation is applied in memory, then the Scheduler emits `AssignNotice` (on the Worker's `Session`; the Worker then opens a `Serve` stream and receives `Assign` with the body) **only after the commit containing the reservation and the task row has completed** (completion arrives on the completion channel). In exchange, **a Worker never holds a task the database does not know about**, so a crash can never produce receipts for unknown tasks, and no reservation is lost.
+
+**Adaptive group commit (ADR-34).** The Store writer commits immediately when it is idle. Reservations that arrive while a commit is in flight are batched into the next commit, which starts as soon as the previous one finishes. No timer ever delays an idle commit. Durability is unchanged: `synchronous=FULL`, the assignment waits for the commit, and every Worker still sees only committed reservations. Earlier drafts used a fixed 10 ms group-commit window; that added up to 10 ms to every assignment at low load, exactly when nothing needed batching. Budget: Relay Submit received → Assign sent ≤ **2 ms p50 / ≤ 8 ms p99** (CONTRACT §13, measured by E22).
 
 ### 8.2 Deadlines
 
 | Deadline | Default | On expiry |
 |---|---|---|
-| ACK | 500 ms after the last body frame reaches the Worker | Cancel that attempt; it moves to `awaitingReceipt` unless a NACK or zero-usage receipt proves no spend; reassign |
+| ACK | 500 ms after the last body chunk reaches the Worker | Cancel that attempt; it moves to `awaitingReceipt` unless a NACK or zero-usage receipt proves no spend; reassign |
 | Start | 30 s after ACK (provider response headers) | Same as above |
-| Routing | 5 s after the last body frame reaches the Relay, without an ACK | `task.failed{overloaded, retryable}` |
-| Attempts | 3 per task | `task.failed{overloaded, retryable}` |
+| Routing | 5 s after the last body chunk reaches the Relay, without an ACK | `Failed{code: overloaded, retryable: true}` |
+| Attempts | 3 per task | `Failed{code: overloaded, retryable: true}` |
 
 Long-horizon work is done by **periodic SQL sweeps** (every minute), not by in-memory timers, so restarts never lose it:
 
@@ -169,12 +177,12 @@ When no candidate exists, the recorded elimination reason decides the error:
 
 | Dominant reason | Error to the client | Retryable |
 |---|---|---|
-| No pledge serves the model | `model_not_in_pool` | no |
-| Per-task cap (rule 6) | `over_task_cap` (with the worst-case cost and the cap) | no |
-| Pledge headroom / member / device quota (rules 7, 9) | `quota_exceeded` | no (until the period resets) |
-| Capacity (rules 3, 4, 8, rate limits) | `overloaded` | yes |
+| No pledge serves the model | `model_not_in_pool` (HTTP 404) | no |
+| Per-task cap (rule 6) | `over_task_cap` (HTTP 400 `invalid_request_error`, with the worst-case cost and the cap) | no |
+| Pledge headroom / member / device quota (rules 7, 9) | `quota_exceeded` (HTTP 403 `permission_error`) | no (until the period resets) |
+| Capacity (rules 3, 4, 8, rate limits, closed schedules) | `overloaded` | yes |
 
-Agents stop retrying requests that can never succeed, and the maintainer sees exactly why.
+The Relay sends the code as `Failed{code, retryable}` inside the `Submit` stream, and the Gateway maps it to the native error ([03 §10.3](03-wire-protocol.md)). Policy errors never use HTTP 429, because agents retry 429. Agents stop retrying requests that can never succeed, and the maintainer sees exactly why.
 
 ### 8.4 Reassignment state machine (Scheduler view)
 
@@ -183,15 +191,15 @@ stateDiagram-v2
   [*] --> Selecting
   Selecting --> Committing: candidate found → reserve µ$ (pledge, member, device) + slot
   Selecting --> NeedWraps: no wrapped candidate eligible
-  NeedWraps --> Selecting: task.wraps received
+  NeedWraps --> Selecting: Wraps received
   Selecting --> Failed: no candidates (policy or capacity) / attempts exhausted / routing deadline
-  Committing --> Assigned: group commit done → task.assign
-  Assigned --> Acked: task.ack
+  Committing --> Assigned: commit done → AssignNotice + Assign
+  Assigned --> Acked: Ack
   Assigned --> Superseded: ack timeout / retryable nack
-  Acked --> Started: task.started (Edge frees sealed body)
+  Acked --> Started: Started (Edge frees sealed body)
   Acked --> Superseded: retryable nack before start / start timeout
   Superseded --> Selecting: attempt n kept in awaitingReceipt unless proven zero-cost, add worker to tried[]
-  Started --> Settling: task.end / worker lost / provider error / cancel
+  Started --> Settling: SignedReceipt / worker lost / provider error / cancel
   Settling --> [*]: receipt → reserved → spent (attempt-level), remainder released
   Failed --> [*]
 ```
@@ -202,7 +210,7 @@ stateDiagram-v2
 
 ## 9. Rate-limit awareness
 
-- Workers parse provider rate-limit headers (remaining requests and tokens with reset times, plus `retry-after`; exact names pinned per adapter) and include a compact `rl_headroom` per model in `worker.offer`. They send an update when headroom crosses 50%, 20%, or 5%, not on every request.
+- Workers parse provider rate-limit headers (remaining requests and tokens with reset times, plus `retry-after`; exact names pinned per adapter) and include a compact `rl_headroom` per model in `WorkerOffer`. They send an update when headroom crosses 50%, 20%, or 5%, not on every request.
 - On a 429 the Worker NACKs with `retry_after_ms`. The Scheduler cools that `(worker, model)` down and immediately reassigns.
 - Result: donors' keys are rarely pushed into 429 territory, which matters because repeated 429s can affect a donor's standing with the provider.
 
@@ -213,10 +221,10 @@ stateDiagram-v2
 | Axis | Mechanism |
 |---|---|
 | **Between donors of one repo** | Headroom-weighted draws (§6) → proportional drain |
-| **Between members of one repo** | Per-member monthly caps set by the owner (default: owner unlimited, members 20% of the pool's committed budget); per-member submission rate limit |
+| **Between members of one repo** | Per-member monthly caps set by the owner (default: owner unlimited, members 20% of the pool's committed budget); per-member submission rate limit; at most 16 concurrent tasks per Gateway device (`Welcome.max_concurrent_tasks`) |
 | **Autonomous agents (CI devices)** | Their own device caps and a single repo scope ([07 §8.4](07-client-cli.md)) |
 | **Between repos sharing a donor** | Separate budgets per pledge; repos compete only for worker slots (first-come). Optional `max_slots` per pledge |
-| **Between Moochy and the donor's own use of the key** | Donor-set `slots_max` and schedule windows; rate-limit steering (§9) |
+| **Between Moochy and the donor's own use of the key** | Donor-set `slots_max` (1–64) and schedule windows (eligibility only, §4); rate-limit steering (§9) |
 
 ---
 
@@ -226,8 +234,8 @@ stateDiagram-v2
 |---|---|---|
 | `apply(submit)` incl. eligibility + P2C + reservation | < 50 µs | ≤ 50 candidates × a few checks |
 | `apply(ack / started / end)` | < 10 µs | Map updates |
-| Chunk forwarding (Edge) | < 5 µs + syscall | One `sync.Map` load, a source check, one channel send |
-| Commit-before-assign delay | ≤ 10 ms | One group-commit interval |
+| Chunk forwarding (Edge) | < 5 µs + syscall | One `sync.Map` load, a source-stream check, one send on the destination stream; flushed immediately, never batched (CONTRACT §13: ≤ 300 µs p50 added per chunk end to end) |
+| Submit received → Assign sent | ≤ 8 ms (p50 ≤ 2 ms) | Scheduler apply + adaptive group commit (§8.1): an idle writer commits at once, so the usual cost is one SQLite commit (CONTRACT §13, E22) |
 
 > **Ceiling note:** a single Scheduler goroutine tops out somewhere around 100k events/s. At ~6 events per task, the design point (≈ 200 task starts/s with ~5k concurrent streams of ~25 s) needs ~1.2k events/s. Upgrade path: one Scheduler per shard of repos ([02 §12](02-architecture-overview.md)). Same code, partitioned by `repo_id`, correct because tasks never cross repos.
 
@@ -245,7 +253,7 @@ stateDiagram-v2
    - No attempt is assigned to an ineligible worker (re-check §4 at assignment).
 3. **Deterministic simulation** (`relay/tools/simulate`): thousands of virtual workers and gateways, injected latency, disconnects, 429 storms, relay restarts, clock jumps, and late or duplicated messages. Same seed → byte-identical runs, so any violation is reproducible from its seed.
 4. **Property tests** for selection: proportional drain over 10k tasks within ±5% of the headroom ratios; affinity hit rate ≥ 95% while the affinity worker stays healthy.
-5. **Benchmarks** for `apply(submit)` at 10, 100, 1k, and 10k eligible candidates, with a CI regression budget.
+5. **Benchmarks** for `apply(submit)` at 10, 100, 1k, and 10k eligible candidates, with a CI regression budget. The Submit → Assign budget is measured end to end by E22.
 
 ---
 
