@@ -124,3 +124,33 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 - Rust: `cd cli && cargo build --release` (binary `cli/target/release/moochy`); `cargo clippy --all-targets -- -D warnings`.
 - Go: `cd relay && go build -trimpath -o bin/relay ./cmd/relay`; `go vet ./...`.
 - E2E: `cd e2e && go test -race -count=1 ./...` (env `MOOCHY_BIN`, `RELAY_BIN` point to the built binaries; defaults to the paths above).
+
+## 11. Identity and uniqueness rules
+
+**Moochy username (handle)** — every user has exactly one, unique on the instance:
+- Format: ASCII only, lowercase, `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars), no `--`. ASCII-only removes homoglyph/confusable impersonation (Cyrillic `а` vs Latin `a`, zero-width chars, RTL marks).
+- Uniqueness is **case-insensitive** (stored lowercase; SQLite `UNIQUE` + `COLLATE NOCASE` as a second guard).
+- Chosen at first sign-in: default = the provider login lowercased **if valid and free**; otherwise the user must pick one (no silent auto-suffixing, so nobody becomes `alice-2` by accident and looks like `alice`).
+- **Reserved** (refused at signup and rename): every first path segment of the web routes and API (`api`, `dev`, `p`, `r`, `log`, `open`, `connect`, `explore`, `station`, `console`, `device`, `devices`, `claim`, `leaderboard`, `auth`, `admin`, `static`, `mcp`, `v1`), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before (see recycling).
+- **Rename**: at most once per 30 days. The old handle becomes a **permanent tombstone**: it is never assigned to anyone else (blocks username-recycling takeovers of links, badges and reputation) and redirects to the new one for 90 days.
+- Validation is implemented identically in Go (relay) and Rust (node prints handles) with shared test vectors (`spec/vectors/usernames.json`: valid, invalid, reserved, confusables, case variants).
+- Rust CLI and logs never print a handle, repo name, or any server-provided string raw: strip/escape control characters (terminal-escape injection).
+
+**Other uniqueness constraints (enforced by the database, not only by code):**
+
+| Thing | Unique key |
+|---|---|
+| User handle | `users.username` (case-insensitive) + `username_tombstones.username` |
+| User pseudonym (public log) | `users.pseudonym` |
+| Provider identity | (`provider`, `provider_user_id`); at most one identity per provider per user |
+| Device signing key | `devices.sign_pub` |
+| Device name | (`user_id`, lower(`name`)) |
+| Repository | (`provider`, `provider_repo_id`) and (`provider`, lower(`owner`), lower(`name`)) |
+| Live pledge | (`donor_id`, `repo_id`) where status ∈ {pending, active, paused} |
+| Membership | (`repo_id`, `user_id`) |
+| Local token | the random token itself (≥ 256-bit), stored hashed |
+| Task | (`gateway_device`, `task_id`) |
+| Receipt | (`task_id`, `attempt`); `receipt_ref` unique |
+| Web session | `id_hash` |
+
+The dev API (§6) uses `username` = this handle.

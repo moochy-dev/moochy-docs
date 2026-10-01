@@ -43,6 +43,8 @@
 | Column | Type | Constraints / notes |
 |---|---|---|
 | `id` | TEXT | PK, ULID |
+| `username` | TEXT | **Unique handle**, case-insensitive (`UNIQUE COLLATE NOCASE`), ASCII `[a-z0-9-]`, 3–32 chars, reserved words refused (rules: `spec/CONTRACT.md` §11) |
+| `username_changed_at` | INTEGER | Rename allowed once per 30 days |
 | `pseudonym` | TEXT | UNIQUE, random (`u_…`); the **only** user identifier in the public log and projections |
 | `display_name` | TEXT | Nullable |
 | `status` | TEXT | `active`, `suspended`, `deleted` |
@@ -74,6 +76,8 @@
 | `created_at`, `revoked_at` | INTEGER | `revoked_at` NULL = active |
 
 **`device_usage`** (only for capped devices): `device_id`, `month` (PK together), `spent_uusd`, `reserved_uusd`, with `CHECK (spent_uusd >= 0 AND reserved_uusd >= 0)`.
+
+**`username_tombstones`**: `username` (PK, case-insensitive), `user_id`, `retired_at`, `redirect_until`. A handle that was ever used is never assigned again (blocks username-recycling takeovers).
 
 **`web_sessions`**: `id_hash` (PK, SHA-256 of the cookie value), `user_id`, `created_at`, `expires_at`.
 
