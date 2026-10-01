@@ -125,7 +125,11 @@ IDs are stable; each is one Go test `TestE<NN>_<name>`. A scenario may `t.Skip("
 
 Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handler` and the `Source` interface (read-only queries: repo by slug, pool summary, goal numbers, recent projections, donor station data) plus `func (h) Publish(topic string, ev Event)` for SSE. `mo-web` defines the interface and ships a fake `Source` for its own tests; `mo-relay` implements it.
 
-**Palette (fixed):** white `#FFFFFF`, dark `#0B1220` (ink / dark background), light blue `#7DD3FC` (accent fills, highlights, focus rings) with `#0369A1` for small text links on white (contrast). Dark theme: background `#0B1220`, text `#F8FAFC`, accent `#7DD3FC`. Hand-written CSS with custom properties, no framework, no web fonts; total CSS ≤ 12 KB; htmx + sse extension vendored locally.
+**Palette (fixed):** white `#FFFFFF`, dark `#0B1220` (ink / dark background), light blue `#7DD3FC` (accent fills, highlights, focus rings, glows) with `#0369A1` for small text links on white (contrast). Dark theme: background `#0B1220`, text `#F8FAFC`, accent `#7DD3FC`. Tints/shades of these three only (e.g. light-blue at reduced opacity for glows, gradients between them).
+
+**Design and motion (product owner: "the best of the best in design, animations, transitions, atomic animations, effects, responsiveness … be extremely creative"):** a real motion system, built on native platform features first: CSS scroll-driven animations (`animation-timeline: scroll()/view()`), cross-document View Transitions (`@view-transition`), `linear()` spring easings, `@property`-animated numbers, SVG stroke animations; a small vanilla JS motion layer only for what CSS cannot do (pointer-follow spotlight, theme-switch circular reveal, IntersectionObserver fallback). Animate only `transform`/`opacity` (and `filter` sparingly); 60 fps on a mid-range phone; `prefers-reduced-motion` turns every non-essential motion off; no layout shift.
+
+**Budgets (replace the earlier 12 KB / no-font rule):** CSS ≤ 48 KB raw (≤ 12 KB gzip); motion JS ≤ 12 KB gzip, no framework, no CDN, external files only (strict CSP, no inline script or style attributes); htmx + sse extension vendored; at most one self-hosted variable font (OFL, Latin subset, woff2 ≤ 45 KB, `font-display: swap`, preloaded); landing page ≤ 150 KB transferred, dashboards ≤ 100 KB; LCP ≤ 1.0 s on 4G, CLS = 0, INP ≤ 100 ms; TTFB budgets of §13 unchanged.
 
 ## 10. Build and test entry points
 
