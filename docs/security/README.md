@@ -5,6 +5,6 @@ The red-team surface of the project. **Internal** (closed side of CONTRACT §0a)
 - [attack-catalog.md](attack-catalog.md) — every attack (A01–A139) with its countermeasure, owner, verification and status. Start here. The **top-10 gaps** are in §15.
 - `hardening-<component>.md` — per-owner, testable checklists:
   [proto](hardening-proto.md), [worker](hardening-worker.md), [node](hardening-node.md), [relay](hardening-relay.md), [web](hardening-web.md).
-- Black-box attack tests live in [`e2e/attacks/`](../../e2e/attacks/) as `TestA<NN>_*`, same harness conventions as `e2e/`. The `moochy` binary builds, so A45 and A135 run; the rest skip with precise `pending:` reasons until the relay `serve` binary exists. Evil-peer tooling: `e2e/attacks/evil/`.
+- Black-box attack tests live in [`e2e/attacks/`](../../e2e/attacks/) as `TestA<NN>_*`, same harness conventions as `e2e/`. Last run (2026-10-01, main binaries): 25 pass, 2 fail (A35, A46: product, mo-node), 5 skip (A33, A136–A139). Evil-peer tooling: `e2e/attacks/evil/`.
 
 How to use: each owner reads their `hardening-*.md`, implements every row, and makes its "Proof" pass. `mo-sec` keeps the catalog current as attacks and fixes land — flip `status` to `implemented` only when the verification actually passes.
