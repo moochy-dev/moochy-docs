@@ -166,6 +166,7 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 - Format: ASCII only, lowercase, `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars), no `--`. ASCII-only removes homoglyph/confusable impersonation (Cyrillic `а` vs Latin `a`, zero-width chars, RTL marks).
 - Uniqueness is **case-insensitive** (stored lowercase; SQLite `UNIQUE` + `COLLATE NOCASE` as a second guard).
 - Chosen at first sign-in: default = the provider login lowercased **if valid and free**; otherwise the user must pick one (no silent auto-suffixing, so nobody becomes `alice-2` by accident and looks like `alice`).
+- **ASCII look-alikes** (integrator decision, 2026-10-01): uniqueness, reserved words and tombstones are compared on a **skeleton**: lowercase, then `rn`→`m`, `vv`→`w`, `0`→`o`, `1`→`l`, then `-` removed. `rnoochy`, `m00chy`, `ange-s` vs `anges`, `ali1ce` vs `alilce` collide with the existing handle and are refused ("too close to an existing name"). Stored as `users.username_skeleton` with a `UNIQUE` constraint (tombstones keep their skeleton). The handle itself is shown exactly as chosen.
 - **Reserved** (refused at signup and rename): every first path segment of the web routes and API (`api`, `dev`, `p`, `r`, `u`, `log`, `logout`, `events`, `open`, `connect`, `explore`, `station`, `console`, `device`, `devices`, `claim`, `leaderboard`, `auth`, `admin`, `static`, `mcp`, `v1`), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before (see recycling).
 - **Rename**: at most once per 30 days. The old handle becomes a **permanent tombstone**: it is never assigned to anyone else (blocks username-recycling takeovers of links, badges and reputation) and redirects to the new one for 90 days.
 - Validation is implemented identically in Go (relay) and Rust (node prints handles) with shared test vectors (`spec/vectors/usernames.json`: valid, invalid, reserved, confusables, case variants).
@@ -175,7 +176,7 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 
 | Thing | Unique key |
 |---|---|
-| User handle | `users.username` (case-insensitive) + `username_tombstones.username` |
+| User handle | `users.username` (case-insensitive) + `username_tombstones.username`, and their skeletons |
 | User pseudonym (public log) | `users.pseudonym` |
 | Provider identity | (`provider`, `provider_user_id`); at most one identity per provider per user |
 | Device signing key | `devices.sign_pub` |
