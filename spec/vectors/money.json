@@ -1,0 +1,440 @@
+{
+  "_schema": "Money (plan 05 §3, §5.1), all integer µ$, checked arithmetic. entries: [0] curated Anthropic entry, [1] OpenRouter-imported entry (prices µ$ per million tokens). cost[]: cost_uusd = ceil(Σ usage_i × price_i × (fast ? fast_multiplier : 1) / 1e6); OpenRouter entries use usage.provider_cost_uusd (required, ≥ 0); others MUST NOT carry it. reserve[]: ceil((est × in × m + max_tokens × out) × fast / 1e6) with m = 5/4 (5m), 2 (1h), 1 (none), computed exactly. decimal[]: OpenRouter usage.cost JSON number text → µ$ rounded up, no floating point; outcome ok | malformed | overflow.",
+  "cost": [
+    {
+      "cost_uusd": 34200,
+      "entry": 0,
+      "fast": false,
+      "name": "plan 05 worked example",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 36000,
+        "cache_write_1h": 0,
+        "cache_write_5m": 2000,
+        "estimated": false,
+        "input": 2000,
+        "output": 1800
+      }
+    },
+    {
+      "cost_uusd": 2,
+      "entry": 0,
+      "fast": false,
+      "name": "one input token rounds up",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 1,
+        "output": 0
+      }
+    },
+    {
+      "cost_uusd": 1,
+      "entry": 0,
+      "fast": false,
+      "name": "one cache-read token: 0.2 µ$ → 1",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 1,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "cost_uusd": 0,
+      "entry": 0,
+      "fast": false,
+      "name": "zero usage",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "cost_uusd": 72000,
+      "entry": 0,
+      "fast": true,
+      "name": "fast multiplier",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 1000,
+        "output": 1000
+      }
+    },
+    {
+      "cost_uusd": 4000000,
+      "entry": 0,
+      "fast": false,
+      "name": "1h cache write",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 1000000,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "cost_uusd": null,
+      "entry": 0,
+      "fast": false,
+      "name": "overflow",
+      "outcome": "overflow",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 18446744073709551615,
+        "output": 18446744073709551615
+      }
+    },
+    {
+      "cost_uusd": null,
+      "entry": 0,
+      "fast": false,
+      "name": "provider cost on a non-OpenRouter entry is refused",
+      "outcome": "malformed",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 1,
+        "output": 1,
+        "provider_cost_uusd": 5
+      }
+    },
+    {
+      "cost_uusd": 777,
+      "entry": 1,
+      "fast": false,
+      "name": "OpenRouter: reported cost is authoritative",
+      "outcome": "ok",
+      "usage": {
+        "cache_read": 9,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 9,
+        "output": 9,
+        "provider_cost_uusd": 777
+      }
+    },
+    {
+      "cost_uusd": null,
+      "entry": 1,
+      "fast": false,
+      "name": "OpenRouter without reported cost is refused",
+      "outcome": "malformed",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 9,
+        "output": 9
+      }
+    },
+    {
+      "cost_uusd": null,
+      "entry": 1,
+      "fast": false,
+      "name": "OpenRouter negative cost is refused",
+      "outcome": "malformed",
+      "usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 0,
+        "output": 0,
+        "provider_cost_uusd": -1
+      }
+    }
+  ],
+  "decimal": [
+    {
+      "outcome": "ok",
+      "text": "0",
+      "uusd": 0
+    },
+    {
+      "outcome": "ok",
+      "text": "0.0",
+      "uusd": 0
+    },
+    {
+      "outcome": "ok",
+      "text": "0.1",
+      "uusd": 100000
+    },
+    {
+      "outcome": "ok",
+      "text": "0.0001234",
+      "uusd": 124
+    },
+    {
+      "outcome": "ok",
+      "text": "0.000123",
+      "uusd": 123
+    },
+    {
+      "outcome": "ok",
+      "text": "1.5e-05",
+      "uusd": 15
+    },
+    {
+      "outcome": "ok",
+      "text": "1.5E-5",
+      "uusd": 15
+    },
+    {
+      "outcome": "ok",
+      "text": "1e-7",
+      "uusd": 1
+    },
+    {
+      "outcome": "ok",
+      "text": "1e-300",
+      "uusd": 1
+    },
+    {
+      "outcome": "ok",
+      "text": "2",
+      "uusd": 2000000
+    },
+    {
+      "outcome": "ok",
+      "text": "1.25e2",
+      "uusd": 125000000
+    },
+    {
+      "outcome": "ok",
+      "text": "1E+2",
+      "uusd": 100000000
+    },
+    {
+      "outcome": "ok",
+      "text": "0.0000010000000000000000000000000000000000001",
+      "uusd": 2
+    },
+    {
+      "outcome": "ok",
+      "text": "9223372036854.775807",
+      "uusd": 9223372036854775807
+    },
+    {
+      "outcome": "overflow",
+      "text": "9223372036854.775808",
+      "uusd": null
+    },
+    {
+      "outcome": "overflow",
+      "text": "1e30",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "-1",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "-0",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "01",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "1.",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": ".5",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "1e",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "1e+",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "NaN",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "Infinity",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "0x10",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": " 1",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "1 ",
+      "uusd": null
+    },
+    {
+      "outcome": "malformed",
+      "text": "1_000",
+      "uusd": null
+    }
+  ],
+  "entries": [
+    {
+      "aliases": [
+        "claude-sonnet-5-5"
+      ],
+      "cache_read": 200000,
+      "cache_write_1h": 4000000,
+      "cache_write_5m": 2500000,
+      "default_effort": "high",
+      "dialects": [
+        "anthropic.messages"
+      ],
+      "fast_multiplier": 6,
+      "in": 2000000,
+      "max_image_tokens": 1600,
+      "max_output": 64000,
+      "max_page_tokens": 3000,
+      "model": "anthropic/claude-sonnet-5.5",
+      "out": 10000000,
+      "provider": "anthropic",
+      "provider_model_id": "claude-sonnet-5-5",
+      "source": "curated"
+    },
+    {
+      "cache_read": 70000,
+      "cache_write_1h": 0,
+      "cache_write_5m": 0,
+      "default_effort": "medium",
+      "dialects": [
+        "openai.chat",
+        "anthropic.messages"
+      ],
+      "in": 270000,
+      "max_image_tokens": 0,
+      "max_output": 8192,
+      "max_page_tokens": 0,
+      "model": "deepseek/deepseek-chat",
+      "out": 1100000,
+      "provider": "openrouter",
+      "provider_model_id": "deepseek/deepseek-chat",
+      "source": "openrouter_import"
+    }
+  ],
+  "reserve": [
+    {
+      "cache_ttl": "5m",
+      "entry": 0,
+      "est_input_tokens": 40000,
+      "fast": false,
+      "max_tokens": 32000,
+      "name": "plan 05 worked example",
+      "outcome": "ok",
+      "reserve_uusd": 420000
+    },
+    {
+      "cache_ttl": "1h",
+      "entry": 0,
+      "est_input_tokens": 40000,
+      "fast": false,
+      "max_tokens": 32000,
+      "name": "1h ttl doubles input",
+      "outcome": "ok",
+      "reserve_uusd": 480000
+    },
+    {
+      "cache_ttl": "none",
+      "entry": 0,
+      "est_input_tokens": 40000,
+      "fast": false,
+      "max_tokens": 32000,
+      "name": "no cache",
+      "outcome": "ok",
+      "reserve_uusd": 400000
+    },
+    {
+      "cache_ttl": "none",
+      "entry": 0,
+      "est_input_tokens": 40000,
+      "fast": true,
+      "max_tokens": 32000,
+      "name": "fast ×6",
+      "outcome": "ok",
+      "reserve_uusd": 2400000
+    },
+    {
+      "cache_ttl": "5m",
+      "entry": 0,
+      "est_input_tokens": 1,
+      "fast": false,
+      "max_tokens": 0,
+      "name": "2.5 µ$ rounds up to 3",
+      "outcome": "ok",
+      "reserve_uusd": 3
+    },
+    {
+      "cache_ttl": "5m",
+      "entry": 0,
+      "est_input_tokens": 0,
+      "fast": false,
+      "max_tokens": 0,
+      "name": "zero",
+      "outcome": "ok",
+      "reserve_uusd": 0
+    },
+    {
+      "cache_ttl": "1h",
+      "entry": 0,
+      "est_input_tokens": 18446744073709551615,
+      "fast": true,
+      "max_tokens": 4294967295,
+      "name": "overflow",
+      "outcome": "overflow",
+      "reserve_uusd": null
+    }
+  ]
+}
