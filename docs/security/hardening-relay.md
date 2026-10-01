@@ -56,7 +56,7 @@ Owner: `mo-relay`. The relay is **untrusted for confidentiality** (adversary A3)
 |---|---|---|---|
 | R29 | `RelayAdmin` only on a path-based 0600 Unix socket in a 0700 dir (`--admin-socket`), never on the network, never abstract-namespace | A100, A103 | A100 |
 | R30 | Check the peer uid (`SO_PEERCRED`) == the relay owner on every admin connection | A100 | A100, U |
-| R31 | Create the socket safely: own-only dir, `unlink` stale path, `fchmod` the fd / umask before bind, refuse to start if the path exists and is not our socket (symlink/TOCTOU) | A102 | A100/A102 |
+| R31 | Create the socket safely: a 0700 owner-only dir is the real defense; bind to a temp name and atomic-`rename`, `fchmod`/umask (never chmod through a path); refuse if the final path is a symlink or non-socket | A102 | A100/A102 |
 
 ## Identity (CONTRACT §11)
 
