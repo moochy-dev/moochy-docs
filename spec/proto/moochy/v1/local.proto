@@ -27,6 +27,11 @@ service LocalControl {
   rpc Claim(ClaimRequest) returns (SignResponse);
   // Requests waiting for this owner's signature.
   rpc Pending(PendingRequest) returns (PendingResponse);
+  // Owner key (CONTRACT §15.4, KEYLOG §4): the foreground CLI signed this key-log entry with the
+  // owner key after the user confirmed it; the Node never holds the owner key, it only relays the
+  // signed entry over its session and returns the relay's verdict. Approve/Members/Claim are then
+  // called with dry_run = true (preview only).
+  rpc SubmitEntry(SubmitEntryRequest) returns (SignResponse);
   // Local audit journal (metadata only). `follow` keeps the stream open for new entries.
   rpc Journal(JournalRequest) returns (stream JournalEntry);
   // stdio MCP shim: first message McpOpen, then raw newline-delimited JSON-RPC bytes both ways.
@@ -107,10 +112,18 @@ message SignResponse {
   string repo_slug = 4;
   string subject = 5;              // pseudonym / device id inside the signed body
   string subject_username = 6;     // relay-provided, display only
-  string signer = 7;               // this device
+  string signer = 7;               // the signer named in the body (an owner key id `ok_…`)
   int64 issued_at_ms = 8;
   bool signed = 9;
   uint64 log_index = 10;           // once appended
+  bytes body_to_sign = 11;         // the relay-proposed body (dry run), for the CLI to rebuild with the owner key
+}
+
+message SubmitEntryRequest {
+  string request_id = 1;           // the pending request answered; empty for OWNER_KEY_ADDED
+  string kind = 2;                 // REPO_CLAIMED, DONOR_APPROVED/REVOKED, MEMBER_ADDED/REMOVED, OWNER_KEY_ADDED
+  bytes body = 3;                  // exact signed body (KEYLOG §2)
+  repeated bytes sigs = 4;         // 64-byte Ed25519 signatures (owner key; rotation: new, previous)
 }
 
 message PendingRequest {}
