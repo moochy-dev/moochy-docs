@@ -3,6 +3,8 @@
 > Server-rendered pages, live updates over SSE, and the public surfaces that make donations visible and verifiable: routes, page layouts, the SSE fan-out design, the verification page, README badges, and budgets.
 
 > **Updated 2026-10-01:** pages, budgets, and live updates now match `spec/CONTRACT.md` (§0a, §8, §9, §11, §13, §14) and ADR-01/34. Changes: hand-written CSS with custom properties and a native-first motion system replace Tailwind, with byte budgets (CSS ≤ 48 KB raw / ≤ 12 KB gzip, motion JS ≤ 12 KB gzip, at most one self-hosted variable font) and the fixed palette (C10); unique handles with signup choice, rename, 90-day tombstone redirects, and profiles at `/{handle}` (§12, CONTRACT §11, E21); public model slugs with native ids as secondary text (C11); pseudonyms `ps_…` (D10); SSE coalescing 250 ms for audit feed, pool, and station, goal bars ≤ 1 per 30 s, donor rankings ≤ 1 per 60 s (C12); TTFB ≤ 30 ms p50 / 80 ms p99; `mo-web` owns `relay/internal/web/**` behind the `Source` interface (§13); open-source client and closed web/relay, no self-hosting, footer "Open-source client (Apache-2.0) · 100% free" (ADR-01, CONTRACT §0a).
+>
+> **Updated again 2026-10-01 (main `b65289e7`):** monochrome Ink/Paper/Sky visual direction and subtle motion replace the earlier palette and motion system (CONTRACT §9), VOICE.md wording, app-shell information architecture, Donate tokens button studio and `button.svg`, provider logos, profiles at `/u/{handle}` (R1), web owner renamed mo-design.
 
 ---
 
@@ -15,8 +17,12 @@
 5. **Budgets** (CONTRACT §9, §13): landing page ≤ 150 KB transferred, dashboards and repo pages ≤ 100 KB (excluding avatar images); LCP ≤ 1.0 s on 4G, CLS = 0, INP ≤ 100 ms; TTFB for `/` and `/p/{owner}/{repo}` ≤ 30 ms p50 / ≤ 80 ms p99 (precompiled templates, in-memory aggregates, no N+1 queries; measured by E22); Lighthouse accessibility ≥ 95.
 6. **Hand-written CSS, no framework.** Earlier drafts compiled Tailwind at build time; it was dropped to keep the stylesheet small, readable, and free of a build toolchain. The CSS uses custom properties for the palette and themes, ≤ 48 KB raw (≤ 12 KB gzip). At most one self-hosted variable font (OFL, Latin subset, woff2 ≤ 45 KB, `font-display: swap`, preloaded); no third-party font services. htmx and its SSE extension are vendored locally. All assets are embedded in the binary and served from `/static/` with immutable cache headers (content-hashed filenames).
 7. **"Open-source client (Apache-2.0) · 100% free" on every page.** A persistent footer and the landing page say it plainly: *"The Moochy client is open source (Apache-2.0) and the service is 100% free. No fees, no commission, no paid tier. Donors pay their own provider directly; Moochy never touches money. Your keys, your code, and all cryptography stay in the open-source client you can verify; the relay only sees encrypted bytes."* It links to the client source, the protocol spec, and the public costs page. (The relay and web are closed source and self-hosting is not offered, ADR-01; the trust story does not depend on them.)
-8. **Palette (fixed):** white `#FFFFFF`, dark `#0B1220` (ink and dark background), light blue `#7DD3FC` (accent fills, highlights, focus rings, glows), `#0369A1` for small text links on white (contrast). Dark theme: background `#0B1220`, text `#F8FAFC`, accent `#7DD3FC`. Only tints and shades of these (for example the accent at reduced opacity for glows); no other brand colours.
-9. **Motion system, native first** (CONTRACT §9): CSS scroll-driven animations (`animation-timeline: scroll()/view()`), cross-document View Transitions (`@view-transition`), `linear()` spring easings, `@property`-animated numbers (goal bars and counters), SVG stroke animations. A small vanilla JS motion layer (≤ 12 KB gzip, external file, no framework, no CDN) covers only what CSS cannot: pointer-follow spotlight, theme-switch circular reveal, IntersectionObserver fallback. Animate only `transform` and `opacity` (`filter` sparingly), 60 fps on a mid-range phone, no layout shift; `prefers-reduced-motion` turns every non-essential motion off.
+8. **Visual direction (CONTRACT §9, product owner review 2026-10-01; supersedes the earlier palette and motion rules):** calm, editorial, product-grade; nothing that reads as "AI-made". Strictly monochrome from exactly three base colors, **Ink** (dark), **Paper** (white) and **Sky** (light blue), with every other color a named derived token (tints, shades, or alpha of one base on another). No gradients, glows, blur or glass, sheen or shimmer text, particle backgrounds, cursor-follow effects, magnetic buttons, scroll-jacking or pinned scrollytelling, or marquees. Flat surfaces, 1 px borders, generous whitespace, strong type hierarchy, real content. Success, warning, and error use the same three bases plus icons, labels, and weight. WCAG AA everywhere. A small geometric **mascot** in the three colors is the brand mark (legible at 16 px), with a few expressions used sparingly in empty and loading states.
+9. **Motion: subtle and functional only.** State changes, list insertions, page transitions, and the mascot's small expressions; at most one first-view fade per section; animate only `transform` and `opacity`, no layout shift; `prefers-reduced-motion` turns it all off. Any JavaScript beyond htmx stays within ≤ 12 KB gzip, as an external file (strict CSP).
+10. **Words follow `docs/brand/VOICE.md`.** Routes and code keep internal names (`/station`, `/console`, `pledges`), but every visible word uses the user-facing vocabulary: **Donate tokens** (the primary call to action), donation (never "pledge"), monthly limit, limit per request, stop donating, Dashboard (`/station`), Project settings (`/console/…`), accept a donor, public receipt.
+11. **Information architecture.** Public pages are minimal (landing, explore, public repo page, leaderboard, receipts, open-source client, connect). When signed in, `/` is the app: a shell with a sidebar (Overview, Donations, Repositories, Devices, Activity, Members for owners, Settings), each with listings (filters, sort, empty states), detail views, and forms, all working without JavaScript.
+12. **Donate button studio.** Maintainers (or donors) build a **Donate tokens** README button: repository, label, style (mascot + text, text only, compact), theme (light, dark, or auto through `<picture>` and `prefers-color-scheme`), size, live preview, one-click copy of the Markdown and `<picture>` snippets. `/p/{owner}/{repo}/button.svg` is static-safe (no script, no external references, escaped text, strict query-parameter allowlist, `image/svg+xml`, cache headers suited to GitHub's image proxy). User guide: `docs/guides/donate-button.md`.
+13. **Provider logos** (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI) are the companies' official single-color marks, vendored locally (never hot-linked), shapes unaltered, used only in a "works with" context; sources recorded in `relay/internal/web/third_party/LOGOS.md`.
 
 ---
 
@@ -32,7 +38,8 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 | GET | `/explore` | P | Repos seeking compute: goal %, donors, models wanted; filters |
 | GET | `/p/{owner}/{repo}` | P | Public repo page (§3) |
 | GET | `/p/{owner}/{repo}/events` | P | SSE: presence + goal + audit-feed fragments (E19) |
-| GET | `/p/{owner}/{repo}/badge.svg` | P | README badge (§8) |
+| GET | `/p/{owner}/{repo}/button.svg` | P | **Donate tokens** README button from the studio (§1 item 12, §8) |
+| GET | `/p/{owner}/{repo}/badge.svg` | P | README status badge (§8) |
 | GET | `/p/{owner}/{repo}/donate` | U | Pledge form |
 | POST | `/p/{owner}/{repo}/pledges` | U | Create pledge |
 | GET | `/station` | U | Donor Station (§4) |
@@ -51,11 +58,11 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 | GET | `/leaderboard` | P | Global donors (opt-in names) |
 | GET | `/auth/{provider}` · `/auth/{provider}/callback` · POST `/auth/logout` | P/U | OAuth (sign-out lives under `/auth/` so that every first path segment stays in the reserved-handle list) |
 | GET · POST | `/auth/handle` | U | Choose a handle at first sign-in; rename later (§12) |
-| GET | `/{handle}` | P | Public profile by handle: opt-in donor stats, repos owned, undisputed receipts; a tombstoned handle redirects for 90 days (§12) |
+| GET | `/u/{handle}` | P | Public profile by handle (R1; never a bare `/{handle}`): opt-in donor stats, repos owned, undisputed receipts; a tombstoned handle redirects for 90 days (§12) |
 | GET | `/static/...` | P | Embedded CSS, motion JS, vendored htmx + SSE extension, font (content-hashed, immutable) |
 | GET | `/admin/...` | operator | Minimal moderation and metrics (separate auth: operator device keys) |
 
-All routing uses the standard library `ServeMux` with method and path patterns. No router dependency. The landing page is registered as `GET /{$}` (exact match) and the profile as `GET /{handle}`, which is less specific than every fixed route above, so fixed routes always win.
+All routing uses the standard library `ServeMux` with method and path patterns. No router dependency. The landing page is registered as `GET /{$}` (exact match) and profiles live under the fixed prefix `GET /u/{handle}` (R1), so a handle can never collide with a page name; `u` is a reserved handle.
 
 **Reserved handles = route first segments.** Every first path segment above (`connect`, `open`, `explore`, `p`, `station`, `console`, `claim`, `device`, `devices`, `r`, `log`, `leaderboard`, `auth`, `static`, `admin`), plus those of the API and dev surfaces (`api`, `dev`, `mcp`, `v1`), is in the reserved-handle list of CONTRACT §11. A new top-level route must add its segment to that list (checked in CI) and must not collide with an existing or tombstoned handle; prefer nesting new pages under an existing segment.
 
@@ -65,7 +72,7 @@ All routing uses the standard library `ServeMux` with method and path patterns. 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  owner/repo                                   [ Donate compute → ]   │
+│  owner/repo                                   [ Donate tokens →  ]   │
 │  ★ 12.4k · Rust · "Fast X for Y"                                     │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Monthly compute goal                                     $750 / $1,000 │
@@ -182,7 +189,7 @@ flowchart LR
 
 ## 8. README badge: the growth loop
 
-`/p/{owner}/{repo}/badge.svg` renders a small SVG: **"AI compute: 23 donors · 75% of goal"**. Maintainers paste it into their README next to CI badges. Visitors click through to the repo page and donate. Each repo page also links to other repos the same donors support.
+The primary README element is now the **Donate tokens** button (`/p/{owner}/{repo}/button.svg`, built in the studio, §1 item 12; user guide `docs/guides/donate-button.md`), which links to `/p/{owner}/{repo}/donate`. A status badge remains available: `/p/{owner}/{repo}/badge.svg` renders a small SVG such as **"Donated tokens: 23 donors · 75% of goal"**, for maintainers who want it next to their CI badges. Visitors click through to the repo page and donate. Each repo page also links to other repos the same donors support.
 
 - Cached for 5 minutes (CDN-friendly). The SVG is generated from a template with no external fonts.
 - Cheap to build, and the main organic acquisition channel. Prioritized in [11](11-roadmap-and-testing.md).
@@ -229,18 +236,18 @@ Every user has exactly one Moochy handle, unique on the instance and case-insens
 - **Format:** ASCII only, lowercase, 3–32 characters, `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$`, no `--`. Input with uppercase letters is shown lowercased; input with any non-ASCII character (Cyrillic `а`, zero-width characters, RTL marks) is refused with a plain message, never silently transliterated.
 - **Reserved words** are refused: every first path segment of the routes (§2), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before.
 - **Rename (`/auth/handle`, signed in).** Allowed at most once per 30 days; the page shows the date of the last change and when the next one is allowed. Before confirming, it states the consequences: the old handle is retired **for good** (no one, including the user, can take it again), it redirects to the new handle for 90 days, and links in READMEs or posts should be updated.
-- **Tombstones and redirects.** `GET /{old}` answers a permanent redirect to `/{new}` for 90 days after the rename, then `410 Gone` with a short "this handle was retired" page. A tombstoned handle is never reassigned, which blocks takeovers of links, badges, and reputation through username recycling.
-- **Profiles by handle (`/{handle}`).** The profile shows what the user opted to make public: donor totals and repos supported (undisputed receipts only), repos they own. Pages store user ids, not handles, so every page renders the current handle after a rename.
+- **Tombstones and redirects.** `GET /u/{old}` answers a permanent redirect to `/u/{new}` for 90 days after the rename, then `410 Gone` with a short "this handle was retired" page. A tombstoned handle is never reassigned, which blocks takeovers of links, badges, and reputation through username recycling.
+- **Profiles by handle (`/u/{handle}`).** The profile shows what the user opted to make public: donor totals and repos supported (undisputed receipts only), repos they own. Pages store user ids, not handles, so every page renders the current handle after a rename.
 - **Pseudonyms.** Users who do not opt in to public attribution appear as their pseudonym (`ps_` + 16 random base32 characters). The pseudonym is not derived from `user_id` or the handle and does not change on rename; the key log and projections use only pseudonyms ([06 §10.3](06-security-and-trust.md)).
 
 ---
 
 ## 13. Code ownership and the `Source` interface
 
-The web layer lives in `relay/internal/web/**` (Go, standard library only) and is owned by `mo-web` (CONTRACT §0, §9). It never touches the database or the Scheduler directly. The package exports:
+The web layer lives in `relay/internal/web/**` (Go, standard library only) and is owned by `mo-design` (formerly `mo-web`; CONTRACT §0, §9). It never touches the database or the Scheduler directly. The package exports:
 
 - `func New(src Source) http.Handler`: all pages, fragments, static assets, and SSE routes of §2 (OAuth and handle-choice logic come from `relay/internal/oauth`, owned by `mo-oauth`).
-- The `Source` interface, defined by `mo-web` and implemented by `mo-relay`: read-only queries (repo by slug, pool summary, goal numbers, recent projections, donor station data). `mo-web` ships a fake `Source` for its own tests.
+- The `Source` interface, defined by `mo-design` and implemented by `mo-relay`: read-only queries (repo by slug, pool summary, goal numbers, recent projections, donor station data). `mo-web` ships a fake `Source` for its own tests.
 - `func (h) Publish(topic string, ev Event)`: domain events from the Relay into the SSE hub (§7); non-blocking for the caller.
 
 This boundary keeps the TTFB budget honest (every `Source` call is an in-memory aggregate or one indexed query, no N+1) and lets the web be built and tested without a running Relay. E19 checks the integration end to end: `/p/{owner}/{repo}` renders with the palette tokens present, and `/p/{owner}/{repo}/events` delivers a fragment after a task settles.
