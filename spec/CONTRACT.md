@@ -24,8 +24,8 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 - **Machine-to-machine messages are protobuf over gRPC** (§12, `spec/proto/moochy/v1/link.proto`). **Signed artifacts stay JSON bytes** carried verbatim in `bytes` fields: route header, inner payload, receipts, projections, catalog. They are signed and stored as exact bytes and parsed with the strict rules below.
 - **Parser-differential rule:** every JSON parse that feeds a security or money decision (route header, receipts, provider request bodies in the Worker firewall, provider responses for usage, MCP messages) MUST reject duplicate object keys, invalid UTF-8, lone surrogates, numbers outside i64/f64, and nesting deeper than 64. Go must not use plain `encoding/json` for these (use a decoder that detects duplicates); Rust must not rely on last-key-wins `serde_json::Value`. When the Worker mutates a body, it re-serializes from the validated tree; it never forwards bytes that a different parser could read differently.
-- Bytes in JSON: **base64url without padding** (`RFC 4648 §5`). Ids: `task` = ULID canonical 26-char string; `device_id` = `d_` + ULID; `user_id` = `u_` + ULID; `repo_id` = `r_` + ULID; `pledge_id` = `p_` + ULID. Money: JSON integer µ$ (`*_uusd`).
-- `lp(a, b, …)` = concatenation of `u32_be(len(x)) || x` for each field. Integers inside `lp` are encoded as `u64_be` (8 bytes). Strings as UTF-8 bytes.
+- Bytes in JSON: **base64url without padding** (`RFC 4648 §5`). Ids: `task` = ULID canonical 26-char string; `device_id` = `d_` + ULID; `user_id` = `u_` + ULID (internal, never public); public user **pseudonym** = `ps_` + 16 random base32 chars (never derived from `user_id`); `repo_id` = `r_` + ULID; `pledge_id` = `p_` + ULID. Money: JSON integer µ$ (`*_uusd`).
+- `lp(a, b, …)` = concatenation of `u32_be(len(x)) || x` for each field. Integer fields are encoded with the width written at the call site (`u32(x)` = 4 bytes BE, `u64(x)` = 8 bytes BE); an integer written without a width is `u64`. Strings as UTF-8 bytes. Test vectors pin every width.
 - Hash = SHA-256. HKDF = HKDF-SHA256 (RFC 5869); `Expand` length 32 unless stated.
 - Signatures: Ed25519, **verification = ZIP-215** in both languages (Rust `ed25519-zebra` or equivalent; Go `github.com/hdevalence/ed25519consensus`). Signing is plain RFC 8032.
 - AEAD: ChaCha20-Poly1305 (RFC 8439). Nonce (12 bytes) = `0x00 * 8 || u32_be(seq)`.
@@ -39,14 +39,14 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 - `CK`: 32 random bytes, fresh per sealed body.
 - `K_req = HKDF(salt = "", ikm = CK, info = lp("moochy/v1/req", task_id))`.
-- Request chunk `i`: `AEAD(K_req, nonce(i), aad = lp("moochy/v1/req", kind_byte, task_id_16B, u32(i), last_byte))`, plaintext ≤ 65,497 bytes.
+- Request chunk `i`: `AEAD(K_req, nonce(i), aad = lp("moochy/v1/req", kind_byte, task_id_16B, u32(i), last_byte))` with `kind_byte` the constant `0x01` (kept for domain separation; frame kinds no longer exist), `task_id_16B` the 16 raw ULID bytes, `last_byte` `0x01`/`0x00`; plaintext ≤ 65,497 bytes.
 - Wrap: `HPKE.SealBase(pkR = enc_pub, info = lp("moochy/v1/wrap", suite_id, task_id), aad = route_header_bytes, pt = CK)` → `enc (32) || ct (48)` = 80 bytes.
 - `R`: 32 random bytes per attempt (Worker). `RK = HKDF(salt = R, ikm = CK, info = lp("moochy/v1/resp", task_id, worker_device, u64(attempt)))`.
 - Response chunk: `AEAD(RK, nonce(seq), aad = lp("moochy/v1/resp", task_id_16B, u64(attempt), R, u32(seq), last_byte))`.
 - Salts: `S` 32 random bytes in the inner payload; `S_x = HKDF(salt="", ikm=S, info=lp("moochy/v1/salt", name))` for name ∈ {`req`,`resp`,`pid`}.
 - Gateway task signature: `Ed25519(gw_key, lp("moochy/v1/task", task_id, repo_id, route_header_bytes, body_sha256, headers_sha256))`.
-- Auth signature: `Ed25519(dev_key, lp("moochy/v1/auth", nonce, dialed_origin, tls_exporter, device_id))`; `tls_exporter` = RFC 9266 (`EXPORTER-Channel-Binding`, empty context, 32 bytes). `dialed_origin` = `wss://host:port` exactly as dialed.
-- Route header bytes = the exact UTF-8 JSON bytes the Gateway sends in `task.submit.route` (it is transmitted as base64url of those bytes, field `route_b64`, plus a decoded convenience copy is NOT sent; the Relay parses the decoded bytes).
+- Auth signature: `Ed25519(dev_key, lp("moochy/v1/auth", nonce, dialed_origin, tls_exporter, device_id))`; `tls_exporter` = RFC 9266 (`EXPORTER-Channel-Binding`, empty context, 32 bytes). `dialed_origin` = the exact origin the Node dialed for the gRPC link, scheme included: `https://host:port`.
+- Route header bytes = the exact UTF-8 JSON bytes the Gateway puts in `SubmitOpen.route`; the Relay forwards the same bytes in `Assign.route` (raw protobuf `bytes`, no base64).
 
 ## 4. Inner payload (sealed request plaintext, before zstd)
 
@@ -55,8 +55,7 @@ JSON: `{"v":1,"body_b64":..., "body_sha256":..., "headers": {"anthropic-version"
 ## 5. Messages
 
 **Superseded by `spec/proto/moochy/v1/link.proto`** (gRPC, §12). The plan's message catalog (03 §5) maps 1:1 onto it; the 23-byte binary frame header of plan 03 §4.2 is gone (the gRPC stream identifies the task; `Chunk{attempt, seq, last, ct}` carries the rest; the AEAD AAD in §3 is unchanged). Historical field list, kept for reference: `t`, `task`, `attempt`, `route_b64`, `wraps` (`[{"worker_device","wrap"}]`), `body_len`, `body_chunks`, `worker_device`, `R`, `code`, `retryable`, `retry_after_ms`, `sealed_detail`, `receipt_b64`, `donor_sig`, `projection_b64`, `projection_sig`, `seq`, `running_hash`, `sig`, `slots_free`, `models` (`[{"dialect","model","rl_headroom"}]`), `pledges`, `window_open`, `local_cap_left`, `tasks` (known_tasks), `since`.
-Route header JSON fields (03 §7.1): `repo_id, dialect, model, effort, max_tokens, est_input_tokens, cache_ttl, stream, affinity, flags`.
-Binary frame header: 03 §4.2 (23 bytes).
+Route header JSON fields (03 §7.1): `repo_id, dialect, model, effort, max_tokens, est_input_tokens, cache_ttl, stream, affinity, flags`. There is no binary frame header any more (ADR-33).
 
 ## 6. Process interface (what the e2e harness runs)
 
@@ -79,7 +78,7 @@ Binary frame header: 03 §4.2 (23 bytes).
 `moochy --home <dir> <command>`; all state under `<dir>`. Keystore backend for tests: encrypted file, passphrase from env `MOOCHY_PASSPHRASE`.
 - `moochy login --relay https://127.0.0.1:GRPCPORT --ca-file <pem> --roles gateway,worker --headless` → prints `{"event":"device_code","user_code":"XXXX-XXXX"}` then blocks until approved, then `{"event":"logged_in","device_id":"d_…"}`.
 - `moochy keys add <anthropic|openrouter|deepseek|openai> --key-stdin [--base-url http://127.0.0.1:PORT]` — `--base-url` is accepted **only** for loopback hosts **and** only when env `MOOCHY_INSECURE_DEV=1`; otherwise refused.
-- `moochy config set <key> <value>` for `device_monthly_cap_uusd`, `slots_max`, `gateway_addr` (default `127.0.0.1:0`).
+- `moochy config set <key> <value>` for `device_monthly_cap_uusd`, `slots_max`, `gateway_addr`. When `gateway_addr` is unset, the first `up` picks a free loopback port, persists it, and reuses it on every later start (clients keep a stable base URL); tests set `127.0.0.1:0` explicitly.
 - `moochy up --foreground` → when ready writes `<dir>/state/node.json` `{"device_id","gateway_url":"http://127.0.0.1:P","mcp_url":"http://127.0.0.1:P/mcp","pid"}` and prints `{"event":"ready",...same}`.
 - `moochy env --repo owner/name --json` → `{"anthropic_base_url","openai_base_url","token"}`.
 - `moochy mcp --repo owner/name` → stdio MCP server (JSON-RPC 2.0, newline-delimited); the shim talks to the running Node through the gRPC `LocalControl` service on the 0600 Unix socket `<dir>/state/node.sock`.
@@ -112,7 +111,7 @@ IDs are stable; each is one Go test `TestE<NN>_<name>`. A scenario may `t.Skip("
 | E14 | Local gateway hardening: wrong token → 401; bad `Host` header → 403; no CORS headers; binds loopback only |
 | E15 | Route tamper (chaos `tamper_route`) → worker refuses (`bad_envelope`), provider never called, zero spend |
 | E16 | Task replay (chaos `replay_assign`) → second delivery refused (`unauthorized_task`), provider called once |
-| E17 | Frame injection (chaos `inject_frame`) → forged bytes never reach the client: the Gateway fails the task on the first AEAD failure with a native retryable error and logs `bad_envelope`; no forged byte appears in the client output |
+| E17 | Frame injection (chaos `inject_frame`: the malicious relay itself injects a forged `Chunk` into the live Submit stream toward the Gateway) → forged bytes never reach the client: the Gateway fails the task on the first AEAD failure with a native retryable error and logs `bad_envelope`; no forged byte appears in the client output |
 | E18 | Tool-call gating: fake emits a tool call not in `tools[]` / failing schema / `curl … | sh` → replaced with an error tool result |
 | E19 | Web: `/p/{owner}/{repo}` renders (palette tokens present), SSE `/p/{owner}/{repo}/events` delivers a fragment after a task |
 | E20 | Throughput smoke: 200 concurrent streamed tasks across 3 workers complete; p50 relay-added latency reported |
@@ -176,7 +175,7 @@ The dev API (§6) uses `username` = this handle.
 
 **Hardening (all mandatory, all tested):**
 - TLS 1.3 only, ALPN `h2`; no plaintext h2c anywhere except the local Unix sockets.
-- Server: `MaxConcurrentStreams` 64 per connection; `MaxRecvMsgSize`/`MaxSendMsgSize` 128 KiB (a chunk is ≤ 64 KiB); `MaxHeaderListSize` 16 KiB; keepalive enforcement (`MinTime` 10 s, `PermitWithoutStream` true) + server pings every 15 s, 2 missed = dead; per-connection limit on stream-open rate (HTTP/2 Rapid Reset, CVE-2023-44487) and on resets; current grpc-go / x/net with the CONTINUATION-flood fixes (2024) and HPACK limits; per-IP connection cap; `DeviceStart`/`DevicePoll` rate-limited per IP; unauthenticated calls other than Session/Device* rejected before any allocation of task state.
+- Server: `MaxConcurrentStreams` 128 per connection (Worker `slots_max` ≤ 64 + Gateway ≤ 16 concurrent tasks + Session fit with margin); `MaxRecvMsgSize`/`MaxSendMsgSize` 128 KiB (a chunk is ≤ 64 KiB); `MaxHeaderListSize` 16 KiB; keepalive enforcement (`MinTime` 10 s, `PermitWithoutStream` true) + server pings every 15 s, 2 missed = dead; per-connection limit on stream-open rate (HTTP/2 Rapid Reset, CVE-2023-44487) and on resets; current grpc-go / x/net with the CONTINUATION-flood fixes (2024) and HPACK limits; per-IP connection cap; `DeviceStart`/`DevicePoll` rate-limited per IP; unauthenticated calls other than Session/Device* rejected before any allocation of task state.
 - Client (Rust): same message-size caps, `http2_max_header_list_size`, connect/request timeouts, bounded per-stream buffers, no gRPC compression.
 - gRPC reflection and channelz disabled in production; `grpc.health.v1` allowed.
 - Status mapping: Relay policy errors travel as `Failed{code, retryable}` messages inside the stream (not as gRPC status), so the Gateway can map them to provider-native errors (plan 03 §10.3). gRPC status codes are reserved for transport/auth failures (`UNAUTHENTICATED`, `RESOURCE_EXHAUSTED`, `UNAVAILABLE`, `DEADLINE_EXCEEDED`).
@@ -203,3 +202,19 @@ Mandatory techniques: warm connections everywhere (provider HTTP/2 pools, the re
 | ID | Scenario |
 |---|---|
 | E22 | Responsiveness budgets: run 1,000 tasks with an instant fake provider and measure every row of §13 from timestamps (client, Gateway, Relay, Worker, fake); fail if any p50/p99 budget is exceeded; print the table |
+
+## 14. Integrator decisions (from docs/TRACEABILITY.md review, 2026-10-01)
+
+| # | Decision |
+|---|---|
+| D14 | Until the key log ships, a Worker accepts **relay-asserted** membership/approval only when started with `MOOCHY_INSECURE_DEV=1` (tests, design partners). With the key log, it requires the owner-signed log entries (plan 03 §7.2). The key log is in scope **now** (full plan), not deferred. |
+| D18 | Served-task set: in memory (±10 min window) plus a **boot-time floor**: the Worker refuses any task whose ULID timestamp is earlier than its own process start. No fsync in the hot path; replay across restarts is impossible. |
+| C1 | Adaptive group commit (ADR-34) supersedes the "10 ms window" wording in plans 02/04/05/09. |
+| C2 | gRPC (ADR-33) supersedes every WebSocket/frame mention in plans 01/02/03/04/07/10. |
+| C3 | A closing schedule window is an **eligibility** condition (`window_open`), never a pledge status change. |
+| C4 | `over_task_cap` → HTTP 400 `invalid_request_error`; `quota_exceeded` → HTTP 403 `permission_error` (never 429, which agents retry). |
+| C6 | The relay binary is `relay`. |
+| C11 | UI shows public slugs; native ids as secondary text. |
+| C12 | §13's 250 ms coalescing applies to audit feed, pool, and station; goal bars may update at most every 30 s and donor rankings every 60 s. |
+| D15 | Additional relay flags (all optional): `--config <toml>`, `--metrics-addr` (Prometheus, loopback by default), `--autocert-domain`, `--read-only` (restore drills). |
+| D16 | Key log uses `x/mod/sumdb/tlog` hashing/proofs + `x/mod/sumdb/note` with our own C2SP tile path layer (no Tessera). |
