@@ -1,6 +1,15 @@
-# Moochy implementation contract (Phase 1 walking skeleton → beta)
+# Moochy implementation contract (Phase 1 walking skeleton → beta) — CLOSED SOURCE (internal)
 
 Normative for every implementer. The design rationale lives in `docs/plan/` (03 = wire protocol, 05 = ledger, 06 = security, 07 = client). When this file and the plan disagree, **this file wins** for encodings and interfaces; raise the conflict in your final report.
+
+## 0a. Source boundary (product owner decision, 2026-10-01)
+
+| Side | Paths | License |
+|---|---|---|
+| **Open source** (published as `moochy-cli`) | `cli/**`, `spec/proto/**`, `spec/vectors/**`, `spec/protocol.md` (public protocol spec), `docs/guides/**`, client release tooling under `deploy/client/**` | **Apache-2.0**, contributions with DCO sign-off (`Signed-off-by:`) |
+| **Closed source** (the `moochy-core` monorepo: backend + frontend) | `relay/**` (incl. `relay/internal/web/**`), `e2e/**`, `deploy/**` except `deploy/client/**`, `docs/plan/**`, `docs/ops/**`, `docs/security/**`, `docs/TRACEABILITY.md`, `spec/CONTRACT.md` | Proprietary, all rights reserved |
+
+Rules: **open code never imports, links, or copies closed code** (the Rust client depends only on open crates and `spec/`); closed code may use open code. Everything that touches donor keys, maintainer code, or cryptography is in the open client, so users never need to trust the closed relay (it only sees ciphertext). Self-hosting the relay is **not** offered; the Node's relay URL stays configurable for development and tests. The product stays **100% free** (no fees, no commission, no paid tier). Public wording: **"Open-source client (Apache-2.0) · 100% free"** — never "100% open source".
 
 ## 0. Repository layout and ownership
 

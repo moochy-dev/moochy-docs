@@ -8,7 +8,7 @@
 
 | ID | Decision | Alternatives considered | Why | Revisit when |
 |---|---|---|---|---|
-| ADR-01 | **Everything is open source**: relay, client, spec, docs, in one public monorepo under **Apache-2.0 OR MIT** | Closed-source core + open client (draft); AGPL-3.0 for the relay | Project requirement ("100% open source"); self-hosting; anyone can audit or reimplement. Trust never depends on the operator anyway (E2E) | License wording is final before the first external contribution (Q1) |
+| ADR-01 | **Open-source client, closed-source core** (product owner, 2026-10-01): the `moochy` client, the protocol definition (`.proto`, vectors, public protocol spec) and user guides are **Apache-2.0** with DCO; the relay + web monorepo (backend and frontend) is proprietary. Open code never depends on closed code; all key handling and cryptography live in the open client | Everything open source (earlier revision of this plan); dual Apache-2.0/MIT; AGPL relay | Users only need to trust what they can read and verify (the client); the relay sees only ciphertext; the product owner keeps the core proprietary | — |
 | ADR-02 | **Free forever**: no fees, no commission, no paid tier, no paid "verified" mode; Moochy never holds anyone's money | Take rate, premium tiers | Project requirement ("100% free"); avoids payment/escrow/tax regimes; infrastructure is cheap and sponsor-funded with public accounts | Never for fees. Funding model only |
 | ADR-03 | Unit of account = **µ$ (int64 micro-USD)** | Raw tokens (draft); floats | Tokens are not comparable across models or token types; integers avoid drift | — |
 | ADR-04 | **Two doors, one pipeline**: an MCP server (stdio + Streamable HTTP) **and** a provider-compatible API (Anthropic + OpenAI) on loopback | MCP only (draft); API only | MCP reaches every MCP client and agent framework; the API door makes donated compute the *primary* model for any tool with a base URL; one pipeline = the same guarantees | — |
@@ -75,7 +75,7 @@
 
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|
-| Q1 | **License wording and contribution sign-off.** Apache-2.0 OR MIT everywhere (decided, ADR-01), DCO vs CLA? | **DCO**: simplest, no paperwork, fits a free project. Decide before the first external contribution | Phase 0 |
+| Q1 | License and contributions | **Decided:** Apache-2.0 for the open-source parts, DCO sign-off | — |
 | Q2 | Private repositories on the public instance in a later phase? | No; private pools are better served by self-hosted relays | Phase 5 |
 | Q3 | Which providers get a counsel "go"? | Start with those that clearly allow API-based service to third-party end users with attribution | Phase 0 |
 | Q4 | Which IDEs can reach a loopback base URL? Which MCP clients send roots, honor progress, and allow longer tool timeouts? | Validate in Phase 0; the matrix and `moochy connect` encode the answers | Phase 0 |
