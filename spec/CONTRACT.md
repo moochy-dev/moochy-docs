@@ -112,6 +112,7 @@ IDs are stable; each is one Go test `TestE<NN>_<name>`. A scenario may `t.Skip("
 | E18 | Tool-call gating: fake emits a tool call not in `tools[]` / failing schema / `curl … | sh` → replaced with an error tool result |
 | E19 | Web: `/p/{owner}/{repo}` renders (palette tokens present), SSE `/p/{owner}/{repo}/events` delivers a fragment after a task |
 | E20 | Throughput smoke: 200 concurrent streamed tasks across 3 workers complete; p50 relay-added latency reported |
+| E21 | Unique usernames: a duplicate, a case variant (`Alice` vs `alice`), a reserved word (`admin`), an invalid/confusable handle (`аlice` with Cyrillic а), and a tombstoned handle are all refused; a rename redirects the old handle |
 
 ## 9. Web interface (between `mo-relay` and `mo-web`)
 
