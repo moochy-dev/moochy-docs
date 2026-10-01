@@ -62,6 +62,10 @@ Yes. The donor's device decrypts the request to send it to their provider, and t
 
 Before anything leaves your machine, the app removes text that looks like a secret (API keys, tokens, private keys). Files you hand to `moochy_delegate` are read only from inside your repository; `.git`, files ignored by git, and secret-looking files are refused.
 
+### What runs on a donor's machine?
+
+Only inference: open the encrypted request, check it, make one HTTPS call to the provider with the donor's key, encrypt the response. The app never runs a command, a tool, or code from a request, and the background app removes its own ability to start programs once it is running. Each request is checked in a throwaway process with no files, no network, and no keys. See [What runs on your machine](donor.md#what-runs-on-your-machine).
+
 ### Can someone use a donor's key for something else?
 
 The donor's app serves a request only if it is signed by a device of a member the repository owner accepted with their own signature, is fresh (created in the last 10 minutes, and not before the donor's app started), and was never served before. It then runs safety checks against a strict list of what is allowed: no server-side tools, no remote MCP servers, no provider file storage, no paid extras unless the donor allowed them. The relay cannot invent requests, send one twice, or move a request to another project.
@@ -76,7 +80,7 @@ Three separate limits stop spending, and the smallest one wins:
 
 ### Can a donor attack me through the model's response?
 
-Treat model output as input you did not write. Every tool call in a response is held until complete, checked against the tools and schemas your tool actually offered, scanned for dangerous patterns, and released only if a signature from the donor's device covers it. Results from `moochy_delegate` are marked as untrusted content from a named donor. A donor who misbehaves can be identified (every response is signed by their device) and removed.
+Treat model output as input you did not write. Tool calls from donated tokens only reach agents running inside `moochy run`, a sandbox that can touch your project and nothing else: no other files, no keys, no network except Moochy ([details](run.md)). Every tool call in a response is held until complete, checked against the tools and schemas your tool actually offered, scanned for dangerous patterns, and released only if a signature from the donor's device covers it. Results from `moochy_delegate` are marked as untrusted content from a named donor. A donor who misbehaves can be identified (every response is signed by their device) and removed.
 
 ### How do I know a donor really used the model they claim?
 
@@ -88,7 +92,8 @@ The repository owner's own device signs every accepted donor and member, and tho
 
 ### How do I check the app I run?
 
-- Release files are signed with Sigstore and carry SLSA build provenance. Check them with `gh attestation verify <file> --repo <moochy-cli repository>` or `cosign verify-blob`.
+- Release files are signed with Sigstore and carry SLSA build provenance. Check them with `gh attestation verify <file> --repo moochy-dev/moochy-cli`, or with `cosign verify-blob` and the `.sigstore.json` bundle attached to the release.
+- `moochy update --from-file <file>` installs a release only if its signature checks out.
 - Builds are reproducible: build the tagged source yourself and compare.
 - Or build from source and run your own build.
 
@@ -116,4 +121,4 @@ On purpose. When a request could cost more than the donors' limit per request (4
 
 ### What happens if moochy.dev is down?
 
-Requests fail with normal provider errors that tools retry. If the maintainer turned on **own key as a fallback**, their app calls the provider directly with their own key until the service is back. Donors' receipts wait safely on their own machines and are delivered afterwards, so nothing is lost or charged twice.
+Requests fail with normal provider errors that tools retry. Donors' receipts wait safely on their own machines and are delivered afterwards, so nothing is lost or charged twice.

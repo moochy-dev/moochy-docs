@@ -2,6 +2,8 @@
 
 **If a tool speaks MCP, it can hand work to your project's donated tokens. If it lets you set a base URL, donated tokens can power its main model.** Most current tools do both.
 
+**The safest path is `moochy run`.** For any command-line agent (Claude Code, OpenCode, Aider, Goose, …), `moochy run -- <agent>` starts it in a sandbox already pointed at Moochy, with nothing to configure. **Tool calls from donated tokens only reach agents inside `moochy run`**: a tool connected with the settings on this page gets text answers, and each tool call is replaced by a visible `[moochy]` notice, unless the project allows it (`moochy config set allow_unsandboxed_tools owner/repo`, with a warning at every start). See [Run your agent safely with `moochy run`](run.md). The settings below are for editors and apps that cannot run inside `moochy run`, for `moochy_delegate`, and for scripts that need no tool calls.
+
 The quickest path is `moochy connect <tool>` in your repository: it prints the settings below with your real port, repository, and available models filled in, and `--write` adds them to the tool's user-level config after showing the change. This page is the same information written out, for review and for tools `moochy connect` does not know.
 
 Tools change their configuration formats between versions. When a snippet here and `moochy connect` disagree, trust `moochy connect` (it is updated with each release of the app) and tell us.
@@ -15,6 +17,7 @@ moochy up
 moochy env --repo owner/repo --json
 # {"anthropic_base_url":"http://127.0.0.1:PORT","openai_base_url":"http://127.0.0.1:PORT/v1","token":"…"}
 export MOOCHY_TOKEN="$(moochy env --repo owner/repo --json | jq -r .token)"
+# or simply: eval "$(moochy env --repo owner/repo)"   # ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, OPENAI_BASE_URL, OPENAI_API_KEY, MOOCHY_MCP_URL
 ```
 
 | Way in | Endpoint | Authentication |
@@ -36,8 +39,10 @@ export MOOCHY_TOKEN="$(moochy env --repo owner/repo --json | jq -r .token)"
 
 | Tool | What it does |
 |---|---|
-| `moochy_delegate` | Runs a self-contained task on donated tokens: `prompt`, optional `system`, `files` (paths read by the Moochy app, not by your agent), `model` (one of the models donors offer), `effort`, `max_tokens`, `output` (`text` or `json`). Returns the result marked as untrusted content from the donor, plus a cost line |
+| `moochy_delegate` | Runs a self-contained task on donated tokens: `prompt`, optional `system`, `files` (paths; over stdio, `moochy mcp` reads them on your machine under the rules below and sends their contents, so they never fill your agent's context; over HTTP, send `file_contents` as `[{"path", "text"}]` instead), `model` (one of the models donors offer), `effort`, `max_tokens`, `output` (`text` or `json`). Returns the result marked as untrusted content from the donor, plus a cost line |
 | `moochy_pool_status` | Donations left this month, your monthly limit, models available, number of donors |
+
+Files shared with `moochy_delegate` come only from inside the repository, at most 2 MiB in total; `.git`, `.env` and key files, secret-looking files, and files ignored by git are refused, and secrets are removed from the text before it is encrypted.
 
 Long tasks send MCP progress notifications. Some tools stop waiting for a tool call after about a minute; raise the tool timeout where the tool allows it (shown below).
 
@@ -66,6 +71,8 @@ In the tables below, **E2E** names the scenario that covers the way in a snippet
 |---|---|---|
 | MCP stdio / HTTP | E04 / E05 | manual |
 | API (Anthropic) | E01, E03 | manual |
+
+Recommended: `moochy run -- claude` in your repository. It needs no setup and is the only way Claude Code receives tool calls from donated tokens. To configure Claude Code yourself instead:
 
 MCP, user scope (available in every project):
 

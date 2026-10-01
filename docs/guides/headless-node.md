@@ -26,16 +26,16 @@ Confirm the code from any browser where you are signed in to moochy.dev. The com
 ### 1.2 Provider key and limits
 
 ```sh
-printf '%s' "$ANTHROPIC_KEY" | moochy --home /var/lib/moochy keys add anthropic --key-stdin
-moochy --home /var/lib/moochy config set device_monthly_cap_uusd 25000000   # $25 a month for this machine
+printf '%s' "$ANTHROPIC_KEY" | moochy --home /var/lib/moochy keys add anthropic --key-stdin   # key from your secret store
+moochy --home /var/lib/moochy config set monthly_limit 25      # $25 a month from this machine
 moochy --home /var/lib/moochy config set slots_max 4
 ```
 
-Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`. Set a spending limit at your provider as well ([how, per provider](donor.md#4-set-a-spending-limit-at-your-provider-strongly-recommended)). Then press **Donate tokens** on the project's page on moochy.dev (`moochy donate` needs an interactive terminal).
+Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`. Set a spending limit at your provider as well ([how, per provider](donor.md#4-set-a-spending-limit-at-your-provider-strongly-recommended)). Then press **Donate tokens** on the project's page on moochy.dev.
 
 ### 1.3 Run it as a service
 
-`moochy service install` sets up a user service. On a server you may prefer your own systemd unit with a separate user:
+On a server, run the app as a systemd service with its own user:
 
 ```ini
 # /etc/systemd/system/moochy.service
@@ -70,16 +70,17 @@ sudo -u moochy moochy --home /var/lib/moochy journal --follow
 
 ### 1.4 In a container
 
-Run the official container image (a single file, not run as root) or your own, with a persistent volume for the home directory and the passphrase from your platform's secret store:
+The public repository ships a `Containerfile` (`deploy/client/container/`): the app alone on an empty base image, running as an unprivileged user, with its state in the `/data` volume. Build it, then run it with the passphrase from your platform's secret store:
 
 ```sh
-docker run -d --name moochy --restart unless-stopped \
-  -v moochy-home:/home/moochy \
-  -e MOOCHY_PASSPHRASE \
-  <moochy image> --home /home/moochy up --foreground
+docker build -f deploy/client/container/Containerfile -t moochy .
+docker run --rm -it -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy login --roles worker --headless
+docker run --rm -i  -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy keys add anthropic --key-stdin < key.txt
+docker run --rm     -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy config set monthly_limit 25
+docker run -d --name moochy --restart unless-stopped -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy up --foreground
 ```
 
-Run `login`, `keys add`, and `config set` once on the same volume before starting it (`docker run --rm -it … <moochy image> --home /home/moochy login --roles worker --headless`).
+The image already passes `--home /data`. Delete `key.txt` afterwards, or pipe the key from your secret store instead.
 
 A machine that only donates needs **outgoing** HTTPS (to moochy.dev and to your provider) and opens no incoming port. The local API and MCP endpoints listen on `127.0.0.1` inside the container and are not used when you only donate.
 
@@ -95,17 +96,16 @@ A machine that only donates needs **outgoing** HTTPS (to moochy.dev and to your 
    ```
 
    When you confirm the code in the browser, limit the device to **one repository**.
-2. **Make it a member with its own monthly limit.** The repository owner runs `moochy members add --device d_…` and sets the device's monthly limit in Project settings. An agent running on its own can then never use up the project's donations.
+2. **Make it a member with its own monthly limit.** The repository owner runs `moochy members add --device d_… --repo owner/repo --cap '$5'` on their own machine. An agent running on its own can then never use up the project's donations.
 3. **Store the key file** (`./ci-node`, encrypted) and its passphrase in your CI secret store.
-4. **In the job**, restore the directory, start the app, and point the agent at it:
+4. **In the job**, restore the directory, start the app, and run the agent:
 
    ```sh
    moochy --home "$RUNNER_TEMP/ci-node" up --foreground &   # prints {"event":"ready",…} when connected
-   eval "$(moochy --home "$RUNNER_TEMP/ci-node" env --repo owner/repo --json \
-     | jq -r '"export ANTHROPIC_BASE_URL=\(.anthropic_base_url) OPENAI_BASE_URL=\(.openai_base_url) MOOCHY_TOKEN=\(.token)"')"
+   moochy --home "$RUNNER_TEMP/ci-node" run --repo owner/repo -- <agent command>
    ```
 
-   Then use MCP (`moochy mcp --repo owner/repo`, or `http://127.0.0.1:PORT/mcp` with the token) or the API, exactly as on a workstation: see [Connect your tools](integrations.md). Both stay on `127.0.0.1` inside the job.
+   `moochy run` starts the agent inside the sandbox, already pointed at Moochy. Tool calls from donated tokens only reach agents inside `moochy run` ([why](run.md)). On Ubuntu 23.10 and later runners, the sandbox needs the one-time AppArmor profile described in [Linux](run.md#linux). For MCP or API access without tool calls, use `moochy mcp --repo owner/repo` or the settings printed by `moochy env --repo owner/repo`: see [Connect your tools](integrations.md). Everything stays on `127.0.0.1` inside the job.
 
 There is no hosted endpoint to call instead, because a hosted endpoint would have to see your prompts. Running the small app next to the agent keeps end-to-end encryption everywhere.
 
@@ -114,5 +114,5 @@ There is no hosted endpoint to call instead, because a hosted endpoint would hav
 ## 3. Notes
 
 - **Server address.** `moochy login --relay <url>` exists only for developing and testing the app. Normal use needs no address: the app connects to moochy.dev.
-- **Updates.** Replace the app and restart. Check new releases as described in the [FAQ](faq.md#how-do-i-check-the-app-i-run). A restart never serves an old request again: the app refuses requests created before it started.
+- **Updates.** `moochy update --from-file <file>` installs a signed release and refuses unsigned files; or replace the app yourself and restart. Check new releases as described in the [FAQ](faq.md#how-do-i-check-the-app-i-run). A restart never serves an old request again: the app refuses requests created before it started.
 - **Clock.** Keep time sync (NTP) on. Requests more than 10 minutes old or ahead are refused, and `moochy doctor` warns about a wrong clock.
