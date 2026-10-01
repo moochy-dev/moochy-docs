@@ -42,7 +42,7 @@ Owner: `mo-relay`. The relay is **untrusted for confidentiality** (adversary A3)
 |---|---|---|---|
 | R20 | Separate listener on `--grpc-addr`: TLS 1.3 only, ALPN `h2`, no h2c on TCP; `--addr` keeps the HTTP hardening (R1–R7) | A10, A94 | A10 |
 | R21 | `MaxConcurrentStreams` 64; `MaxRecvMsgSize`/`MaxSendMsgSize` 128 KiB; `MaxHeaderListSize` 16 KiB; current grpc-go/x-net (CONTINUATION-flood + HPACK fixes) | A13, A91 | A13 |
-| R22 | Per-connection stream-open and RST_STREAM rate limits (HTTP/2 Rapid Reset); the relay keeps serving under a reset burst | A14 | A14 |
+| R22 | Per-connection stream-open and RST_STREAM rate limits (HTTP/2 Rapid Reset) **and server-initiated resets** (MadeYouReset, CVE-2025-8671: malformed WINDOW_UPDATE/PRIORITY/DATA); bound in-flight work per connection; PING/SETTINGS rate limits; the relay keeps serving under A140–A144 | A14, A140–A144 | A140, A141, A142, A143, A144 |
 | R23 | `KeepaliveEnforcementPolicy{MinTime:10s, PermitWithoutStream:true}` + server pings 15 s / 2 missed = dead; GOAWAY on too-many-pings | A15 | A15b |
 | R24 | Auth per connection: `Session` sends `Hello` first; first `NodeMsg` must be `Auth`; **10 s auth deadline**; the custom `TransportCredentials` tag each connection with an id and the RFC 9266 exporter | A11, A95 | A11 |
 | R25 | `Submit`/`Serve` accepted only on the authenticated connection id **and** with a matching `x-moochy-session`; else `UNAUTHENTICATED` before any task-state allocation | A12 | A12 |
