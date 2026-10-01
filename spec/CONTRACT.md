@@ -25,7 +25,7 @@ Rules: **open code never imports, links, or copies closed code** (the Rust clien
 | `cli/crates/node` | Rust lib+bin `moochy` | `mo-node` | Node binary: CLI, config, keystore, relay link (TLS + channel binding), gateway API door + MCP door (stdio + Streamable HTTP), local security (tokens, Host check), wiring of `moochy-proto` (sealing) and `moochy-worker` (execution) |
 | `cli/crates/node/src/{worker,link,node,keylog,keystore,approve,ctl,login,keycheck}.rs` + new files for lockdown/validator/monitor wiring | Rust (part of `moochy`) | `mo-donor` | Split from `mo-node` on 2026-10-01 to parallelize: donor side (Worker serving, relay link, drain, in-flight durability, validator child wiring, `lockdown_self`), keys (keystore, owner key §15.4, `keys rotate`), key-log monitor wiring, approvals. `mo-node` keeps the gateway side (gate, gateway, task, engine, mcp, files, scrub, connect, native, `moochy run`) and `cli.rs`/`config.rs`; both may add small, separate hunks to `cli.rs` and `lib.rs` |
 | `relay/` | Go module `moochy.dev/relay` | `mo-relay` | Relay binary `relay`; everything except `relay/internal/web/**` |
-| `relay/internal/web/**` | Go (stdlib only) | `mo-web` | Pages, fragments, CSS, SSE hub; exposes the interface in §9 |
+| `relay/internal/web/**` | Go (stdlib only) | `mo-design` (was `mo-web`) | Pages, fragments, CSS, SSE hub; exposes the interface in §9 |
 | `e2e/` | Go module `moochy.dev/e2e` | `mo-e2e` | Harness, fake providers, scenarios; except `e2e/attacks/**` |
 | `e2e/attacks/**`, `docs/security/**` | Go + Markdown | `mo-sec` | Attack catalog, attack scenarios, evil-peer tooling |
 | `relay/internal/tlog/**`, `cli/crates/keylog/**` | Go + Rust lib `moochy-keylog` | `mo-keylog` | Key log: append, tlog hashing/proofs, C2SP tiles, signed checkpoints (only for replicated sizes), hourly public Git anchor; owner-signed `REPO_CLAIMED` / `DONOR_APPROVED` / `MEMBER_*` entries; Rust verifier + monitor library (mirror, consistency, own-key and owner alerts) |
@@ -111,7 +111,7 @@ IDs are stable; each is one Go test `TestE<NN>_<name>`. A scenario may `t.Skip("
 
 | ID | Scenario |
 |---|---|
-| E01 | Anthropic streaming through the API door: client receives byte-identical SSE; one receipt; `spent` = catalog cost; reservation released |
+| E01 | Anthropic streaming through the API door: client receives the same SSE events as the provider sent (semantically identical; framing and JSON are the Gateway's canonical re-emission, §15.4 — integrator decision N4); one receipt; `spent` = catalog cost; reservation released |
 | E02 | OpenAI dialect via OpenRouter donor; usage forced on; cost = OpenRouter-reported cost |
 | E03 | Anthropic dialect via DeepSeek donor and via OpenRouter donor |
 | E04 | MCP stdio: initialize, tools/list (two tools, model enum), `moochy_delegate` returns the fake's text wrapped as untrusted content |
@@ -150,6 +150,8 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 **Supported donor providers (product owner):** Anthropic, OpenAI, OpenRouter, DeepSeek, and **xAI (Grok)**. Every provider has its adapter (worker), key command (`moochy keys add <provider>`), catalog entries, fake provider + E2E scenarios, and docs.
 
 **Provider logos:** real company logos, from each company's official brand/press assets (fallback: Simple Icons), vendored locally (never hot-linked; CSP stays `self`), shown in their official single-color variant so they fit the monochrome system, shapes unaltered, used only in a "works with" context; sources and usage notes recorded in `relay/internal/web/third_party/LOGOS.md`.
+
+**Public privacy (E68):** public pages, their SSE and `/log` show no device ids, task ids or sub-day times; key-log checkpoint times are shown as dates only (integrator decision, 2026-10-01).
 
 **Information architecture:** public marketing pages are minimal (landing, explore, public repo page, leaderboard, receipts, open-source client, connect). **When signed in, `/` is the app**: an app shell with a menu bar/sidebar (Overview, Donations, Repositories, Devices, Activity, Members for owners, Settings), each with listings (filters, sort, empty states), detail views, and configure forms; everything also works without JavaScript.
 

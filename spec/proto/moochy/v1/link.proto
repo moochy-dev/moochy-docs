@@ -35,7 +35,7 @@ service NodeLink {
   rpc DeviceStart(DeviceStartRequest) returns (DeviceStartResponse);
   rpc DevicePoll(DevicePollRequest) returns (DevicePollResponse);
   // Public key-log tiles and checkpoint (C2SP tlog-tiles paths, e.g. "tile/0/000", "checkpoint").
-  // Unauthenticated, strictly rate-limited per IP, response capped at 64 KiB. Lets Nodes mirror and
+  // Unauthenticated, strictly rate-limited per IP, response capped at 123,392 bytes (one full data tile, spec/KEYLOG.md). Lets Nodes mirror and
   // verify the key log over the link they already have.
   rpc GetLogTile(LogTileRequest) returns (LogTileResponse);
 }
@@ -169,6 +169,11 @@ message ReceiptReplaySince {
 message ReceiptAck {
   string task = 1;
   uint32 attempt = 2;
+  // Receipt transparency log (spec/KEYLOG.md §8): where the settled receipt was logged, an RFC 9162
+  // inclusion proof, and the signed receipt-log checkpoint the proof is against. Empty until logged.
+  uint64 receipt_log_index = 3;
+  repeated bytes receipt_log_proof = 4;  // 32-byte hashes, leaf to root
+  bytes receipt_log_checkpoint = 5;      // signed-note bytes (origin moochy.dev/receipts)
 }
 
 message LogCheckpoint {
