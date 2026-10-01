@@ -67,3 +67,12 @@ Owner: `mo-node`. CLI, config, keystore, relay link, the Gateway API door and MC
 | N32 | No dependency on closed code: crates.io deps + `spec/**` only; no path/git deps outside `cli/` and `spec/` | A131 | M (CI) |
 | N33 | Implement only `spec/protocol.md` + `spec/vectors`; ignore unknown relay messages, refuse unknown suites/versions | A133 | V |
 | N34 | Release builds default to the official relay; a non-default `--relay` requires `MOOCHY_INSECURE_DEV=1`, prints a persistent warning, and uses a separate keystore + key-log mirror per relay origin | A135 | U |
+
+## Malicious donor (CONTRACT §15.4)
+
+| # | Control | Attack | Proof |
+|---|---|---|---|
+| N35 | Treat every donor byte as hostile: re-emit the response stream from the parsed, typed form (canonical JSON, normalized SSE, allowlisted fields); no donor byte reaches the agent's parser verbatim | A162 | A162 (pending), W16 |
+| N36 | Release tool calls from pooled compute only to a sandboxed `moochy run` session; otherwise text + a visible `[moochy]` notice, unless `allow_unsandboxed_tools` per project (warn at every start). On the MCP door, delegated calls run without tools so any `tool_use` is withheld and framed as untrusted content | A160, A161 | A160 (MCP door); A161 pending |
+| N37 | Strip terminal control sequences (ANSI/OSC incl. OSC 8/OSC 52, CSI, C1, bidi) wherever donor text is displayed; never render donor output as HTML | A165 | A46, E91 |
+| N38 | Gateway seals only to logged, unrevoked, owner-`DONOR_APPROVED` worker keys and never to an excluded provider; the D14 fallback ends when the key log is served over the link | A164 | A164 (pending), A136 |
