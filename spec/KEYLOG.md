@@ -157,7 +157,8 @@ A second log (origin `moochy.dev/receipts`, its own key) whose leaf is
 `lp("moochy/v1/receipt-log", sha256(receipt bytes))` (kind 0 in storage). The relay appends every
 settled receipt (idempotent per receipt). Receipts themselves never enter the log. A donor or
 maintainer holding a receipt proves it was logged with `(index, inclusion proof)` against a signed
-receipt-log checkpoint; the relay can no longer silently omit a settled receipt from what it
+receipt-log checkpoint — the relay returns all three in `ReceiptAck` fields 3–5 (a few ms after
+settlement: receipts are logged in batches, one transaction and one checkpoint per batch); the relay can no longer silently omit a settled receipt from what it
 publishes once the parties check inclusion.
 
 ## 9. Monitor rules (Node)
