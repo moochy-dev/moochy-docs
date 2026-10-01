@@ -33,6 +33,11 @@ service LocalControl {
   rpc McpPipe(stream McpUp) returns (stream McpDown);
   // Graceful stop (`moochy down`).
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+  // `moochy logout`: ask the relay to revoke this device (KEY_REVOKED), then stop.
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // `moochy report <task>`: evidence bundle for a task this Gateway consumed (06 §9): receipt,
+  // checkpoints, response bytes and only S_resp (never the request).
+  rpc Report(ReportRequest) returns (ReportResponse);
 }
 
 message StatusRequest {}
@@ -51,6 +56,10 @@ message StatusResponse {
   uint32 gateway_tasks = 11;       // in flight
   repeated PoolSummary pools = 12;
   uint32 pid = 13;
+  int64 clock_skew_ms = 14;        // relay server_time − node clock at the last Hello (0 = unknown)
+  uint32 provider_keys = 15;
+  uint32 warm_adapters = 16;
+  uint64 catalog_version = 17;
 }
 
 message PoolSummary {
@@ -137,6 +146,8 @@ message JournalEntry {
   string status = 6;               // ok | failed:<code> | cancelled | …
   int64 cost_uusd = 7;
   uint32 ms = 8;                   // duration
+  bytes request = 9;               // only with `journal_full_text` (opt-in), bounded
+  bytes response = 10;             // only with `journal_full_text` (opt-in), bounded
 }
 
 message McpOpen {
@@ -158,3 +169,21 @@ message McpDown {
 message ShutdownRequest {}
 
 message ShutdownResponse {}
+
+message LogoutRequest {
+  string reason = 1;               // [a-z0-9._-]{1,32}
+}
+
+message LogoutResponse {
+  bool revoked = 1;                // the relay acknowledged the KEY_REVOKED request
+  string detail = 2;
+}
+
+message ReportRequest {
+  string task = 1;
+  string reason = 2;
+}
+
+message ReportResponse {
+  bytes bundle = 1;                // JSON evidence bundle
+}
