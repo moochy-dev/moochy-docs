@@ -17,6 +17,10 @@ Normative for every implementer. The design rationale lives in `docs/plan/` (03 
 | `relay/internal/web/**` | Go (stdlib only) | `mo-web` | Pages, fragments, CSS, SSE hub; exposes the interface in §9 |
 | `e2e/` | Go module `moochy.dev/e2e` | `mo-e2e` | Harness, fake providers, scenarios; except `e2e/attacks/**` |
 | `e2e/attacks/**`, `docs/security/**` | Go + Markdown | `mo-sec` | Attack catalog, attack scenarios, evil-peer tooling |
+| `relay/internal/tlog/**`, `cli/crates/keylog/**` | Go + Rust lib `moochy-keylog` | `mo-keylog` | Key log: append, tlog hashing/proofs, C2SP tiles, signed checkpoints (only for replicated sizes), hourly public Git anchor; owner-signed `REPO_CLAIMED` / `DONOR_APPROVED` / `MEMBER_*` entries; Rust verifier + monitor library (mirror, consistency, own-key and owner alerts) |
+| `relay/internal/oauth/**` | Go | `mo-oauth` | GitHub + GitLab OAuth, web sessions, handle choice at signup (§11), repo-claim admin check via provider APIs, device-approval web page logic |
+| `relay/internal/metrics/**`, `deploy/**`, `docs/ops/**` | Go + config + Markdown | `mo-ops` | Prometheus metrics registry, SLOs, alert rules, runbooks, systemd units, Litestream config, self-host recipe, drain-and-restart procedure, backup/restore drill script |
+| `docs/plan/**`, `docs/guides/**` | Markdown | `mo-docs` | Keep the plan consistent with CONTRACT/ADRs; donor, maintainer, self-host, and MCP/API integration guides |
 
 Never edit a path you do not own. Need a change elsewhere? Write it under `## Requests to other owners` in your final report.
 
