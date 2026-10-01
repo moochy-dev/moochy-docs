@@ -17,7 +17,7 @@ Rules: **open code never imports, links, or copies closed code** (the Rust clien
 |---|---|---|---|
 | `spec/` | — | integrator | This contract; `spec/proto/moochy/v1/link.proto` (shared gRPC link, integrator-owned); `spec/vectors/*.json` written by `mo-proto` |
 | `spec/proto/moochy/v1/local.proto` | protobuf | `mo-node` | Node local control plane (CLI / MCP shim ↔ Node over a 0600 Unix socket) |
-| `spec/proto/moochy/v1/admin.proto` | protobuf | `mo-relay` | Relay operator admin plane (over a 0600 Unix socket) |
+| `relay/proto/moochy/admin/v1/admin.proto` | protobuf (closed) | `mo-relay` | Relay operator admin plane (over a 0600 Unix socket); closed source, so NOT under `spec/proto` |
 | `cli/` | Rust workspace | — | `cli/Cargo.toml` = workspace root (members + profiles only; owned by integrator) |
 | `cli/crates/proto` | Rust lib `moochy-proto` | `mo-proto` | Wire types, `lp`, labels, crypto, frames, receipts, vector generator |
 | `cli/crates/worker` | Rust lib `moochy-worker` | `mo-worker` | Provider-facing logic, **no dependency on `moochy-proto`**: firewall tables + recursive validator, provider adapters (anthropic, openrouter, deepseek, openai), safe mutations, SSE/usage parsers for both dialects, tool-call inspection (structural checks + tripwire), outbox file, served-task set, local reservation counters |
@@ -28,8 +28,8 @@ Rules: **open code never imports, links, or copies closed code** (the Rust clien
 | `e2e/attacks/**`, `docs/security/**` | Go + Markdown | `mo-sec` | Attack catalog, attack scenarios, evil-peer tooling |
 | `relay/internal/tlog/**`, `cli/crates/keylog/**` | Go + Rust lib `moochy-keylog` | `mo-keylog` | Key log: append, tlog hashing/proofs, C2SP tiles, signed checkpoints (only for replicated sizes), hourly public Git anchor; owner-signed `REPO_CLAIMED` / `DONOR_APPROVED` / `MEMBER_*` entries; Rust verifier + monitor library (mirror, consistency, own-key and owner alerts) |
 | `relay/internal/oauth/**` | Go | `mo-oauth` | GitHub + GitLab OAuth, web sessions, handle choice at signup (§11), repo-claim admin check via provider APIs, device-approval web page logic |
-| `relay/internal/metrics/**`, `deploy/**`, `docs/ops/**` | Go + config + Markdown | `mo-ops` | Prometheus metrics registry, SLOs, alert rules, runbooks, systemd units, Litestream config, self-host recipe, drain-and-restart procedure, backup/restore drill script |
-| `docs/plan/**`, `docs/guides/**` | Markdown | `mo-docs` | Keep the plan consistent with CONTRACT/ADRs; donor, maintainer, self-host, and MCP/API integration guides |
+| `relay/internal/metrics/**`, `deploy/**`, `docs/ops/**` | Go + config + Markdown | `mo-ops` | Prometheus metrics registry, SLOs, alert rules, runbooks, systemd units, Litestream config, internal deployment recipe, drain-and-restart procedure, backup/restore drill script |
+| `docs/plan/**`, `docs/guides/**` | Markdown | `mo-docs` | Keep the plan consistent with CONTRACT/ADRs; donor, maintainer, headless-node, and MCP/API integration guides; also the public `spec/protocol.md` |
 
 Never edit a path you do not own. Need a change elsewhere? Write it under `## Requests to other owners` in your final report.
 
@@ -46,7 +46,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 ## 2. Labels (exact strings, all inside `lp`)
 
-`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`.
+`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`, `moochy/v1/detail`.
 
 ## 3. Keys and derivations (from docs/plan/03 §6, made exact)
 
@@ -56,6 +56,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 - Wrap: `HPKE.SealBase(pkR = enc_pub, info = lp("moochy/v1/wrap", suite_id, task_id), aad = route_header_bytes, pt = CK)` → `enc (32) || ct (48)` = 80 bytes.
 - `R`: 32 random bytes per attempt (Worker). `RK = HKDF(salt = R, ikm = CK, info = lp("moochy/v1/resp", task_id, worker_device, u64(attempt)))`.
 - Response chunk: `AEAD(RK, nonce(seq), aad = lp("moochy/v1/resp", task_id_16B, u64(attempt), R, u32(seq), last_byte))`.
+- Sealed refusal detail (Nack/Failed `sealed_detail`): `K_det = HKDF(salt = R, ikm = CK, info = lp("moochy/v1/detail", task_id, worker_device, u64(attempt)))`; `sealed_detail = AEAD(K_det, nonce = 12 zero bytes, aad = lp("moochy/v1/detail", task_id_16B, u64(attempt), code), pt = UTF-8 detail ≤ 1 KiB)`. One detail per attempt, so the zero nonce is never reused under a key.
 - Salts: `S` 32 random bytes in the inner payload; `S_x = HKDF(salt="", ikm=S, info=lp("moochy/v1/salt", name))` for name ∈ {`req`,`resp`,`pid`}.
 - Gateway task signature: `Ed25519(gw_key, lp("moochy/v1/task", task_id, repo_id, route_header_bytes, body_sha256, headers_sha256))`.
 - Auth signature: `Ed25519(dev_key, lp("moochy/v1/auth", nonce, dialed_origin, tls_exporter, device_id))`; `tls_exporter` = RFC 9266 (`EXPORTER-Channel-Binding`, empty context, 32 bytes). `dialed_origin` = the exact origin the Node dialed for the gRPC link, scheme included: `https://host:port`.
@@ -84,12 +85,12 @@ Route header JSON fields (03 §7.1): `repo_id, dialect, model, effort, max_token
   - `POST /dev/pledge {"donor_username","repo_id","budget_uusd","per_task_cap_uusd","policy":{"models":[],"max_effort","dialects":[],"flags":[]}}` → `{"pledge_id"}` (approved immediately; relay-asserted in Phase 1)
   - `POST /dev/device/approve {"user_code","username","roles":["gateway"|"worker"],"repo_scope"?}` → `{"device_id"}`
   - `GET /dev/state` → JSON: pledges (budget/spent/reserved), members, devices, attempts (status, cost), receipts count. For assertions only.
-  - `POST /dev/chaos {"ignore_caps":bool,"tamper_route":bool,"replay_assign":bool,"inject_frame":bool}`: makes the relay misbehave like a malicious operator (skip cap checks; flip one byte of the route header sent to the Worker; deliver the same `task.assign` twice; send a forged binary frame for a live task on a different connection). Used by E11, E15–E17 to prove the **clients** defend themselves.
+  - `POST /dev/chaos {"ignore_caps":bool,"tamper_route":bool,"replay_assign":bool,"inject_frame":bool}`: makes the relay misbehave like a malicious operator (skip cap checks; flip one byte of the route header sent to the Worker; deliver the same `Assign` twice; inject a forged `Chunk` into the victim Gateway's own live Submit stream). Used by E11, E15–E17 to prove the **clients** defend themselves.
 - Catalog: `--catalog` JSON file with entries per 05 §2.2; default built-in test catalog when absent.
 
 ### Node
 `moochy --home <dir> <command>`; all state under `<dir>`. Keystore backend for tests: encrypted file, passphrase from env `MOOCHY_PASSPHRASE`.
-- `moochy login --relay https://127.0.0.1:GRPCPORT --ca-file <pem> --roles gateway,worker --headless` → prints `{"event":"device_code","user_code":"XXXX-XXXX"}` then blocks until approved, then `{"event":"logged_in","device_id":"d_…"}`.
+- `moochy login [--relay URL] [--ca-file <pem>] --roles gateway,worker --headless` — `--relay` defaults to the public relay `https://relay.moochy.dev:8443`; tests pass `--relay https://127.0.0.1:GRPCPORT --ca-file <pem>`; any non-default relay requires `MOOCHY_INSECURE_DEV=1` and prints a warning (attack A135) → prints `{"event":"device_code","user_code":"XXXX-XXXX"}` then blocks until approved, then `{"event":"logged_in","device_id":"d_…"}`.
 - `moochy keys add <anthropic|openrouter|deepseek|openai> --key-stdin [--base-url http://127.0.0.1:PORT]` — `--base-url` is accepted **only** for loopback hosts **and** only when env `MOOCHY_INSECURE_DEV=1`; otherwise refused.
 - `moochy config set <key> <value>` for `device_monthly_cap_uusd`, `slots_max`, `gateway_addr`. When `gateway_addr` is unset, the first `up` picks a free loopback port, persists it, and reuses it on every later start (clients keep a stable base URL); tests set `127.0.0.1:0` explicitly.
 - `moochy up --foreground` → when ready writes `<dir>/state/node.json` `{"device_id","gateway_url":"http://127.0.0.1:P","mcp_url":"http://127.0.0.1:P/mcp","pid"}` and prints `{"event":"ready",...same}`.
@@ -152,7 +153,7 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 - Format: ASCII only, lowercase, `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars), no `--`. ASCII-only removes homoglyph/confusable impersonation (Cyrillic `а` vs Latin `a`, zero-width chars, RTL marks).
 - Uniqueness is **case-insensitive** (stored lowercase; SQLite `UNIQUE` + `COLLATE NOCASE` as a second guard).
 - Chosen at first sign-in: default = the provider login lowercased **if valid and free**; otherwise the user must pick one (no silent auto-suffixing, so nobody becomes `alice-2` by accident and looks like `alice`).
-- **Reserved** (refused at signup and rename): every first path segment of the web routes and API (`api`, `dev`, `p`, `r`, `log`, `open`, `connect`, `explore`, `station`, `console`, `device`, `devices`, `claim`, `leaderboard`, `auth`, `admin`, `static`, `mcp`, `v1`), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before (see recycling).
+- **Reserved** (refused at signup and rename): every first path segment of the web routes and API (`api`, `dev`, `p`, `r`, `u`, `log`, `open`, `connect`, `explore`, `station`, `console`, `device`, `devices`, `claim`, `leaderboard`, `auth`, `admin`, `static`, `mcp`, `v1`), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before (see recycling).
 - **Rename**: at most once per 30 days. The old handle becomes a **permanent tombstone**: it is never assigned to anyone else (blocks username-recycling takeovers of links, badges and reputation) and redirects to the new one for 90 days.
 - Validation is implemented identically in Go (relay) and Rust (node prints handles) with shared test vectors (`spec/vectors/usernames.json`: valid, invalid, reserved, confusables, case variants).
 - Rust CLI and logs never print a handle, repo name, or any server-provided string raw: strip/escape control characters (terminal-escape injection).
@@ -181,7 +182,7 @@ The dev API (§6) uses `username` = this handle.
 **Where gRPC is used (machine-to-machine):**
 1. **Node ↔ Relay** — `moochy.v1.NodeLink` (`link.proto`): Session (control), Submit (one stream per task, gateway), Serve (one stream per attempt, worker), device login. Per-task streams give HTTP/2 flow control, clean cancellation (stream cancel = provider call aborted), and deadlines for free.
 2. **CLI / MCP stdio shim ↔ running Node** — `moochy.v1.LocalControl` (`local.proto`, owner `mo-node`) over the Unix socket `<home>/state/node.sock` (mode 0600, peer uid checked).
-3. **Operator ↔ Relay** — `moochy.v1.RelayAdmin` (`admin.proto`, owner `mo-relay`) over a 0600 Unix socket (`--admin-socket`), used by `relay admin …` (suspend, catalog publish, drain, state). Never exposed on the network.
+3. **Operator ↔ Relay** — `moochy.admin.v1.RelayAdmin` (`relay/proto/moochy/admin/v1/admin.proto`, closed, owner `mo-relay`) over a 0600 Unix socket (`--admin-socket`), used by `relay admin …` (suspend, catalog publish, drain, state). Never exposed on the network.
 4. Later: regional Edge ↔ central Scheduler (plan 10 §9) reuses `NodeLink` messages.
 
 **Where it is NOT used (external compatibility decides):** the provider-compatible API door (Anthropic/OpenAI HTTP+SSE), the MCP door (MCP stdio / Streamable HTTP per the MCP spec), the browser (HTML/HTMX/SSE), OAuth callbacks, badges, the dev API used by tests.
@@ -235,3 +236,13 @@ Mandatory techniques: warm connections everywhere (provider HTTP/2 pools, the re
 | C12 | §13's 250 ms coalescing applies to audit feed, pool, and station; goal bars may update at most every 30 s and donor rankings every 60 s. |
 | D15 | Additional relay flags (all optional): `--config <toml>`, `--metrics-addr` (Prometheus, loopback by default), `--autocert-domain`, `--read-only` (restore drills). |
 | D16 | Key log uses `x/mod/sumdb/tlog` hashing/proofs + `x/mod/sumdb/note` with our own C2SP tile path layer (no Tessera). |
+
+### 14b. Integrator decisions (round 2)
+
+| # | Decision |
+|---|---|
+| R1 | Public routes: profiles at `/u/{handle}` (never a bare `/{handle}`); `POST /auth/logout`; handle choice at `/auth/handle`. `u` is reserved (§11). |
+| R2 | Default relay for the client: `https://relay.moochy.dev:8443` (gRPC listener); web at `https://moochy.dev`. |
+| R3 | PDFs: firewall level `strict` (default) allows `document` blocks only with the pledge flag `documents` and ≤ 100 pages (pages × `catalog.max_page_tokens` in the estimate); level `paranoid` allows no images and no documents. |
+| R4 | `admin.proto` is closed-source and lives under `relay/proto/`; `spec/proto/` contains only the open `link.proto` and `local.proto`. |
+| R5 | Vectors must also pin: task-id text form (canonical ULID, uppercase Crockford), `headers_sha256` input (canonical `lp` of sorted lowercase header name/value pairs), `resp_commit`, progress-signature field widths, and `sealed_detail` (above). |
