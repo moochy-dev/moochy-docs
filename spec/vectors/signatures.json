@@ -1,5 +1,5 @@
 {
-  "_schema": "Ed25519 (RFC 8032 signing, ZIP-215 verification). signer.seed → signer.public. cases[]: msg = the exact lp(...) byte string named by `name` (inputs listed), sig over msg; flipping the last byte of msg MUST fail. receipt/projection: *_text = exact signed JSON bytes, signature over lp(label, bytes); a receipt signature MUST NOT verify as a projection. headers_sha256 = SHA-256(lp(name1, value1, name2, value2, …)) names ascending; commitments: req_commit = SHA-256(lp('moochy/v1/req-commit', S_req, body)); resp_commit = SHA-256(lp('moochy/v1/resp-commit', S_resp, SHA-256(response plaintext))); provider_req_hash = SHA-256(lp('moochy/v1/provider-req', S_pid, request_id)).",
+  "_schema": "Ed25519 (RFC 8032 signing, ZIP-215 verification). signer.seed → signer.public. cases[]: msg = the exact lp(...) byte string named by `name` (inputs listed), sig over msg; flipping the last byte of msg MUST fail. receipt/projection: *_text = exact signed JSON bytes, signature over lp(label, bytes); a receipt signature MUST NOT verify as a projection. headers_sha256 = SHA-256(headers_lp) where headers_lp = lp(name1, value1, name2, value2, …) over lowercase names sorted ascending by bytes (inputs.headers_lp pins the exact bytes); checkpoint_fields pins every field and width of the progress-signature message (u64 attempt, u64 seq); commitments: req_commit = SHA-256(lp('moochy/v1/req-commit', S_req, body)); resp_commit = SHA-256(lp('moochy/v1/resp-commit', S_resp, SHA-256(response plaintext))); provider_req_hash = SHA-256(lp('moochy/v1/provider-req', S_pid, request_id)).",
   "cases": [
     {
       "msg": "0000000e6d6f6f6368792f76312f61757468000000209fba723fd3237832eef32b4124e8404e281e376f15b07480c7d9cc6bc0a4f03c0000001c68747470733a2f2f72656c61792e6d6f6f6368792e6465763a34343300000020d68f537b1a3df50b4f5077a188910234df533bc1d4a52f3cfaa99eada3374d9e0000001c645f30314b3641303030303030303030303030303030303030305731",
@@ -26,6 +26,38 @@
       "sig": "6c9010b2cc903ea68cf4541a4b4f9beb5bffeae1262291dfa952a088e5b52f4dbe712521da538060977bf23cc05f35d73212aaf4e60a4208dcdaf1d26d85b50e"
     }
   ],
+  "checkpoint_fields": [
+    {
+      "bytes": "6d6f6f6368792f76312f726573702d70726f6772657373",
+      "field": "label 'moochy/v1/resp-progress'",
+      "len": 23
+    },
+    {
+      "bytes": "30314b3641303030303030303030303030303030303030305431",
+      "field": "task_id (26-char text)",
+      "len": 26
+    },
+    {
+      "bytes": "0000000000000001",
+      "field": "u64(attempt = 1)",
+      "len": 8
+    },
+    {
+      "bytes": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+      "field": "R (32 bytes)",
+      "len": 32
+    },
+    {
+      "bytes": "0000000000000007",
+      "field": "u64(seq = 7)",
+      "len": 8
+    },
+    {
+      "bytes": "a81901906a074b17f0c89c064809156e75f348d49b3544906aaa732d77ebb726",
+      "field": "running_sha256 (32 bytes)",
+      "len": 32
+    }
+  ],
   "commitments": {
     "S": "4e14be57bfa62caae977154a9154842726cc261aa226e50063720a30928b00a8",
     "body_text": "{\"model\":\"m\"}",
@@ -48,6 +80,7 @@
       "anthropic-beta": "context-1m-2025-08-07",
       "anthropic-version": "2023-06-01"
     },
+    "headers_lp": "0000000e616e7468726f7069632d6265746100000015636f6e746578742d316d2d323032352d30382d303700000011616e7468726f7069632d76657273696f6e0000000a323032332d30362d3031",
     "headers_sha256": "d972e071d9b60ccfcd64a110dea025685ddee7ad610b246c63c1021c1d8a222c",
     "nonce": "9fba723fd3237832eef32b4124e8404e281e376f15b07480c7d9cc6bc0a4f03c",
     "repo_id": "r_01K6A0000000000000000000R1",

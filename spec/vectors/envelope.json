@@ -1,5 +1,5 @@
 {
-  "_schema": "Envelope (CONTRACT §3–4). Inputs: ck, task (text; task_id in lp = 26-char text, task_id_16B = ULID bytes), route_text (exact route-header bytes). k_req = HKDF(salt='', ikm=ck, info=k_req_info). request.small/big: compressed (hex zstd frame of the inner payload) → chunks[] {seq, last, ct = ciphertext||tag, aad}; nonce = 8 zero bytes || u32_be(seq); payload_text / payload_sha256 = the decompressed inner payload. request_tamper[]: open ONE chunk with K_req(task), aad(task, seq, last) → ok. wraps[]: HPKE base X25519/HKDF-SHA256/ChaCha20Poly1305, ephemeral = DeriveKeyPair(ephemeral_ikm), info = lp('moochy/v1/wrap', suite_id, task), aad = route bytes; wrap = enc(32)||ct(32)||tag(16); unwrap with route_tampered_text or task_changed MUST fail. responses[]: R, rk = HKDF(salt=R, ikm=ck, info=rk_info); attempts 1 and 2 of one task (same R, same worker) have different rk. response_tamper[]: open one chunk with RK(ck, R, task, worker_device, attempt) and aad(task_16B, u64(attempt), R, u32(seq), last) → ok. salts: S_x = HKDF(salt='', ikm=S, info=lp('moochy/v1/salt', name)).",
+  "_schema": "Envelope (CONTRACT §3–4). Inputs: ck, task (text; task_id in lp = 26-char text, task_id_16B = ULID bytes), route_text (exact route-header bytes). k_req = HKDF(salt='', ikm=ck, info=k_req_info). request.small/big: compressed (hex zstd frame of the inner payload) → chunks[] {seq, last, ct = ciphertext||tag, aad}; nonce = 8 zero bytes || u32_be(seq); payload_text / payload_sha256 = the decompressed inner payload. request_tamper[]: open ONE chunk with K_req(task), aad(task, seq, last) → ok. wraps[]: HPKE base X25519/HKDF-SHA256/ChaCha20Poly1305, ephemeral = DeriveKeyPair(ephemeral_ikm), info = lp('moochy/v1/wrap', suite_id, task), aad = route bytes; wrap = enc(32)||ct(32)||tag(16); unwrap with route_tampered_text or task_changed MUST fail. responses[]: R, rk = HKDF(salt=R, ikm=ck, info=rk_info); attempts 1 and 2 of one task (same R, same worker) have different rk. response_tamper[]: open one chunk with RK(ck, R, task, worker_device, attempt) and aad(task_16B, u64(attempt), R, u32(seq), last) → ok. salts: S_x = HKDF(salt='', ikm=S, info=lp('moochy/v1/salt', name)). sealed_detail: K_det = HKDF(salt=R, ikm=ck, info=k_det_info = lp('moochy/v1/detail', task, worker_device, u64(attempt))); sealed = ChaCha20-Poly1305(K_det, nonce = 12 zero bytes, aad = lp('moochy/v1/detail', task_16B, u64(attempt), code), detail_text) = ct||tag, detail ≤ max_detail_bytes; open_cases[]: open `sealed` with those inputs → ok.",
   "ck": "d0b3add2a6b92f4ecd5c454d59139655c1f4bee3202161f0d12e64a88dd5cc08",
   "k_req": "d8357e361d566b8e5069e2f51c79db4c43d5247285df1d675de4dbe12cb2e3d6",
   "k_req_info": "0000000d6d6f6f6368792f76312f7265710000001a30314b3641303030303030303030303030303030303030305431",
@@ -272,6 +272,75 @@
     "S_pid": "60916f17abde9eea7ca29f46bfb2ae95b9da97287eda1f97d414b68aa52ba093",
     "S_req": "96b58304f1af2210495c6ff8268b07ab9bce9d360af9a02bdf3728fe10343823",
     "S_resp": "97b6cbd5627b4c5100a66d5e93dfd7cd7c381682404d942b2651b7149a8c5a13"
+  },
+  "sealed_detail": {
+    "R": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+    "aad": "000000106d6f6f6368792f76312f64657461696c0000001001999400000000000000000000000341000000080000000000000001000000086669726577616c6c",
+    "attempt": 1,
+    "code_text": "firewall",
+    "detail_text": "field `mcp_servers` is not allowed by the donor pool",
+    "k_det": "dcb53101fcf9bcde1fb0c8fea2f3011ec3bb8dc4e653fc1cb9e0220587468353",
+    "k_det_info": "000000106d6f6f6368792f76312f64657461696c0000001a30314b36413030303030303030303030303030303030303054310000001c645f30314b3641303030303030303030303030303030303030305731000000080000000000000001",
+    "max_detail_bytes": 1024,
+    "nonce": "000000000000000000000000",
+    "open_cases": [
+      {
+        "R": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+        "attempt": 1,
+        "code_text": "firewall",
+        "name": "baseline",
+        "ok": true,
+        "task": "01K6A0000000000000000000T1",
+        "worker_device": "d_01K6A0000000000000000000W1"
+      },
+      {
+        "R": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+        "attempt": 1,
+        "code_text": "busy",
+        "name": "code changed",
+        "ok": false,
+        "task": "01K6A0000000000000000000T1",
+        "worker_device": "d_01K6A0000000000000000000W1"
+      },
+      {
+        "R": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+        "attempt": 2,
+        "code_text": "firewall",
+        "name": "attempt changed",
+        "ok": false,
+        "task": "01K6A0000000000000000000T1",
+        "worker_device": "d_01K6A0000000000000000000W1"
+      },
+      {
+        "R": "92396aa5012c9e2ef44cefcf411b3da9341e9adede43c3c29982eed4f78ba3bd",
+        "attempt": 1,
+        "code_text": "firewall",
+        "name": "R changed",
+        "ok": false,
+        "task": "01K6A0000000000000000000T1",
+        "worker_device": "d_01K6A0000000000000000000W1"
+      },
+      {
+        "R": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+        "attempt": 1,
+        "code_text": "firewall",
+        "name": "worker changed",
+        "ok": false,
+        "task": "01K6A0000000000000000000T1",
+        "worker_device": "d_01K6A0000000000000000000W2"
+      },
+      {
+        "R": "e05bc13745e473e8c9ca9cd54fb2ec50c86a413cb9a1f96e47305299ec92e9cb",
+        "attempt": 1,
+        "code_text": "firewall",
+        "name": "task changed",
+        "ok": false,
+        "task": "01K6A0000000000000000000T2",
+        "worker_device": "d_01K6A0000000000000000000W1"
+      }
+    ],
+    "sealed": "c3cf2b9eaf6e6822e4e98daf42fa3e3908c3360a90d606d07b20fef3572a265402b2ccaa7cb67dd8f394a10b56772eb78a47a7668ff10d806675245e1640bd479fb03fdd",
+    "worker_device": "d_01K6A0000000000000000000W1"
   },
   "suite_id_text": "moochy.v1.hpke.x25519-sha256-chacha20poly1305",
   "task": "01K6A0000000000000000000T1",

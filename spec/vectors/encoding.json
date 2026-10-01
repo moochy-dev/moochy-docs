@@ -142,6 +142,10 @@
     {
       "label_text": "moochy/v1/dispute",
       "lp": "000000116d6f6f6368792f76312f64697370757465"
+    },
+    {
+      "label_text": "moochy/v1/detail",
+      "lp": "000000106d6f6f6368792f76312f64657461696c"
     }
   ],
   "lp": [
@@ -215,6 +219,13 @@
     ],
     "rule": "admissible(task, now, boot) = |ts(task) − now| ≤ window AND ts(task) ≥ boot (process start, CONTRACT D18)",
     "window_ms": 600000
+  },
+  "task_id_text": {
+    "bytes": "01999400000000000000000000000341",
+    "lowercase_rejected": "01k6a0000000000000000000t1",
+    "lp_field": "0000001a30314b3641303030303030303030303030303030303030305431",
+    "rule": "task ids appear in JSON, in protobuf strings and inside lp() as the canonical ULID text: exactly 26 chars of UPPERCASE Crockford base32 (0-9 A-Z without I L O U), first char 0-7; 16-byte binary form = big-endian 128-bit value. Lowercase or any other spelling is rejected, never normalized.",
+    "text": "01K6A0000000000000000000T1"
   },
   "ulid_invalid": [
     "01k6a0000000000000000000t1",
