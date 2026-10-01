@@ -38,6 +38,15 @@ service NodeLink {
   // Unauthenticated, strictly rate-limited per IP, response capped at 123,392 bytes (one full data tile, spec/KEYLOG.md). Lets Nodes mirror and
   // verify the key log over the link they already have.
   rpc GetLogTile(LogTileRequest) returns (LogTileResponse);
+
+  // Donations (the donor's own; integrator 2026-10-02, shape from mo-relay). Authenticated like
+  // Submit (same connection as the Session + x-moochy-session metadata); the user is always the
+  // session's user, never a field. Errors: NOT_FOUND, ALREADY_EXISTS (a live donation to that repo),
+  // INVALID_ARGUMENT, FAILED_PRECONDITION (ended/declined), RESOURCE_EXHAUSTED. A new donation is
+  // "pending" until the repo owner signs DONOR_APPROVED. Internal ids keep the name "pledge".
+  rpc ListDonations(ListDonationsRequest) returns (ListDonationsResponse);
+  rpc Donate(DonateRequest) returns (Donation);
+  rpc DonationAction(DonationActionRequest) returns (Donation);
 }
 
 enum Role {
@@ -437,4 +446,44 @@ message DevicePollResponse {
   string device_id = 2;
   string user_pseudonym = 3;
   string username = 4;
+}
+
+message ListDonationsRequest {}
+
+message ListDonationsResponse {
+  repeated Donation donations = 1;
+}
+
+message DonateRequest {
+  string request_id = 1;           // idempotency key (ULID)
+  string repo_slug = 2;            // "owner/name"
+  int64 budget_uusd = 3;           // monthly limit
+  int64 per_task_cap_uusd = 4;     // limit per request
+  repeated string models = 5;      // public model ids; empty = any in the catalog
+  string max_effort = 6;
+  string visibility = 7;           // public | pseudonymous | anonymous
+  string schedule = 8;             // always | nights | weekends | nights_weekends
+}
+
+message DonationActionRequest {
+  string pledge_id = 1;
+  string action = 2;               // pause | resume | reclaim | update
+  int64 amount_uusd = 3;           // reclaim: > 0 lowers the monthly limit, 0 ends the donation
+  DonateRequest update = 4;        // action = update
+}
+
+message Donation {
+  string pledge_id = 1;
+  string repo_slug = 2;
+  string status = 3;               // pending | active | paused | ended | declined | frozen
+  int64 budget_uusd = 4;
+  int64 per_task_cap_uusd = 5;
+  int64 spent_uusd = 6;
+  int64 reserved_uusd = 7;
+  int64 period_start_ms = 8;
+  repeated string models = 9;
+  string max_effort = 10;
+  string visibility = 11;
+  string schedule = 12;
+  int64 created_at_ms = 13;
 }

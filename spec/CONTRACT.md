@@ -48,7 +48,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 ## 2. Labels (exact strings, all inside `lp`)
 
-`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`, `moochy/v1/detail`; key log: `moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop` (exact use in `spec/KEYLOG.md`).
+`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`, `moochy/v1/detail`, `moochy/v1/catalog` (signed catalog: Ed25519 by the key-log key over `lp(moochy/v1/catalog, json)`), `moochy/v1/key-rotate`, `moochy/v1/key-revoke`; key log: `moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop`, `moochy/v1/receipt-log` (exact use in `spec/KEYLOG.md`).
 
 ## 3. Keys and derivations (from docs/plan/03 §6, made exact)
 
