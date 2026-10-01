@@ -2,7 +2,7 @@
   "cases": [
     {
       "name": "two cosignatures",
-      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n— witness.test/w1 H7q6VQAAAABqsTuAw1AkpdJPf1DJiNIPUJjICnCV4BJ9IW9sB9Zc1toeaw0tfz8evQaZJzLI9uOYFb0hsbWWaGya0n3Gfi1NihhBDA==\n— witness.test/w2 UP8p5AAAAABqsTuFQvGL1+1bUU/uxPP4UmYsNIsPA3Gf9JUWjTiKp/rtgK41/7KteX8Vgwr0zfJ/ctD6ZYxSqVBsbaVqXxiqrZqfBA==\n",
+      "note": "keylog.test/v1\n300\ndbNHvq/mDklIuUoNZ8Ntg29aMYvPAZ9CNcEGeTkpUwU=\n\n— keylog.test/v1 okc29PfdAxs57nHRpNgFtfl8CpcanHRgc0ceCfpArvlLw5L8Oq+ko+xiUhHd9De6x4oLNiFF6pJ3WFcUf3pAdkQc9wo=\n— witness.test/w1 H7q6VQAAAABqsTuAN0VpX+kIuQrtgFG0berZVvOZQLDTt+6PC4jgtM1DNJG7Z4EMiF5DmecP7R3HXeHWE4xPfTAKN1VXNAzNujEACA==\n— witness.test/w2 UP8p5AAAAABqsTuFilaXTKI70t/nWDzRbfLJvqh4gIuyv3zlNV2rT9xeC+baP1+kpkZ2G+etDZi3kz9SbrIcGO4PDASfnynX2Ur5Bg==\n",
       "timestamps": [
         1790000000,
         1790000005
@@ -11,12 +11,12 @@
     },
     {
       "name": "log signature only",
-      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n",
+      "note": "keylog.test/v1\n300\ndbNHvq/mDklIuUoNZ8Ntg29aMYvPAZ9CNcEGeTkpUwU=\n\n— keylog.test/v1 okc29PfdAxs57nHRpNgFtfl8CpcanHRgc0ceCfpArvlLw5L8Oq+ko+xiUhHd9De6x4oLNiFF6pJ3WFcUf3pAdkQc9wo=\n",
       "valid": 0
     },
     {
       "name": "cosignature over other text",
-      "note": "keylog.test/v1\n300\nfKHXVneRKNglWqEcIDaYDbP33Koghj9axhCsQf7Br+g=\n\n— keylog.test/v1 okc29FLCJFmRVTXU2K/IsXmXJe5NUHmvCPEjwSW33oGTtMijMLk8i8vgf3tXTMjaaafuTVQLe5/JqtbFAy7AymLLYgM=\n— witness.test/w1 H7q6VQAAAABqsTuA8FVu9YikeqrxXdZHNQgG20aG0ymj6q1aqepLPjasx6mHPdZruhGtE/NYezoi1dHvnrAzpMIJ5wB1x8pbGsFTDg==\n",
+      "note": "keylog.test/v1\n300\ndbNHvq/mDklIuUoNZ8Ntg29aMYvPAZ9CNcEGeTkpUwU=\n\n— keylog.test/v1 okc29PfdAxs57nHRpNgFtfl8CpcanHRgc0ceCfpArvlLw5L8Oq+ko+xiUhHd9De6x4oLNiFF6pJ3WFcUf3pAdkQc9wo=\n— witness.test/w1 H7q6VQAAAABqsTuAyrJmX0IvAbJwBHiJzTnyIx4GoQ46v7RIVsMtHQZD9Ra9nrp1POTWpYBIYUjwqQUHoD+pNzIx738Kwns6CGatBg==\n",
       "valid": 0
     }
   ],
