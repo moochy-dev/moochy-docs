@@ -35,3 +35,32 @@ Owner: `mo-relay`. The relay is **untrusted for confidentiality** (adversary A3)
 | R17 | Logging via `log/slog` JSON only; never interpolate remote strings into a message; no ANSI/CRLF from input reaches a log line | A27 | U |
 | R18 | Per-device and global byte budgets for buffered bodies; ≤ 8 wraps per submit; ≤ 3 attempts; drop and count frames arriving on a non-source connection; 1 MiB per-task response buffer; sheddable submit queue | A89, A75, A66 | E17, E20 |
 | R19 | Per-member limits: 16 concurrent, 120 submits/min; the chaos dev hooks (`ignore_caps`, `tamper_route`, `replay_assign`, `inject_frame`) exist **only** under `--dev` | A66, A18 | E10, E11, E15–E17 |
+
+## gRPC link (`NodeLink`, CONTRACT §12)
+
+| # | Control | Attack | Proof |
+|---|---|---|---|
+| R20 | Separate listener on `--grpc-addr`: TLS 1.3 only, ALPN `h2`, no h2c on TCP; `--addr` keeps the HTTP hardening (R1–R7) | A10, A94 | A10 |
+| R21 | `MaxConcurrentStreams` 64; `MaxRecvMsgSize`/`MaxSendMsgSize` 128 KiB; `MaxHeaderListSize` 16 KiB; current grpc-go/x-net (CONTINUATION-flood + HPACK fixes) | A13, A91 | A13 |
+| R22 | Per-connection stream-open and RST_STREAM rate limits (HTTP/2 Rapid Reset); the relay keeps serving under a reset burst | A14 | A14 |
+| R23 | `KeepaliveEnforcementPolicy{MinTime:10s, PermitWithoutStream:true}` + server pings 15 s / 2 missed = dead; GOAWAY on too-many-pings | A15 | A15b |
+| R24 | Auth per connection: `Session` sends `Hello` first; first `NodeMsg` must be `Auth`; **10 s auth deadline**; the custom `TransportCredentials` tag each connection with an id and the RFC 9266 exporter | A11, A95 | A11 |
+| R25 | `Submit`/`Serve` accepted only on the authenticated connection id **and** with a matching `x-moochy-session`; else `UNAUTHENTICATED` before any task-state allocation | A12 | A12 |
+| R26 | Policy failures travel as `Failed{code,retryable}` inside the stream; gRPC status reserved for transport/auth; no gRPC compression | A93 | U |
+| R27 | gRPC reflection and channelz disabled in production; only `grpc.health.v1` registered; `DeviceStart`/`DevicePoll` rate-limited per IP, unauthenticated | A19, A59 | U |
+| R28 | Security/money decisions read the signed JSON `bytes`, never a protobuf scalar that proto3 could merge (repeated singular, unknown fields) | A90 | U, V |
+
+## RelayAdmin Unix socket (CONTRACT §12)
+
+| # | Control | Attack | Proof |
+|---|---|---|---|
+| R29 | `RelayAdmin` only on a path-based 0600 Unix socket in a 0700 dir (`--admin-socket`), never on the network, never abstract-namespace | A100, A103 | A100 |
+| R30 | Check the peer uid (`SO_PEERCRED`) == the relay owner on every admin connection | A100 | A100, U |
+| R31 | Create the socket safely: own-only dir, `unlink` stale path, `fchmod` the fd / umask before bind, refuse to start if the path exists and is not our socket (symlink/TOCTOU) | A102 | A100/A102 |
+
+## Identity (CONTRACT §11)
+
+| # | Control | Attack | Proof |
+|---|---|---|---|
+| R13b | Username validation shared with the Node via `spec/vectors/usernames.json`: ASCII `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$`, `UNIQUE COLLATE NOCASE`, reserved-word list, control chars rejected | A110, A112 | A110, E21 |
+| R13c | `username_tombstones` makes every released handle permanent; rename ≤ once per 30 days; 90-day redirect | A111 | E21 |

@@ -47,3 +47,14 @@ Owner: `mo-node`. CLI, config, keystore, relay link, the Gateway API door and MC
 | N22 | Gateway seals only to worker keys the key-log mirror shows logged, unrevoked and owner-`DONOR_APPROVED` for the repo | A72 | U |
 | N23 | No silent auto-update; `moochy update` verifies the signature before replacing the binary | A83 | U |
 | N24 | Clients that lose their connection mid-stream: abort cleanly; a second started attempt's frames → abort the task (A01 defense) | A01 | E17 |
+
+## Node links (gRPC, CONTRACT §12)
+
+| # | Control | Attack | Proof |
+|---|---|---|---|
+| N25 | Relay link (`tonic` + our rustls connector): TLS 1.3 + ALPN `h2`; capture `export_keying_material` for the `Auth` sig; one `Channel` per TLS connection, re-authenticated on any transport error | A95 | V |
+| N26 | Client message-size caps (128 KiB), `http2_max_header_list_size`, connect/request timeouts, bounded per-stream buffers, no gRPC compression | A91 | U |
+| N27 | `LocalControl` only on `<home>/state/node.sock`: path-based 0600 socket in a 0700 dir, never abstract-namespace; **check the peer uid** on every connection | A101, A103 | A101 |
+| N28 | Create/rebind the socket safely: `unlink` stale path, `fchmod` the fd, refuse if the path is a symlink or a non-socket (symlink/TOCTOU) | A102 | A101 |
+| N29 | Security decisions read the signed JSON `bytes`, never a protobuf scalar; the route header is re-parsed with the strict decoder | A90 | U |
+| N30 | Handles, repo and display names printed by the CLI go through `sanitize_for_terminal()` (N16) and handle validation mirrors the relay's vectors | A110, A112 | U |

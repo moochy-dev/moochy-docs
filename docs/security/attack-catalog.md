@@ -1,6 +1,6 @@
 # Moochy attack catalog
 
-Owner: `mo-sec`. The running list of attacks on Moochy with the countermeasure that stops each one and the test that proves it. Read with [06 — Security and Trust](../plan/06-security-and-trust.md) (threats T1–T22, adversaries A1–A9 = "Adv." below) and the per-component checklists `hardening-*.md` in this folder.
+Owner: `mo-sec`. The running list of attacks on Moochy with the countermeasure that stops each one and the test that proves it. Read with [06 — Security and Trust](../plan/06-security-and-trust.md) (threats T1–T23, adversaries A1–A9 = "Adv." below) and the per-component checklists `hardening-*.md` in this folder.
 
 **Status:** `implemented` = code exists and the verification passes; `designed` = in the plan or contract, not yet built or verified; **`gap`** = not covered by the plan or contract: the row proposes the fix, and the owner must adopt it (or argue against it here).
 **Verification:** `E<NN>` = CONTRACT §8 scenario; `A<NN>` = black-box test `TestA<NN>_*` in `e2e/attacks/`; `V` = golden vector in `spec/vectors/`; `U:<owner>` = unit/fuzz test the owner must write (attack needs a forged peer, which this suite deliberately does not build); `M` = manual/process check.
@@ -22,26 +22,26 @@ As of this commit no component binary exists, so nothing is `implemented` yet: e
 | A08 | Auth relay/replay: phishing relay forwards `auth`, or a captured `auth` is replayed on another connection | relay, node | A3, A4 | Device impersonation | Sig over `lp(auth, nonce, dialed_origin, tls_exporter, device_id)`; the Relay recomputes with **its own** exporter and origin; nonce single-use, 32 B random | relay, node | V, U:relay (replay on second conn → refused) | designed; **gap**: no E-test |
 | A09 | Cross-protocol reuse of a signature (receipt sig as approval, …) | proto | A1–A3 | Forged artifacts | Distinct `lp` label per purpose (CONTRACT §2); verifiers prepend the label themselves, never accept it from input | proto | V | designed |
 
-## 2. Relay transport (A10–A19)
+## 2. Relay transport: gRPC link + HTTP listener (A10–A19)
 
 | ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|---|---|
-| A10 | TLS downgrade to ≤ 1.2 | relay | A4 | Loses RFC 9266 exporter semantics | `tls.Config{MinVersion: tls.VersionTLS13}`; TLS terminated in-process | relay | A10 | designed |
-| A11 | Upgrade without subprotocol (protocol confusion) | relay | any | Non-Moochy clients on `/v1/node` | Refuse the upgrade unless `Sec-WebSocket-Protocol` offers `moochy.v1` | relay | A11 | designed |
-| A12 | Cross-site WebSocket hijacking (CSWSH) [S4.1, S4.2] | relay | A5 | Browser-driven sockets to the relay | Nodes never send `Origin`; **refuse any upgrade carrying an `Origin` header**. With `coder/websocket` that means checking `r.Header["Origin"]` before `Accept`. Never `InsecureSkipVerify` | relay | A12 | **gap** (not in plan) |
-| A13 | Compression oracle / inflation bomb via `permessage-deflate` [S4.4] | relay | A4 | Secret recovery; memory DoS | `CompressionMode: CompressionDisabled`; never echo `Sec-WebSocket-Extensions` | relay | A13 | designed |
-| A14 | Malformed or oversized frames before auth (huge declared length, binary before auth, bad UTF-8, reserved opcode) [S4.3] | relay | any | Memory DoS, crash | `conn.SetReadLimit(64 KiB)` **before** the first read; text frames are JSON ≤ 16 KiB pre-auth; binary before `welcome` → close 1008; the relay keeps serving | relay | A14 | designed (limit) |
-| A15 | Slowloris (dripped headers) [S9.5] | relay | any | Connection exhaustion | `ReadHeaderTimeout` 10 s, `IdleTimeout` 60 s, per-IP connection cap | relay | A15 | designed |
-| A16 | Header and body flooding on HTTP routes | relay | any | Memory DoS | `MaxHeaderBytes` 32 KiB; `http.MaxBytesReader` (≤ 64 KiB for API JSON) on **every** body | relay | A16 | designed |
-| A17 | Request smuggling / desync shapes (duplicate CL, obfuscated TE, bare LF) [S9.1, S9.2] | relay, node | any | Desync behind a future CDN | Go ≥ 1.24.2 (CVE-2025-22871); HTTP/1.1 rules as is; the gateway (hyper) refuses the same shapes; govulncheck in CI | relay, node | A17, A35 | designed |
+| A10 | TLS downgrade to ≤ 1.2 on the gRPC (`--grpc-addr`) or HTTP (`--addr`) listener | relay | A4 | Loses RFC 9266 exporter semantics | `tls.Config{MinVersion: VersionTLS13}` on both; ALPN `h2` on the gRPC listener; TLS terminated in-process | relay | A10 | designed (§12) |
+| A11 | Unauthenticated `Session` stream held open (connect, never send a valid `Auth`) | relay | any | Stream/connection slot exhaustion | Auth deadline **10 s** after `Hello`; first `NodeMsg` must be `Auth`; per-IP cap on unauthenticated connections | relay | A11 | designed (§12) |
+| A12 | `Submit`/`Serve` stream on a connection that never authenticated, or with a forged/stolen `x-moochy-session` (gRPC analogue of CSWSH / frame injection) [S4.1] | relay | A3, A5 | Inject a task, steal a stream | Streams accepted only on the **same connection** as the authenticated `Session` (TransportCredentials tag each connection with an id) **and** carrying the matching `x-moochy-session`; else `UNAUTHENTICATED` before any task-state allocation | relay | A12 | designed (§12) |
+| A13 | Oversized gRPC message / HPACK or CONTINUATION header bomb [S9.3, S9.4] | relay | any | Memory DoS | `MaxRecvMsgSize`/`MaxSendMsgSize` 128 KiB (chunk ≤ 64 KiB), `MaxHeaderListSize` 16 KiB; grpc-go/x-net with the 2024 CONTINUATION-flood fixes; no gRPC compression | relay | A13 | designed (§12) |
+| A14 | HTTP/2 Rapid Reset (CVE-2023-44487) and stream-open flood [S9.4] | relay | any | CPU/goroutine exhaustion | `MaxConcurrentStreams` 64; per-connection stream-open and reset-rate limits; current grpc-go; the relay keeps serving | relay | A14 | **gap** (rate limit not in plan) |
+| A15 | Slowloris / aggressive keepalive on either listener [S9.5] | relay | any | Connection exhaustion; ping flood | HTTP: `ReadHeaderTimeout` 10 s, `IdleTimeout` 60 s. gRPC: `KeepaliveEnforcementPolicy{MinTime:10s}`, GOAWAY on too-many-pings; per-IP connection cap | relay | A15, A15b | designed |
+| A16 | Header and body flooding on the HTTP listener (web, dev API) | relay | any | Memory DoS | `MaxHeaderBytes` 32 KiB; `http.MaxBytesReader` on every body | relay | A16 | designed |
+| A17 | Request smuggling / desync shapes on the HTTP listener (dup CL, obfuscated TE, bare LF) [S9.1, S9.2] | relay, node | any | Desync behind a future CDN | Go ≥ 1.24.2 (CVE-2025-22871); the gateway (hyper) refuses the same shapes; govulncheck in CI | relay, node | A17, A35 | designed |
 | A18 | Dev API exposed in production (`/dev/*` mints users and pledges) | relay | any | Total ledger compromise | Routes registered only with `--dev`; `--dev` refused unless `--addr` is a loopback literal | relay | A18 | designed |
-| A19 | Unauthenticated sockets held open (upgrade, never send `auth`) | relay | any | Slot exhaustion | Auth deadline **10 s** after `hello`; per-IP cap on pre-auth sockets (proposed 32) | relay | A19 | **gap** (no deadline in plan) |
+| A19 | gRPC reflection / channelz exposure | relay | A4 | Schema and live-RPC disclosure | Reflection and channelz disabled in production; only `grpc.health.v1` registered | relay | U:relay | **gap** (not in plan) |
 
 ## 3. Parsing, content and the Worker firewall (A20–A29)
 
 | ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|---|---|
-| A20 | Duplicate keys in the route header (`{"model":"cheap","model":"opus"}`): the Relay schedules and bills on one value, the Worker reads another [S7.1, S7.2] | relay, worker | A1 | Budget theft, cap bypass | CONTRACT §1 parser-differential rule: reject duplicates, invalid UTF-8, lone surrogates, out-of-range numbers, depth > 64, in both languages | relay, worker | U:relay, U:worker (A20 test skips: needs an authenticated peer) | designed |
+| A20 | Duplicate keys in the route header (`{"model":"cheap","model":"opus"}`): the Relay schedules and bills on one value, the Worker reads another [S7.1, S7.2]. The header travels as signed JSON `bytes` in protobuf, so the gRPC move does not change this | relay, worker | A1 | Budget theft, cap bypass | CONTRACT §1 parser-differential rule: reject duplicates, invalid UTF-8, lone surrogates, out-of-range numbers, depth > 64, in both languages; see also A90 (protobuf ambiguity) | relay, worker | U:relay, U:worker (A20 test skips: needs an authenticated peer) | designed |
 | A21 | zstd decompression bomb in the sealed inner payload (tiny RLE blocks, huge `Frame_Content_Size`, window > 8 MiB) [S8.1–S8.4] | worker | A1 | Worker OOM | Streaming decode into a buffer capped at **32 MiB + 1** (fail at the cap); max window 8 MiB (2²³); ignore `Frame_Content_Size` for allocation; single frame only | worker | U:worker | designed (bound); **gap** (window and FCS rules) |
 | A22 | Number and Unicode edge cases (`max_tokens: 1e400`, `-1`, `2^63`, `"\ud800"`, overlong UTF-8) [S7.4] | worker, relay | A1 | Cap bypass, crash | Integers parsed as `u64`/`i64` with range checks; floats rejected where ints are expected; lone surrogates rejected | worker, relay | U:worker, U:relay | designed |
 | A23 | Route header ≠ body (declare a cheap model or small input, send something expensive) | worker | A1 | Overspend | Worker recomputes every route field; exact `est_input_tokens` match; `route_mismatch` non-retryable + strike | worker | U:worker, V | designed |
@@ -142,7 +142,47 @@ As of this commit no component binary exists, so nothing is `implemented` yet: e
 | A88 | SQLite engine CVEs (modernc tracks upstream; CVE-2025-6965) [S10.2] | relay | any | Memory corruption via crafted SQL | Never run SQL text from input; keep modernc ≥ the SQLite 3.50.2 build | relay | M | designed |
 | A89 | Relay resource exhaustion by authenticated nodes (body budgets, wraps > 8, frames for unknown tasks) | relay | A1, A2 | DoS, memory | Per-device and global byte budgets; ≤ 8 wraps; drop and count frames from non-source connections; 1 MiB response buffer per task | relay | U:relay, E20 | designed |
 
-## 10. Top gaps (ranked)
+## 10. gRPC and protobuf specifics (A90–A99)
+
+| ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
+|---|---|---|---|---|---|---|---|---|
+| A90 | **Protobuf ambiguity**: repeated values for a singular field (proto3 keeps the last), unknown fields carrying hidden data, or a different field set than the signer saw | relay, worker, node | A1, A3 | Parser differential on a security/money field | Never base a security/money decision on a protobuf field that could differ; the route header, receipts and catalog are the **exact signed JSON bytes** carried in `bytes`, re-parsed with the strict §1 decoder (CONTRACT §12) | relay, worker, node | U:each, V | designed |
+| A91 | HTTP/2 flow-control / window exhaustion: a peer opens many streams and never reads, or shrinks its window to pin relay memory | relay | A1, A2 | Memory DoS, head-of-line blocking | `MaxConcurrentStreams` 64; bounded per-stream send buffers; initial windows sized for one body (≥ 1 MiB stream, ≥ 4 MiB connection) but capped; a slow consumer's task is failed, not buffered unboundedly | relay, node | A14, U:relay | designed |
+| A92 | A Worker/Gateway that is a **slow consumer** of its response/body stream to stall the relay | relay | A2 | Relay memory growth | 1 MiB per-task response buffer; drop the task (`overloaded`) when the peer cannot keep up; never block the scheduler goroutine | relay | U:relay, E20 | designed |
+| A93 | gRPC status abuse: send policy failures as gRPC status so agents mis-handle them, or map transport errors to app errors | relay, node | A3 | Wrong retry behavior | Policy failures travel as `Failed{code, retryable}` **inside** the stream; gRPC status codes reserved for transport/auth; the Gateway maps only `Failed` to provider-native errors (CONTRACT §12) | relay, node | U:node | designed |
+| A94 | h2c (plaintext HTTP/2) or ALPN confusion on the network link | relay | A4 | Downgrade, MITM | TLS 1.3 + ALPN `h2` only on the network listener; plaintext h2c only on the local Unix sockets | relay | A10 | designed (§12) |
+| A95 | Channel-binding bypass: reuse an `Auth` from one TLS connection on another, or spoof the exporter | relay, node | A3, A4 | Session hijack | `tls_exporter` (RFC 9266) recomputed from **this** connection in the relay's TransportCredentials; `Auth` sig covers it; streams bound to the connection id | relay, node | V, U:relay | designed (§12) |
+
+## 11. Local Unix sockets: LocalControl and RelayAdmin (A100–A109)
+
+| ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
+|---|---|---|---|---|---|---|---|---|
+| A100 | Another local user connects to the `RelayAdmin`/`LocalControl` socket | relay, node | A6 | Full admin / Node control | Socket mode 0600 in a 0700 dir; **check the peer uid** (`SO_PEERCRED`/`getpeereid`) == the owner on every connection; never h2c-over-TCP for these | relay, node | A100, A101, U | designed (§12) |
+| A101 | `LocalControl` socket reachable by other users on the maintainer's box | node | A6 | Drive the Node, read the pool | Same as A100, under `<home>/state/node.sock` | node | A101 | designed (§12) |
+| A102 | Symlink/TOCTOU race on the socket path: pre-plant a symlink so bind/chmod hits a victim file | relay, node | A6 | Privilege confusion, file clobber | Create the socket in an owner-only dir; `unlink` + bind with `O_NOFOLLOW` semantics; never `chmod` through a path (fchmod the fd / set umask before bind); refuse to start if the path exists and is not our socket | relay, node | A100/A102 | **gap** (not in plan) |
+| A103 | Abstract-namespace socket (Linux) bypasses filesystem permissions | node, relay | A6 | Any user connects | Use a path-based socket in an owner-only dir, never an abstract `@name` socket | node, relay | U | **gap** |
+
+## 12. Usernames and identity (A110–A119)
+
+| ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
+|---|---|---|---|---|---|---|---|---|
+| A110 | Impersonation via case variant, homoglyph (Cyrillic `а`), zero-width/RTL char, or reserved word (`admin`, route segments) | relay | A8 | Phishing, authority spoof | CONTRACT §11: ASCII `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$`, case-insensitive uniqueness, reserved-word list, shared vectors `spec/vectors/usernames.json` | relay | A110, E21 | designed (§11) |
+| A111 | Username recycling: take a released/renamed handle to inherit its links, badges, reputation | relay | A8 | Reputation/link takeover | Permanent `username_tombstones`; a handle used once is never reassigned; 90-day redirect | relay | E21 | designed (§11) |
+| A112 | Terminal-escape or CRLF in a handle, repo or display name printed by the CLI or logged | node, relay | A8 | Terminal attack, log injection | Reject control chars at creation (A110); the CLI's `sanitize_for_terminal()` (A47) and JSON logs (A27) are defense in depth | node, relay | A110, U | designed |
+| A113 | Confusable repo owner/name (`github.com/rn` vs `m`) to impersonate a project | relay, web | A8 | Donate to the wrong repo | Repo identity keyed on the provider's immutable `provider_repo_id`, not the display slug; show the provider and owner avatar | relay | U:relay | **gap** (ASCII slug only; residual) |
+
+## 13. Responsiveness as an attack surface (A120–A129)
+
+Responsiveness is now a hard requirement (CONTRACT §13). Its mechanisms open their own DoS surface.
+
+| ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
+|---|---|---|---|---|---|---|---|---|
+| A120 | **Slow consumer / head-of-line blocking**: a peer reads its stream slowly to blow the per-chunk latency budget for everyone | relay | A1, A2 | Misses §13 budgets; memory growth | Per-task isolation (one stream = one task); bounded per-stream buffers; drop slow tasks; the scheduler never blocks on a peer write | relay | A92, E22 | designed |
+| A121 | Immediate-flush / `TCP_NODELAY` turned into a tiny-packet flood (a peer forces one chunk per tiny message) | relay, node | A1 | CPU/packet amplification | Minimum chunk coalescing on **egress** only when the peer is slow; per-stream message-rate cap; message-size floor not required but rate-limited | relay, node | U | **gap** |
+| A122 | Adaptive group commit abused: drive the writer into permanent "in-flight" batching, or force a sync per op | relay | A1 | Latency or durability regression | Commit idle-first (CONTRACT §13); batch only while a commit is in flight; the batch is bounded and always makes progress; `synchronous=FULL` never skipped | relay | E22, U:relay | designed (ADR-34) |
+| A123 | Warm-connection pools exhausted (open many sessions to hold pooled provider/link connections) | node, relay | A1, A2 | Denial of responsiveness | Per-device connection and stream caps; pools bounded with eviction; A89 budgets | relay, node | U | designed |
+
+## 14. Top gaps (ranked)
 
 | Rank | ID | Gap | Owner | Severity |
 |---|---|---|---|---|
@@ -153,9 +193,11 @@ As of this commit no component binary exists, so nothing is `implemented` yet: e
 | 5 | A77 | Provider terms on key sharing and resale: unresolved, possibly existential | int | High |
 | 6 | A54 / A55 / A56 | OAuth `state` + PKCE, session rotation, open-redirect rule | relay, web | High |
 | 7 | A59 | Device-code phishing UX and poll rate limits | relay, web | Medium |
-| 8 | A12 / A19 | CSWSH Origin refusal and pre-auth deadline on `/v1/node` | relay | Medium |
-| 9 | A21 | zstd window and `Frame_Content_Size` rules (bound exists, decoder config unstated) | worker | Medium |
+| 8 | A102 / A100 | Unix-socket symlink/TOCTOU race and peer-uid check on `LocalControl`/`RelayAdmin` | relay, node | Medium |
+| 9 | A14 / A91 | HTTP/2 Rapid-Reset and stream-open/flow-control rate limits on the gRPC link | relay | Medium |
 | 10 | A80 / A81 / A87 | No CI yet: cargo-deny/vet, govulncheck, `--locked` | int | Medium |
+
+Also open: A21 (zstd window/FCS decoder config), A19 (gRPC reflection off), A121 (`TCP_NODELAY` tiny-packet rate limit), A113 (confusable repo slugs).
 
 ## Sources
 
