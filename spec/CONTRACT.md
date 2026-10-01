@@ -20,6 +20,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 ## 1. Encodings (both languages)
 
 - Text frames: UTF-8 JSON objects. Unknown fields ignored. Required field `t` (message type).
+- **Parser-differential rule:** every JSON parse that feeds a security or money decision (route header, receipts, provider request bodies in the Worker firewall, provider responses for usage, MCP messages) MUST reject duplicate object keys, invalid UTF-8, lone surrogates, numbers outside i64/f64, and nesting deeper than 64. Go must not use plain `encoding/json` for these (use a decoder that detects duplicates); Rust must not rely on last-key-wins `serde_json::Value`. When the Worker mutates a body, it re-serializes from the validated tree; it never forwards bytes that a different parser could read differently.
 - Bytes in JSON: **base64url without padding** (`RFC 4648 §5`). Ids: `task` = ULID canonical 26-char string; `device_id` = `d_` + ULID; `user_id` = `u_` + ULID; `repo_id` = `r_` + ULID; `pledge_id` = `p_` + ULID. Money: JSON integer µ$ (`*_uusd`).
 - `lp(a, b, …)` = concatenation of `u32_be(len(x)) || x` for each field. Integers inside `lp` are encoded as `u64_be` (8 bytes). Strings as UTF-8 bytes.
 - Hash = SHA-256. HKDF = HKDF-SHA256 (RFC 5869); `Expand` length 32 unless stated.
