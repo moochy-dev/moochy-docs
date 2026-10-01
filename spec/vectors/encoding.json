@@ -1,0 +1,252 @@
+{
+  "_schema": "lp: fields[] (hex) → out (hex), each field u32_be(len)||bytes. labels: label_text → lp(label). ints: width rule inside lp (CONTRACT §1 D4). b64_valid: bytes (hex) ↔ b64 (base64url, no padding); b64_invalid: strings a strict decoder MUST reject. ulid_valid: canonical text ↔ 16 bytes (hex) and its 48-bit timestamp; ulid_invalid: MUST be rejected (lowercase, wrong length, first char > '7', I/L/O/U). ids_valid: prefixed ids (d_, u_, r_, p_ + ULID); ids_invalid: [expected_prefix, text] MUST be rejected.",
+  "b64_invalid": [
+    "-_8=",
+    "+/8",
+    "-_9",
+    "a",
+    " AA",
+    "AA\n",
+    "AAA=",
+    "A==="
+  ],
+  "b64_valid": [
+    {
+      "b64": "",
+      "bytes": ""
+    },
+    {
+      "b64": "AA",
+      "bytes": "00"
+    },
+    {
+      "b64": "-_8",
+      "bytes": "fbff"
+    },
+    {
+      "b64": "____",
+      "bytes": "ffffff"
+    },
+    {
+      "b64": "paWlpaWlpaWlpaWlpaWlpQ",
+      "bytes": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    {
+      "b64": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+      "bytes": "0707070707070707070707070707070707070707070707070707070707070707"
+    }
+  ],
+  "ids_invalid": [
+    [
+      "d_",
+      "01K6A0000000000000000000G1"
+    ],
+    [
+      "d_",
+      "D_01K6A0000000000000000000G1"
+    ],
+    [
+      "d_",
+      "u_01K6A0000000000000000000G1"
+    ],
+    [
+      "d_",
+      "d_01k6a0000000000000000000g1"
+    ],
+    [
+      "d_",
+      "d__01K6A0000000000000000000G1"
+    ],
+    [
+      "r_",
+      "r_01K6A0000000000000000000R1 "
+    ]
+  ],
+  "ids_valid": [
+    "d_01K6A0000000000000000000G1",
+    "u_01K6A0000000000000000000U1",
+    "r_01K6A0000000000000000000R1",
+    "p_01K6A0000000000000000000P1"
+  ],
+  "ints": [
+    {
+      "bytes": "00000007",
+      "call_site": "u32(7)"
+    },
+    {
+      "bytes": "ffffffff",
+      "call_site": "u32(4294967295)"
+    },
+    {
+      "bytes": "0000000000000002",
+      "call_site": "u64(attempt=2)"
+    },
+    {
+      "bytes": "0000000000000007",
+      "call_site": "u64(seq=7) (no width written → u64)"
+    }
+  ],
+  "labels": [
+    {
+      "label_text": "moochy/v1/auth",
+      "lp": "0000000e6d6f6f6368792f76312f61757468"
+    },
+    {
+      "label_text": "moochy/v1/device-start",
+      "lp": "000000166d6f6f6368792f76312f6465766963652d7374617274"
+    },
+    {
+      "label_text": "moochy/v1/req",
+      "lp": "0000000d6d6f6f6368792f76312f726571"
+    },
+    {
+      "label_text": "moochy/v1/resp",
+      "lp": "0000000e6d6f6f6368792f76312f72657370"
+    },
+    {
+      "label_text": "moochy/v1/wrap",
+      "lp": "0000000e6d6f6f6368792f76312f77726170"
+    },
+    {
+      "label_text": "moochy/v1/task",
+      "lp": "0000000e6d6f6f6368792f76312f7461736b"
+    },
+    {
+      "label_text": "moochy/v1/salt",
+      "lp": "0000000e6d6f6f6368792f76312f73616c74"
+    },
+    {
+      "label_text": "moochy/v1/req-commit",
+      "lp": "000000146d6f6f6368792f76312f7265712d636f6d6d6974"
+    },
+    {
+      "label_text": "moochy/v1/resp-commit",
+      "lp": "000000156d6f6f6368792f76312f726573702d636f6d6d6974"
+    },
+    {
+      "label_text": "moochy/v1/provider-req",
+      "lp": "000000166d6f6f6368792f76312f70726f76696465722d726571"
+    },
+    {
+      "label_text": "moochy/v1/receipt",
+      "lp": "000000116d6f6f6368792f76312f72656365697074"
+    },
+    {
+      "label_text": "moochy/v1/projection",
+      "lp": "000000146d6f6f6368792f76312f70726f6a656374696f6e"
+    },
+    {
+      "label_text": "moochy/v1/resp-progress",
+      "lp": "000000176d6f6f6368792f76312f726573702d70726f6772657373"
+    },
+    {
+      "label_text": "moochy/v1/dispute",
+      "lp": "000000116d6f6f6368792f76312f64697370757465"
+    }
+  ],
+  "lp": [
+    {
+      "fields": [],
+      "out": ""
+    },
+    {
+      "fields": [
+        ""
+      ],
+      "out": "00000000"
+    },
+    {
+      "fields": [
+        "6d6f6f6368792f76312f7461736b",
+        "30314b3641303030303030303030303030303030303030305431"
+      ],
+      "out": "0000000e6d6f6f6368792f76312f7461736b0000001a30314b3641303030303030303030303030303030303030305431"
+    },
+    {
+      "fields": [
+        "01",
+        "abababababababababababababababab",
+        "00000007",
+        "01"
+      ],
+      "out": "000000010100000010abababababababababababababababab00000004000000070000000101"
+    },
+    {
+      "fields": [
+        "0000000000000003",
+        "ffffffffffffffff",
+        "c3a9e29c93"
+      ],
+      "out": "00000008000000000000000300000008ffffffffffffffff00000005c3a9e29c93"
+    }
+  ],
+  "task_freshness": {
+    "cases": [
+      {
+        "admissible": true,
+        "boot_ms": 0,
+        "now_ms": 1759125252032,
+        "task": "01K6A0000000000000000000T1"
+      },
+      {
+        "admissible": false,
+        "boot_ms": 0,
+        "now_ms": 1759125252033,
+        "task": "01K6A0000000000000000000T1"
+      },
+      {
+        "admissible": false,
+        "boot_ms": 0,
+        "now_ms": 1759124052031,
+        "task": "01K6A0000000000000000000T1"
+      },
+      {
+        "admissible": true,
+        "boot_ms": 1759124652032,
+        "now_ms": 1759124652032,
+        "task": "01K6A0000000000000000000T1"
+      },
+      {
+        "admissible": false,
+        "boot_ms": 1759124652033,
+        "now_ms": 1759124652032,
+        "task": "01K6A0000000000000000000T1"
+      }
+    ],
+    "rule": "admissible(task, now, boot) = |ts(task) − now| ≤ window AND ts(task) ≥ boot (process start, CONTRACT D18)",
+    "window_ms": 600000
+  },
+  "ulid_invalid": [
+    "01k6a0000000000000000000t1",
+    "01K6A0000000000000000000T",
+    "01K6A0000000000000000000T11",
+    "81K6A0000000000000000000T1",
+    "01K6A000000000000000000OT1",
+    "01K6A000000000000000000IT1",
+    "01K6A000000000000000000LT1",
+    "01K6A000000000000000000UT1",
+    ""
+  ],
+  "ulid_valid": [
+    {
+      "bytes": "01999400000000000000000000000341",
+      "text": "01K6A0000000000000000000T1",
+      "timestamp_ms": 1759124652032
+    },
+    {
+      "bytes": "00000000000000000000000000000000",
+      "text": "00000000000000000000000000",
+      "timestamp_ms": 0
+    },
+    {
+      "bytes": "ffffffffffffffffffffffffffffffff",
+      "text": "7ZZZZZZZZZZZZZZZZZZZZZZZZZ",
+      "timestamp_ms": 281474976710655
+    },
+    {
+      "bytes": "01563e3ab5d3d6764c61efb99302bd5b",
+      "text": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "timestamp_ms": 1469922850259
+    }
+  ]
+}

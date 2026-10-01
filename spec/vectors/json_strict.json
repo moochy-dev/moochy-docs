@@ -1,0 +1,145 @@
+{
+  "_schema": "CONTRACT §1 parser-differential rule. cases[]: name, input (hex of the exact bytes), valid (true = MUST accept, false = MUST reject). Max depth 64 (a scalar inside 64 nested containers is valid, 65 is not). Integers must fit i64; non-integer numbers must be finite f64.",
+  "cases": [
+    {
+      "input": "7b7d",
+      "name": "empty object",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a312c2262223a7b2261223a327d7d",
+      "name": "nested distinct keys",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a2d393232333337323033363835343737353830382c2262223a393232333337323033363835343737353830377d",
+      "name": "i64 bounds",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a312e35653330302c2273223a225c75643833645c7564653030227d",
+      "name": "float and surrogate pair",
+      "valid": true
+    },
+    {
+      "input": "207b226122203a205b312c20322c206e756c6c2c20747275655d207d200a",
+      "name": "whitespace",
+      "valid": true
+    },
+    {
+      "input": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+      "name": "depth 64 arrays",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a317d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d",
+      "name": "depth 64 objects",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a312c2261223a327d",
+      "name": "duplicate key",
+      "valid": false
+    },
+    {
+      "input": "7b2278223a7b2261223a312c2261223a317d7d",
+      "name": "duplicate key nested",
+      "valid": false
+    },
+    {
+      "input": "5b7b2261223a312c225c7530303631223a327d5d",
+      "name": "duplicate key via escape",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a393232333337323033363835343737353830387d",
+      "name": "integer above i64",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a2d393232333337323033363835343737353830397d",
+      "name": "integer below i64",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a31383434363734343037333730393535313631367d",
+      "name": "integer above u64",
+      "valid": false
+    },
+    {
+      "input": "5b312c2d39393939393939393939393939393939393939395d",
+      "name": "big integer in array",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a223939393939393939393939393939393939393939222c2262223a222d3165393939227d",
+      "name": "integer-looking text inside a string is fine",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a316533302c2262223a2d312e356532307d",
+      "name": "float beyond i64 range is a float",
+      "valid": true
+    },
+    {
+      "input": "7b2261223a31653430307d",
+      "name": "float overflow",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a225c7564383030227d",
+      "name": "lone high surrogate",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a225c756463303078227d",
+      "name": "lone low surrogate",
+      "valid": false
+    },
+    {
+      "input": "7b225c7564383030223a317d",
+      "name": "lone surrogate in key",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a22ff227d",
+      "name": "invalid utf-8",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a22c0af227d",
+      "name": "overlong utf-8",
+      "valid": false
+    },
+    {
+      "input": "7b7d207b7d",
+      "name": "trailing data",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a312c7d",
+      "name": "trailing comma",
+      "valid": false
+    },
+    {
+      "input": "4e614e",
+      "name": "NaN",
+      "valid": false
+    },
+    {
+      "input": "",
+      "name": "empty input",
+      "valid": false
+    },
+    {
+      "input": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+      "name": "depth 65 arrays",
+      "valid": false
+    },
+    {
+      "input": "7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a7b2261223a317d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d",
+      "name": "depth 65 objects",
+      "valid": false
+    }
+  ]
+}

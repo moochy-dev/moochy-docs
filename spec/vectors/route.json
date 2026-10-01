@@ -1,0 +1,320 @@
+{
+  "_schema": "Route header (plan 03 §7.1). parse[]: exact route-header bytes (text) → outcome ok | json (parser-differential) | malformed (unknown field, wrong type/enum/length). facts[]: provider body (body_text, exact bytes) → deterministic facts: est_input_tokens = ceil(text_bytes / 3) + images × catalog.max_image_tokens + pages × catalog.max_page_tokens, text_bytes = body length − Σ length of inline image data (Anthropic image source.data; OpenAI image_url.url starting 'data:'), pages = count of '/Type <ws>* /Page' (not /Pages) in each base64 PDF (min 1), cache_ttl = longest cache_control ttl (present without ttl = 5m), effort = output_config.effort | reasoning_effort (null = catalog default), flags = sorted subset of documents/fast/images. check[]: Worker comparison of route_text against facts of facts[0] and the catalog entry; mismatch = first failing field in order model, dialect, effort, max_tokens, est_input_tokens, cache_ttl, stream, flags (null = accepted).",
+  "catalog_entry": {
+    "aliases": [
+      "claude-sonnet-5-5"
+    ],
+    "cache_read": 200000,
+    "cache_write_1h": 4000000,
+    "cache_write_5m": 2500000,
+    "default_effort": "high",
+    "dialects": [
+      "anthropic.messages"
+    ],
+    "fast_multiplier": 6,
+    "in": 2000000,
+    "max_image_tokens": 1600,
+    "max_output": 64000,
+    "max_page_tokens": 3000,
+    "model": "anthropic/claude-sonnet-5.5",
+    "out": 10000000,
+    "provider": "anthropic",
+    "provider_model_id": "claude-sonnet-5-5",
+    "source": "curated"
+  },
+  "check": [
+    {
+      "mismatch": null,
+      "name": "derived route",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "model",
+      "name": "model swapped",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-haiku-4.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "dialect",
+      "name": "dialect swapped",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"openai.chat\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "effort",
+      "name": "effort lowered",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"low\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "max_tokens",
+      "name": "max_tokens lowered",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1023,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "est_input_tokens",
+      "name": "estimate lowered by 1",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1698,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "cache_ttl",
+      "name": "cache_ttl lowered",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"5m\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "stream",
+      "name": "stream flipped",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":false,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\"]}"
+    },
+    {
+      "mismatch": "flags",
+      "name": "required flag missing",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[]}"
+    },
+    {
+      "mismatch": null,
+      "name": "extra flag (only restricts)",
+      "route_text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":1699,\"cache_ttl\":\"1h\",\"stream\":true,\"affinity\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"flags\":[\"images\",\"fast\"]}"
+    }
+  ],
+  "check_body": 0,
+  "facts": [
+    {
+      "body_text": "{\"model\":\"claude-sonnet-5-5\",\"max_tokens\":1024,\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"sys\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"},{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"iVBORw0KGgo=\"}}]}]}",
+      "dialect": "anthropic.messages",
+      "facts": {
+        "cache_ttl": "1h",
+        "effort": null,
+        "est_input_tokens": 1699,
+        "fast": false,
+        "flags": [
+          "images"
+        ],
+        "images": 1,
+        "max_tokens": 1024,
+        "model": "claude-sonnet-5-5",
+        "pages": 0,
+        "stream": true,
+        "text_bytes": 297
+      },
+      "name": "anthropic text + image + 1h cache",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"anthropic/claude-sonnet-5.5\",\"max_tokens\":2048,\"output_config\":{\"effort\":\"low\"},\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello world\",\"cache_control\":{\"type\":\"ephemeral\"}}]}]}",
+      "dialect": "anthropic.messages",
+      "facts": {
+        "cache_ttl": "5m",
+        "effort": "low",
+        "est_input_tokens": 69,
+        "fast": false,
+        "flags": [],
+        "images": 0,
+        "max_tokens": 2048,
+        "model": "anthropic/claude-sonnet-5.5",
+        "pages": 0,
+        "stream": false,
+        "text_bytes": 205
+      },
+      "name": "anthropic effort + 5m cache default ttl",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"claude-sonnet-5-5\",\"max_tokens\":1,\"speed\":\"fast\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"JVBERi0xLjcKMSAwIG9iaiA8PC9UeXBlIC9QYWdlcyAvS2lkcyBbMiAwIFIgMyAwIFIgNCAwIFJdPj4KMiAwIG9iaiA8PC9UeXBlL1BhZ2U+PgozIDAgb2JqIDw8L1R5cGUKL1BhZ2UgL1BhcmVudCAxIDAgUj4+CjQgMCBvYmogPDwvVHlwZSAvUGFnZT4+CjUgMCBvYmogPDwvVHlwZSAvUGFnZUxhYmVsPj4=\"}}]}]}",
+      "dialect": "anthropic.messages",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": null,
+        "est_input_tokens": 9140,
+        "fast": true,
+        "flags": [
+          "documents",
+          "fast"
+        ],
+        "images": 0,
+        "max_tokens": 1,
+        "model": "claude-sonnet-5-5",
+        "pages": 3,
+        "stream": false,
+        "text_bytes": 420
+      },
+      "name": "anthropic pdf document + fast",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"claude-sonnet-5-5\",\"max_tokens\":10,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"AAAA\"}}]}]}]}",
+      "dialect": "anthropic.messages",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": null,
+        "est_input_tokens": 1673,
+        "fast": false,
+        "flags": [
+          "images"
+        ],
+        "images": 1,
+        "max_tokens": 10,
+        "model": "claude-sonnet-5-5",
+        "pages": 0,
+        "stream": false,
+        "text_bytes": 219
+      },
+      "name": "anthropic image inside tool_result",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"deepseek/deepseek-chat\",\"max_completion_tokens\":50,\"reasoning_effort\":\"low\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AAAA\"}},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://x/y.png\"}}]}]}",
+      "dialect": "openai.chat",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": "low",
+        "est_input_tokens": 3277,
+        "fast": false,
+        "flags": [
+          "images"
+        ],
+        "images": 2,
+        "max_tokens": 50,
+        "model": "deepseek/deepseek-chat",
+        "pages": 0,
+        "stream": false,
+        "text_bytes": 230
+      },
+      "name": "openai data-url and https images",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"deepseek/deepseek-chat\",\"max_tokens\":64,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "dialect": "openai.chat",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": null,
+        "est_input_tokens": 36,
+        "fast": false,
+        "flags": [],
+        "images": 0,
+        "max_tokens": 64,
+        "model": "deepseek/deepseek-chat",
+        "pages": 0,
+        "stream": true,
+        "text_bytes": 108
+      },
+      "name": "openai max_tokens only, stream",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_completion_tokens\":50,\"max_tokens\":50,\"messages\":[]}",
+      "dialect": "openai.chat",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": null,
+        "est_input_tokens": 24,
+        "fast": false,
+        "flags": [],
+        "images": 0,
+        "max_tokens": 50,
+        "model": "m",
+        "pages": 0,
+        "stream": false,
+        "text_bytes": 70
+      },
+      "name": "openai both max fields equal",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_completion_tokens\":50,\"max_tokens\":51,\"messages\":[]}",
+      "dialect": "openai.chat",
+      "name": "error: openai both max fields differ",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"messages\":[]}",
+      "dialect": "anthropic.messages",
+      "name": "error: max_tokens missing",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_tokens\":4294967296,\"messages\":[]}",
+      "dialect": "anthropic.messages",
+      "name": "error: max_tokens above u32",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_tokens\":1,\"max_tokens\":9}",
+      "dialect": "anthropic.messages",
+      "name": "error: duplicate max_tokens",
+      "outcome": "json"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_tokens\":1,\"x\":{\"cache_control\":{\"ttl\":\"2h\"}}}",
+      "dialect": "anthropic.messages",
+      "name": "error: unknown cache ttl",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_tokens\":1,\"stream\":\"yes\"}",
+      "dialect": "anthropic.messages",
+      "name": "error: stream not a bool",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_tokens\":1,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"***\"}}]}]}",
+      "dialect": "anthropic.messages",
+      "name": "error: pdf data not base64",
+      "outcome": "malformed"
+    }
+  ],
+  "parse": [
+    {
+      "name": "valid",
+      "outcome": "ok",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "duplicate key",
+      "outcome": "json",
+      "text": "{\"model\":\"anthropic/claude-haiku-4.5\",\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "unknown field",
+      "outcome": "malformed",
+      "text": "{\"extra\":1,\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "cache_ttl not in enum",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"2h\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "dialect not in enum",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.complete\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "negative max_tokens",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":-1,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "affinity wrong length",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWl\",\"flags\":[]}"
+    },
+    {
+      "name": "affinity padded base64",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ==\",\"flags\":[]}"
+    },
+    {
+      "name": "missing field",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"r_01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    },
+    {
+      "name": "repo id without prefix",
+      "outcome": "malformed",
+      "text": "{\"repo_id\":\"01K6A0000000000000000000R1\",\"dialect\":\"anthropic.messages\",\"model\":\"anthropic/claude-sonnet-5.5\",\"effort\":\"high\",\"max_tokens\":1024,\"est_input_tokens\":42,\"cache_ttl\":\"none\",\"stream\":true,\"affinity\":\"paWlpaWlpaWlpaWlpaWlpQ\",\"flags\":[]}"
+    }
+  ],
+  "pdf_pages": {
+    "pages": 3,
+    "pdf_text": "%PDF-1.7\n1 0 obj <</Type /Pages /Kids [2 0 R 3 0 R 4 0 R]>>\n2 0 obj <</Type/Page>>\n3 0 obj <</Type\n/Page /Parent 1 0 R>>\n4 0 obj <</Type /Page>>\n5 0 obj <</Type /PageLabel>>"
+  }
+}
