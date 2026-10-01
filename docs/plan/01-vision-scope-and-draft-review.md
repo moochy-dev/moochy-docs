@@ -2,6 +2,8 @@
 
 > Why Moochy exists, the non-negotiable principles and invariants, what is in and out of scope, how success is measured, and a line-by-line verdict on the original `draft-spec.md`.
 
+> **Updated 2026-10-01:** principles, draft verdicts, and metrics now match `spec/CONTRACT.md`, revised ADR-01, and ADR-33 to ADR-42. Changes: open-source client (Apache-2.0, DCO) with a closed-source relay and web, no relay self-hosting (ADR-01, CONTRACT §0a); the draft's persistent WebSocket is replaced by gRPC streams (ADR-33); Tailwind replaced by hand-written CSS (CONTRACT §9); group commit is adaptive (ADR-34); responsiveness budgets added as a beta metric (CONTRACT §13, E22); unique usernames added as a missing draft item (ADR-35, CONTRACT §11).
+
 ---
 
 ## 1. Problem
@@ -23,18 +25,18 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 | Maintainer (owner/admin) | "Run my agents on donated compute without changing tools, and control who can use it." |
 | Member | "Use my project's pool within my quota." |
 | Visitor | "See who supports this project, and check that it is real." |
-| Operator / self-hoster | "Run a cheap, blind, reliable relay." |
+| Operator (Moochy) | "Run a cheap, blind, reliable relay." |
 
 ---
 
 ## 3. Principles (non-negotiable)
 
-1. **100% open source.** Relay, client, protocol spec, and docs: one public monorepo, Apache-2.0 OR MIT. Anyone can audit, self-host, fork, or write a compatible implementation.
-2. **100% free.** No fees, no commission on compute, no paid tier, no feature gating. Donors pay their own provider directly; Moochy never holds anyone's money. The public instance's small hosting bill is covered by open sponsorship, with public accounts.
+1. **Open-source client (Apache-2.0).** The `moochy` client, the protocol definition (`.proto`, test vectors, public protocol spec), and the user guides are Apache-2.0 with DCO sign-off, published as the public `moochy-cli` repository. Everything that touches a donor's key, a maintainer's code, or the cryptography is in that client, so anyone can audit it, verify the release, or write a compatible client. The relay and web are closed source and operated by Moochy; self-hosting the relay is not offered.
+2. **100% free.** Public wording: "Open-source client (Apache-2.0) · 100% free". No fees, no commission on compute, no paid tier, no feature gating. Donors pay their own provider directly; Moochy never holds anyone's money. The public instance's small hosting bill is covered by open sponsorship, with public accounts.
 3. **Works with anything.** Any MCP client or AI agent (MCP door), any tool or SDK with a configurable base URL (API door), and any major provider on the donor side (Anthropic, OpenAI, OpenRouter, DeepSeek, OpenAI-compatible hosts).
-4. **Trust no operator.** Open source does not prove what a server runs, so confidentiality and integrity are enforced cryptographically by the client on the user's own machine.
+4. **Trust no operator.** Nobody can verify what a server runs, open source or not, so confidentiality and integrity are enforced cryptographically by the open-source client on the user's own machine. The relay only ever sees encrypted bytes plus the plaintext route header and accounting metadata; owner-signed approvals, the key log, Worker local caps, and the provider's own spend limit cover the rest.
 5. **Donated money is sacred.** Every design choice that can make a donated dollar go further (cache affinity, cancellation propagation, no hedging, budget-proportional routing) is taken.
-6. **Boring infrastructure.** One Go binary + one SQLite file + one Rust binary. No queue, no cache cluster, no microservices.
+6. **Boring infrastructure.** One Go relay binary + one SQLite file + one Rust client binary. No queue, no cache cluster, no microservices.
 
 ---
 
@@ -61,7 +63,7 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 - Donors pledge µ$ budgets to public repos using Anthropic, OpenRouter, DeepSeek, or OpenAI keys.
 - Maintainers and members consume through MCP or provider-compatible APIs from any client.
 - Real-time public pages, README badges, verifiable receipts.
-- Self-hostable relay with a documented recipe.
+- Open-source client with reproducible, signed releases that users can verify.
 
 ### 5.2 Non-goals
 
@@ -69,7 +71,8 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 - Hosting donor keys or running inference on Moochy servers.
 - Arbitrary compute (shell, containers, binaries).
 - Content moderation by the relay.
-- Private repositories on the public instance (v1).
+- Private repositories (not offered on the public instance).
+- Self-hosted relays (the Node's relay URL is configurable for development and tests only).
 - Cross-dialect request translation (v1).
 
 ### 5.3 Success metrics
@@ -84,6 +87,7 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 | Maintainer onboarding → agent running on donated compute | < 3 min |
 | Clients verified working (either door) | ≥ 10 |
 | Monthly infra cost of the public instance | ≤ $200 at 1M tasks/month |
+| Responsiveness budgets (Moochy-added time per hop, loopback, instant fake provider) | Every CONTRACT §13 row met at p50 and p99, measured by E22 (release blocker) |
 
 ---
 
@@ -93,15 +97,15 @@ Verdicts: **Keep** (as is), **Change** (keep the intent, change the design), **D
 
 | Draft item | Verdict | Why | Replacement |
 |---|---|---|---|
-| Closed-source monorepo `moochy-core` | **Change** | Requirement: 100% open source; also enables self-hosting | One public monorepo, Apache-2.0 OR MIT ([02 §10](02-architecture-overview.md)) |
-| Open-source Rust client with MCP + daemon | Keep / Change | Keep Rust and open source; merge into one binary and one Node process | `moochy` Node with roles + two doors ([07](07-client-cli.md)) |
-| Go monolith, HTMX, SSE, Tailwind | Keep | Boring and effective | — |
+| Closed-source monorepo `moochy-core` | Keep | An earlier revision of this plan opened everything; the product owner restored the split (ADR-01). Users never need to trust the relay for confidentiality or caps, because those are enforced in the open client | Private `moochy-core` (relay + web, e2e, deploy, internal docs) and public `moochy-cli` (client, `spec/proto`, vectors, protocol spec, guides), Apache-2.0 + DCO for the open side ([02 §10](02-architecture-overview.md)) |
+| Open-source Rust client with MCP + daemon | Keep / Change | Keep Rust and open source (Apache-2.0); merge into one binary and one Node process | `moochy` Node with roles + two doors ([07](07-client-cli.md)) |
+| Go monolith, HTMX, SSE, Tailwind | Keep / Change | Go + HTMX + SSE are boring and effective; Tailwind adds a build tool for a few pages | Hand-written CSS with custom properties, no framework; motion built on native CSS features plus a small vanilla JS layer; budgets CSS ≤ 48 KB raw (≤ 12 KB gzip), motion JS ≤ 12 KB gzip, LCP ≤ 1.0 s on 4G, CLS 0 (CONTRACT §9) |
 | `chi` router | Drop | Go ≥ 1.22 `ServeMux` covers it | stdlib |
-| SQLite WAL + `modernc.org/sqlite` | Keep | Right size; CGO-free | + single writer, group commit, Litestream ([09](09-data-model.md)) |
+| SQLite WAL + `modernc.org/sqlite` | Keep | Right size; CGO-free | + single writer, adaptive group commit (ADR-34), Litestream ([09](09-data-model.md)) |
 | "In-memory zero-latency routing table (<1 ms dispatch)" | Change | Sub-ms is real but irrelevant next to upload and model latency | Honest latency budget; compression, warm pools, affinity ([02 §11](02-architecture-overview.md)) |
 | Lock-free `sync.Map` registry | Change | Can't make match + reserve atomic → double-spend | Single-owner Scheduler actor; `sync.Map` for chunk forwarding only ([04 §1](04-routing-engine.md)) |
 | `simd-json` / "<2 ms" serialization | Drop | No measurable benefit; payloads are opaque to the relay | `serde_json` |
-| Persistent multiplexed WebSocket | Keep | — | One per Node, shared by all clients |
+| Persistent multiplexed WebSocket | Change | Keep the idea (one long-lived, multiplexed connection per Node, shared by all local clients); replace the transport. A custom WebSocket framing would have to rebuild per-task flow control, cancellation, and deadlines that HTTP/2 already provides | gRPC over HTTP/2 + TLS 1.3 (`moochy.v1.NodeLink`): one `Session` stream per connection, one stream per task and per attempt (ADR-33, [03 §2](03-wire-protocol.md)) |
 | 500 ms ACK + auto-redirect | Keep / Change | Keep the ACK; add slot grants so ACKs rarely fail, NACK codes, per-attempt keys and accounting, no failover after the provider started | [03 §10](03-wire-protocol.md), [04 §8](04-routing-engine.md) |
 | HMAC-signed payloads with a per-repo `mcp_secret` | Drop | Redundant with TLS; plaintext shared secret in the DB | Device-key handshake ([03 §3](03-wire-protocol.md)) |
 | GPG / Ed25519 signatures as "verification" | Change | Signatures can't prove which model produced output; GPG adds complexity | Ed25519 only; donor-signed receipts, signed tool calls, and maintainer disputes for **accountability** ([06 §8–9](06-security-and-trust.md)) |
@@ -121,3 +125,4 @@ Verdicts: **Keep** (as is), **Change** (keep the intent, change the design), **D
 | (missing) Provider terms | **Add** | Existential risk | [06 §14](06-security-and-trust.md), Phase 0 |
 | (missing) Prompt-cache economics | **Add** | ~10× cost lever | [04 §5](04-routing-engine.md) |
 | (missing) Crash-safe accounting | **Add** | Money correctness | Outbox ([05 §7](05-ledger-and-accounting.md)) |
+| (missing) Username uniqueness and impersonation | **Add** | Handles appear on public pages, badges, and the log; confusable or recycled names enable impersonation | One unique ASCII handle per user, case-insensitive, reserved words, permanent tombstones on rename (ADR-35, CONTRACT §11) |

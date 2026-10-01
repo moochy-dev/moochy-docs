@@ -2,6 +2,8 @@
 
 > Who can hurt whom, how, and what stops them. Covers the threat model, keys, identity and owner-signed approvals, end-to-end encryption, the Worker's request firewall, the output-injection risk to maintainers, accountability, the key log, privacy, supply chain, local hardening, and provider-terms guardrails.
 
+> **Updated 2026-10-01:** threat model and mitigations now match `spec/CONTRACT.md` (§0a, §1, §11–§14) and ADR-01/33/34. Changes: open-source client (Apache-2.0) and closed relay, no self-hosted relays, trust rests on the client (ADR-01, CONTRACT §0a); unique ASCII usernames with permanent tombstones (§5.1, CONTRACT §11, E21) and new threat rows T24–T27; gRPC link security with per-connection channel binding and HTTP/2 hardening (§16, ADR-33); key log in scope now on `x/mod/sumdb/tlog` + `note` + our own C2SP tiles, no Tessera (D14, D16); relay-asserted membership only under `MOOCHY_INSECURE_DEV=1` (D14); served-task set in memory with a boot-time floor (D18); local control and admin sockets 0600 with peer-uid check; Gateway port picked once and persisted (C5); client defences proved by chaos scenarios E11, E15–E17 (§17, D8); public pseudonyms `ps_…` (D10); Ed25519 verification is ZIP-215 (`ed25519-zebra`).
+
 ---
 
 ## 1. Assets
@@ -23,7 +25,7 @@
 |---|---|---|
 | A1 | Malicious maintainer / member | Controls their Gateway fully; can send any bytes |
 | A2 | Malicious donor | Controls their Worker fully; can return any bytes, lie about usage |
-| A3 | Malicious or compromised relay operator (moochy.dev or any self-hoster) | Full control of the Relay and its database; cannot break cryptography; cannot modify Nodes already installed |
+| A3 | Malicious or compromised relay operator (the moochy.dev operator, an insider, or whoever compromises the closed-source Relay) | Full control of the Relay, its code, and its database; cannot break cryptography; cannot modify Nodes already installed |
 | A4 | Network attacker | Can observe, delay, and drop traffic; cannot break TLS |
 | A5 | Web attacker | Can make victims visit pages (CSRF, XSS attempts, DNS rebinding against localhost) |
 | A6 | Local unprivileged process or other user on a maintainer's machine | Can reach `127.0.0.1` ports and race to bind them |
@@ -45,21 +47,25 @@
 | T6 | Read prompts and outputs in transit or at rest | A3, A4 | End-to-end envelopes with **per-body request keys and per-attempt response keys** ([03 §6](03-wire-protocol.md)); the Relay holds no keys; the database stores no content | Metadata (sizes, timing, models) |
 | T7 | Get content sealed to a key the Relay controls (fake device on a real account, or a fake "approved donor") | A3 | **Key log** with owner-signed approvals (§10): Gateways seal only to keys logged for users holding an **owner-signed `DONOR_APPROVED`** for the repo; every Node alerts on unknown keys on its own account; the owner's Node alerts on approvals or repo claims it did not sign; checkpoints are publicly anchored | A Relay can still attempt a MITM, but only by publishing evidence that real users' Nodes flag within one checkpoint interval |
 | T8 | **Return a poisoned response that makes the maintainer's agent run malicious tool calls** | A2 | §8: owner approval of each donor, pinned donors, tool-call checks and tripwire, **signed progress checkpoints on every tool call**, guidance to keep human approval on | **Highest residual risk in the system.** It cannot be eliminated without verified compute (§15) |
-| T9 | Run inference on donor keys as the Relay, replay tasks, or charge one repo's pledge for another's task | A3 | **Gateway task signatures**, owner-signed `MEMBER_ADDED`, pledge↔repo check, ULID freshness, served-task set at the Worker ([03 §7.2](03-wire-protocol.md)) | — |
+| T9 | Run inference on donor keys as the Relay, replay tasks, or charge one repo's pledge for another's task | A3 | **Gateway task signatures**, owner-signed `MEMBER_ADDED`, pledge↔repo check, ULID freshness, served-task set at the Worker with a boot-time floor ([03 §7.2](03-wire-protocol.md), §17); proved by E16 | — |
 | T10 | Garbage output, cheaper model, or inflated usage to farm the leaderboard | A2 | Gateway checks commitments, usage bands, and the reported model; signed disputes; leaderboard counts only undisputed receipts | A donor can still serve low-quality output for real money (no incentive) |
 | T11 | Forge receipts, approvals, or rewrite history | A3 | Donor-signed receipts and projections; owner-signed approvals; append-only key log with signed checkpoints anchored externally | Censorship (omitting projections from public pages) is possible but visible to the parties holding the receipts |
-| T12 | Relay a stolen login, or replay an auth signature | A3, A4 | Signature covers the **origin the Node dialed** and the TLS channel binding ([03 §3](03-wire-protocol.md)) | — |
+| T12 | Relay a stolen login, or replay an auth signature | A3, A4 | Signature covers the **origin the Node dialed** (`https://host:port`) and the RFC 9266 channel binding of that exact TLS connection; auth is per HTTP/2 connection and streams from any other connection are refused ([03 §3](03-wire-protocol.md), §16) | — |
 | T13 | Use a stolen device | any | `moochy logout` / web revoke → `KEY_REVOKED`; the Relay drops the device at once | Window until the user notices |
-| T14 | Use the maintainer's local Gateway from another process, user, or website | A5, A6 | Loopback only; repo-scoped random local tokens; Host-header check against DNS rebinding; no CORS; port held by the OS service manager; `moochy doctor` checks the port owner's uid (§13) | Same-user malware (out of scope) |
+| T14 | Use the maintainer's local Gateway from another process, user, or website | A5, A6 | Loopback only; repo-scoped random local tokens; Host-header check against DNS rebinding; no CORS; a stable port chosen once and persisted, optionally held by the OS service manager; `moochy doctor` checks the port owner's uid; CLI control over a 0600 Unix socket with peer-uid check (§13) | Same-user malware (out of scope) |
 | T15 | Exfiltrate local files through MCP `files` (traversal, symlinks, injected paths) | A6, A9 | Root = git top-level bound to the token ∩ client roots; realpath containment; no symlinks; deny `.git/**` and secret-shaped files; `git check-ignore` (§13) | Secrets in normal tracked files (scrubber is best-effort) |
 | T16 | CSRF / XSS on the web dashboard | A5 | SameSite=Lax cookies; state changes require `HX-Request` + Origin check; strict CSP; auto-escaping templates | — |
-| T17 | Malicious client release | A7 | Signed releases with provenance, reproducible Linux builds, dependency vetting, no silent auto-update (§12) | A compromised upstream crate |
+| T17 | Malicious client release | A7 | Open-source client (Apache-2.0); signed releases with provenance, reproducible Linux builds, dependency vetting, no silent auto-update (§12) | A compromised upstream crate |
 | T18 | Sybil accounts flooding pledges or claims | A8 | GitHub/GitLab identity; repo claims need admin permission; owner approval of donors; rate limits | Determined attacker with aged accounts |
 | T19 | Donor's provider account banned because of a maintainer's prompts | A1 | Donors pledge only to repos they choose and that approve them; `metadata.user_id` pseudonymous attribution; local journal | Provider decisions are outside Moochy's control → explicit donor consent |
 | T20 | Secrets from the maintainer's environment leaking to donors | A1 (accidental), A9 | Gateway **secret scrubber** before sealing (also on MCP files) | Novel secret formats |
 | T21 | Prompt-cache timing side channel between members sharing a donor key | A1 | Only reveals whether an *exact* prefix is cached; prefixes include per-repo content | Accepted (low) |
-| T23 | Impersonation through look-alike, case-variant, reserved, or recycled usernames | A8 | Unique ASCII-only lowercase handles (case-insensitive uniqueness), reserved words, permanent tombstones for released handles, control characters escaped everywhere they are printed (`spec/CONTRACT.md` §11) | Visually similar ASCII handles (`rn` vs `m`) |
-| T22 | Denial of service on the Relay | any | Per-IP connection limits, per-device rate limits, byte budgets for buffered bodies, sheddable submit queue | Large volumetric attacks → optional CDN/DDoS front |
+| T22 | Denial of service on the Relay | any | Per-IP connection limits, per-device rate limits, byte budgets for buffered bodies, sheddable submit queue, gRPC/HTTP/2 hardening (§16) | Large volumetric attacks → optional CDN/DDoS front |
+| T23 | Impersonation through look-alike, case-variant, or reserved usernames | A8 | Unique ASCII-only lowercase handles with case-insensitive uniqueness (confusables are refused by the ASCII-only rule, not by a lookalike table), reserved staff/system words and route segments, no auto-suffix at signup (§5.1, CONTRACT §11); proved by E21 | Visually similar ASCII handles (`rn` vs `m`) |
+| T24 | **Username recycling**: wait for a handle to be renamed or deleted, register it, and inherit its links, badges, mentions, and reputation | A8 | Every handle ever used becomes a **permanent tombstone** that is never assigned again; the old handle redirects to the new one for 90 days, then returns "gone"; renames at most once per 30 days (§5.1); proved by E21 | Off-platform links that never followed the redirect |
+| T25 | **Terminal-escape injection**: a hostile handle, repo name, model name, or error string from the Relay rewrites the user's terminal (fake prompts, hidden text, OSC 8 links, clipboard writes) | A3, A8 | The CLI and logs never print a server-provided string raw: control characters (C0, C1, DEL, ESC sequences) are escaped before output; handles are ASCII-only anyway (CONTRACT §11) | — |
+| T26 | HTTP/2-level attacks on the gRPC listener (Rapid Reset CVE-2023-44487, CONTINUATION flood, HPACK bombs, stream exhaustion, oversized messages) | any | gRPC hardening list (§16): stream-open and reset rate limits, current grpc-go/x/net, header-list and message-size caps, `MaxConcurrentStreams` 128, per-IP caps, no task state before auth | Volumetric floods (T22) |
+| T27 | **Parser differential**: a protobuf field or a duplicate JSON key is read one way by the Relay and another way by a Node | A1, A3 | Protobuf is never trusted for strict security decisions; those read the signed JSON bytes with the strict parser (duplicate keys, invalid UTF-8, lone surrogates, out-of-range numbers, depth > 64 all rejected; CONTRACT §1); the Worker forwards only bytes it re-serialized from its own validated tree | — |
 
 ---
 
@@ -69,13 +75,14 @@
 
 - Created by `moochy login` on the device and **never exported**: one Ed25519 signing key and one X25519 encryption key.
 - Stored in the OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service). **Headless fallback:** a file encrypted with a passphrase-derived key (scrypt), or `systemd-creds` / TPM-bound credentials. This replaces the draft's custom AES-256-GCM store, which forced a passphrase prompt on every daemon start, an unacceptable UX for an always-on service.
-- **Registration** goes through the device-approval flow: the Node shows a short code, the user approves in the signed-in browser, and the Relay binds `{device, user, sign_pub, enc_pub, roles, suite}` and appends a `KEY_ADDED` entry (with a proof-of-possession signature by the new key) to the key log.
+- **Registration** goes through the device-approval flow (gRPC `DeviceStart` / `DevicePoll`, unauthenticated and strictly rate-limited per IP): the Node shows a short code, the user approves in the signed-in browser, and the Relay binds `{device, user, sign_pub, enc_pub, roles, suite}` and appends a `KEY_ADDED` entry (with a proof-of-possession signature by the new key) to the key log.
 - **Rotation**: `moochy keys rotate` registers a new device record and revokes the old one after a 24 h grace period. Both are logged.
 - **Revocation**: `KEY_REVOKED` takes effect immediately at the Relay and is published in the key log.
 
 ### 4.2 Provider API keys
 
-- Added with `moochy keys add <provider>` (interactive prompt, never a CLI argument, so it stays out of shell history) and stored in the keychain.
+- Added with `moochy keys add <anthropic|openrouter|deepseek|openai>` (interactive prompt, or `--key-stdin` for scripts; never a CLI argument, so it stays out of shell history) and stored in the keychain.
+- Keys are sent only to the adapter's allowlisted official host. `--base-url` (fake providers in tests) is accepted only for loopback hosts **and** only when `MOOCHY_INSECURE_DEV=1` is set; otherwise it is refused, so a social-engineered command cannot redirect a donor's key to an attacker's server.
 - Validated on add and periodically with a **free** call to the provider's models endpoint. This also tells the Worker which models the key can really use, and the Worker advertises exactly those.
 - **Never** sent to the Relay, never logged, never included in crash reports (redaction is unit-tested).
 
@@ -85,7 +92,7 @@
 |---|---|---|---|
 | Log signing key (Ed25519, signed-note format) | Key-log checkpoints | Generated offline; encrypted file or KMS at boot | Yearly or on incident; both keys sign during the transition |
 | Catalog signing key | Price catalog | Same | Same |
-| TLS keys | Transport | ACME autocert | Automatic |
+| TLS keys | Transport (HTTP and gRPC listeners) | ACME autocert (`relay serve --autocert-domain`) or `--tls-cert`/`--tls-key` | Automatic |
 
 No Relay key can decrypt user content. **That is the point.**
 
@@ -102,13 +109,46 @@ No Relay key can decrypt user content. **That is the point.**
 
 **Approvals are signed by the owner's device, not just clicked on a website.** The web console lists pending donors and members, and approval happens with `moochy approve <name>` / `moochy members add <user>` (or by confirming the prompt the Node shows in `moochy status`). The owner's Node signs the entry, the Relay appends it to the key log, and Gateways and Workers verify it themselves. The Relay can **show** a request but cannot **forge** an approval. The draft's idea of "anyone with push access is automatically a member" is dropped: it would make membership relay-asserted.
 
-**Public repositories only** on the public instance. Moochy's purpose is open source, and public visibility makes the use auditable. Private pools are better served by self-hosted relays.
+**Relay-asserted membership is a test mode, not a fallback (D14).** The key log is in scope now (§10), not deferred. Until it ships, a Worker accepts membership and donor approval asserted by the Relay (the dev API's `/dev/member` and `/dev/pledge`) **only** when started with `MOOCHY_INSECURE_DEV=1`, which is meant for tests and design partners. Without that variable, and always once the key log is live, the Worker requires the owner-signed log entries (`REPO_CLAIMED`, `DONOR_APPROVED`, `MEMBER_*`) and refuses the task otherwise (fail closed).
+
+**Public repositories only.** Moochy's purpose is open source, and public visibility makes the use auditable. Private repositories are not offered, and there is no self-hosted relay alternative (CONTRACT §0a).
+
+### 5.1 Unique usernames (handles)
+
+Every user has exactly one Moochy username, unique on the instance. Handles appear on public pages, in the audit feed, in badges, in `moochy approve <donor>` and `moochy members add <user>`, so a handle that can be faked or recycled is a direct path to approving the wrong person. The rules (CONTRACT §11, verified by E21):
+
+- **Format:** ASCII only, lowercase, `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 characters), no `--`. Confusables are handled by this rule rather than by a lookalike table: Cyrillic `а`, Greek `ο`, zero-width characters, and RTL marks are simply not in the alphabet, so `аlice` (Cyrillic а) is refused, not normalized.
+- **Case-insensitive uniqueness:** stored lowercase, with SQLite `UNIQUE` + `COLLATE NOCASE` as a second guard, so `Alice` and `alice` are the same handle.
+- **Chosen at first sign-in:** the default is the provider login lowercased **if it is valid and free**; otherwise the user must pick one. There is **no automatic suffixing**: silently handing someone `alice-2` would make them look like `alice`.
+- **Reserved words** are refused at signup and at rename: every first path segment of the web routes and the API (`api`, `dev`, `p`, `r`, `log`, `open`, `connect`, `explore`, `station`, `console`, `device`, `devices`, `claim`, `leaderboard`, `auth`, `admin`, `static`, `mcp`, `v1`), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before. A new top-level route adds its segment to the list.
+- **Rename** at most once per 30 days. The old handle becomes a **permanent tombstone**: it is never assigned to anyone else (this blocks username-recycling takeovers of links, badges, and reputation) and redirects to the new handle for 90 days.
+- **Same rules in both languages:** Go (Relay) and Rust (the Node prints handles) share the test vectors `spec/vectors/usernames.json` (valid, invalid, reserved, confusables, case variants).
+- **No raw server strings in the terminal:** the CLI and logs never print a handle, repo name, or any other server-provided string raw; control characters are stripped or escaped (T25).
+
+The key log never contains handles (§10.3); it uses the public pseudonym (`ps_` + 16 random base32 characters, never derived from the internal `user_id`).
+
+**Uniqueness constraints enforced by the database, not only by code** (CONTRACT §11):
+
+| Thing | Unique key |
+|---|---|
+| User handle | `users.username` (case-insensitive) + `username_tombstones.username` |
+| User pseudonym (public log) | `users.pseudonym` |
+| Provider identity | (`provider`, `provider_user_id`); at most one identity per provider per user |
+| Device signing key | `devices.sign_pub` |
+| Device name | (`user_id`, lower(`name`)) |
+| Repository | (`provider`, `provider_repo_id`) and (`provider`, lower(`owner`), lower(`name`)) |
+| Live pledge | (`donor_id`, `repo_id`) where status ∈ {pending, active, paused} |
+| Membership | (`repo_id`, `user_id`) |
+| Local token | the random token itself (≥ 256-bit), stored hashed |
+| Task | (`gateway_device`, `task_id`) |
+| Receipt | (`task_id`, `attempt`); `receipt_ref` unique |
+| Web session | `id_hash` |
 
 ---
 
 ## 6. End-to-end encryption: what it buys and what it costs
 
-**Buys:** the Relay, its operator (moochy.dev or any self-hoster), its hosting provider, and anyone who steals its database learn nothing about prompts or outputs. The Relay is open source, but nobody can prove which binary a server is actually running. End-to-end encryption makes that question irrelevant for privacy: **users never have to trust the operator, only the open-source client on their own machine.**
+**Buys:** the Relay, its operator, its hosting provider, and anyone who steals its database learn nothing about prompts or outputs. The Relay is closed source, and even an open-source server would not help much: nobody can prove which binary a remote server is actually running. End-to-end encryption makes that question irrelevant for privacy. Everything that touches your keys, your code, and the cryptography runs in the **open-source client (Apache-2.0)** on your own machine, which you can read, build, and verify; the Relay only ever sees ciphertext, plus the plaintext route header and accounting metadata. Caps and approvals do not depend on the Relay either: owner-signed approvals and the key log (§10), the Worker's local caps, and the donor's provider-side spend limit cover the rest. **Users never have to trust the operator, only the client they can verify.**
 
 **Costs, and how they are paid:**
 
@@ -212,7 +252,9 @@ A capable attacker can evade pattern scanning. The plan does not pretend otherwi
 
 ### 10.1 Structure
 
-One **append-only Merkle log** (RFC 6962-style tree, using the Go checksum database's `x/mod/sumdb/tlog` hashing and proofs with a C2SP tlog-tiles path layout, or the transparency-dev Tessera library), with checkpoints in the signed-note format.
+One **append-only Merkle log** (RFC 6962-style tree) built on the Go checksum database's packages: `golang.org/x/mod/sumdb/tlog` for hashing and proofs, `golang.org/x/mod/sumdb/note` for signed checkpoints, and **our own small C2SP tlog-tiles path layer** for serving tiles (D16). Earlier drafts allowed the transparency-dev Tessera library; it is not used, because it is outside the relay's dependency allowlist and the two `x/mod` packages plus a thin tile layer cover the need. The Rust side verifies with `moochy-keylog` (mirror, consistency proofs, own-key and owner alerts).
+
+The key log is in scope **now** (D14). Until it ships, relay-asserted membership is accepted only under `MOOCHY_INSECURE_DEV=1` (§5).
 
 | Entry | Signed by |
 |---|---|
@@ -258,16 +300,16 @@ The draft's public "node-alpha … RTT: 12ms" panel revealed when a specific per
 
 ---
 
-## 12. Supply chain: open source is necessary, not sufficient
+## 12. Supply chain: verify the client, not the server
 
-Everything is open source (relay, client, spec) under Apache-2.0 OR MIT. Anyone can audit the code, self-host a relay, or write a compatible client. But a user cannot verify which code a remote server runs, so the design never asks users to trust the operator for confidentiality. It asks them to trust the client binary on their own machine, which they *can* verify:
+The source boundary follows the trust boundary (ADR-01, CONTRACT §0a). The **client** (`moochy`, published as the public `moochy-cli` repository), the protocol definition (`.proto` files, test vectors, the public protocol spec), and the user guides are open source under **Apache-2.0**, with DCO sign-off on contributions. Anyone can audit the client or write a compatible one. The **relay and web** (`moochy-core`) are closed source, and self-hosting the relay is not offered. Users cannot verify which code a remote server runs anyway, open or not, so the design never asks them to trust the operator for confidentiality or caps. It asks them to trust the client binary on their own machine, which they *can* verify:
 
-- **Signed releases** (Sigstore keyless, tied to the CI identity) with **SLSA provenance**. Users verify **externally** (`gh attestation verify` or `cosign verify-blob`). A binary checking itself would prove nothing.
-- **Reproducible builds** for the Linux musl artifacts (the ones donors run on servers) are required for beta; other platforms follow when feasible.
-- **Dependency hygiene**: `cargo-deny` (licenses, advisories, bans) and `cargo-vet` audits, especially for crypto and network crates. The `hpke` crate is widely used but has not had an independent paid audit, so it is explicitly vetted.
-- **Updates**: no silent auto-update. The Node says when a new version exists; `moochy update` verifies signatures before replacing itself. `hello.min_client_version` can force upgrades only for security fixes.
-- **The relay too** is built and signed the same way. moochy.dev publishes the release it runs and `hello` reports it. That is a statement, not a proof, which is exactly why confidentiality never depends on it.
-- **Security policy**: public `SECURITY.md`, private disclosure channel, coordinated disclosure, credit for reporters.
+- **Signed releases** of the open client (Sigstore keyless, tied to the CI identity) with **SLSA provenance**. Users verify **externally** (`gh attestation verify` or `cosign verify-blob`). A binary checking itself would prove nothing.
+- **Reproducible builds** of the open client for the Linux musl artifacts (the ones donors run on servers) are required for beta; other platforms follow when feasible.
+- **Dependency hygiene**: `cargo-deny` (licenses, advisories, bans) and `cargo-vet` audits, especially for crypto and network crates (`ed25519-zebra`, `x25519-dalek`, `hpke`, `chacha20poly1305`, `rustls`, `tonic`, `prost`). The `hpke` crate is widely used but has not had an independent paid audit, so it is explicitly vetted. The open client never imports, links, or copies closed code.
+- **Updates**: no silent auto-update. The Node says when a new version exists; `moochy update` verifies signatures before replacing itself. `Hello.min_client_version` can force upgrades only for security fixes.
+- **The relay is not something users verify, and they do not need to.** It is built and deployed through the private pipeline (`docs/ops`); `Hello` reports its version as a statement, not a proof. End-to-end encryption, owner-signed approvals in the publicly anchored key log, the Worker's local caps, and the donor's provider-side spend limit are what protect users from a dishonest or compromised relay (A3).
+- **Security policy**: public `SECURITY.md` in the client repository, private disclosure channel (covering the relay too), coordinated disclosure, credit for reporters.
 
 ---
 
@@ -276,13 +318,16 @@ Everything is open source (relay, client, spec) under Apache-2.0 OR MIT. Anyone 
 | Control | Detail |
 |---|---|
 | Loopback only | Binds `127.0.0.1` / `::1`, never `0.0.0.0` |
-| Port ownership | The port is held by the OS service manager (launchd socket / systemd `.socket` unit), so no other local user can bind it while the Node restarts; `moochy doctor` checks the listening uid |
+| Port ownership | When `gateway_addr` is unset, the first `moochy up` picks a free loopback port, **persists it**, and reuses it on every later start, so clients keep a stable base URL (`127.0.0.1:0` only when explicitly configured, as tests do). When installed as a service, the OS service manager can hold that port (launchd socket / systemd `.socket` unit) so no other local user can bind it while the Node restarts; `moochy doctor` checks the listening uid |
+| Local control socket | CLI commands (`status`, `pause`, `resume`, `approve`, `members`, `journal`) and the `moochy mcp` stdio shim reach the running Node through the gRPC `LocalControl` service on the Unix socket `<home>/state/node.sock`: mode **0600** and the **peer uid is checked** on every connection, so another local user cannot drive the Node even if file permissions are loosened. Plaintext h2c is allowed only on such local sockets |
+| Relay admin socket | Operators use `relay admin …` over the gRPC `RelayAdmin` service on a 0600 Unix socket (`--admin-socket`). It is **never exposed on the network**: there is no TCP listener for admin calls |
 | Local tokens | Random, repo-scoped tokens (`mooch_local_…`), rotatable (`moochy env --rotate`). Clients use one as their "API key" |
 | Token placement | `moochy connect --write` writes tokens only to **user-scoped** config files, or uses environment-variable indirection, or the stdio shim (authenticated by the 0600 local socket, no token needed). It refuses to write a token into any file tracked by git |
 | DNS-rebinding defense | Rejects requests whose `Host` is not the loopback address and port; no CORS headers |
 | MCP `files` | Allowed root = the git top-level recorded with the token at `moochy connect`, intersected with the client's MCP roots (or the shim's working directory when the client sends none); every path resolved with realpath and required to stay inside after resolution; symlinks refused; `.git/**` and secret-shaped files (`.env*`, `.npmrc`, `.netrc`, `*.pem`, `id_*`, `*.kdbx`) denied even when tracked; git-ignored files refused; total size capped (2 MiB default) |
 | Secret scrubber | Before sealing (request bodies and MCP files): high-confidence patterns (cloud keys, private-key blocks, provider API keys, JWTs, `.env`-style assignments of known secret names) replaced with `[REDACTED:type]`; mode `redact` (default) or `warn` |
-| Tool-call checks + tripwire | §8 |
+| Tool-call checks + tripwire | §8; proved by E18 |
+| Terminal output | Every server-provided string (handles, repo names, model names, error details) is printed with control characters escaped (T25) |
 | Own-key fallback (optional) | If the pool cannot serve, the Gateway can call the provider directly with the maintainer's own local key. Off by default |
 
 ---
@@ -308,3 +353,56 @@ Signatures prove *who* claimed something, not *what the provider actually return
 | **Trusted execution (confidential VMs)** | Workers run in attested enclaves; the Gateway verifies the attestation before sealing | Not viable for home donors; possible for donor-owned cloud hosts |
 
 The receipt has a reserved optional `attestation` field. Commitments already bind the response bytes, so an attestation can be added without breaking v1.
+
+---
+
+## 16. Transport security: the gRPC link
+
+Earlier drafts used a custom WebSocket framing with a 23-byte binary frame header. ADR-33 replaced it with gRPC over HTTP/2 (`moochy.v1.NodeLink`, `spec/proto/moochy/v1/link.proto`): one typed schema for Go and Rust, and per-task flow control, cancellation, and deadlines for free. Payload security does not change with the transport: bodies and responses are AEAD ciphertext in `bytes` fields, and route headers, receipts, and projections are the exact signed JSON bytes. This section lists what the transport itself must guarantee (CONTRACT §12).
+
+### 16.1 Connection, authentication, channel binding
+
+- **TLS 1.3 only, ALPN `h2`.** No plaintext h2c anywhere except the local Unix sockets (§13). The Relay runs gRPC on its own listener (`relay serve --grpc-addr`), separate from the HTTP listener (`--addr`), so the gRPC server keeps its native HTTP/2 hardening.
+- **One HTTP/2 connection = one authenticated session.** The Node opens `Session`; the Relay sends `Hello{nonce}`; the Node answers `Auth{device_id, roles, sig}` with `sig = Ed25519(dev_key, lp("moochy/v1/auth", nonce, dialed_origin, tls_exporter, device_id))`; the Relay replies `Welcome{session_id}`.
+- **`dialed_origin`** is the exact origin the Node dialed for the gRPC link, scheme included: `https://host:port`. A relay that forwards a stolen signature to another origin fails verification (T12).
+- **`tls_exporter`** is the RFC 9266 value (`EXPORTER-Channel-Binding`, empty context, 32 bytes) of **this** TLS connection. Go tags every connection with an id and its exporter through a custom `credentials.TransportCredentials`; Rust captures it in a custom tonic connector built on `tokio-rustls`. A signature therefore cannot be replayed on any other connection.
+- **Streams are bound to the connection.** `Submit` and `Serve` streams are accepted only on the same underlying connection as the authenticated `Session` and must carry `x-moochy-session`; streams from any other connection get `UNAUTHENTICATED`. On any transport error the Node rebuilds the channel and authenticates again.
+- **Ed25519 verification is ZIP-215** in both languages (`ed25519-zebra` in Rust, `github.com/hdevalence/ed25519consensus` in Go), so Go and Rust never disagree on whether an edge-case signature is valid. Signing is plain RFC 8032.
+
+### 16.2 gRPC / HTTP/2 hardening (all mandatory, all tested)
+
+| Control | Setting | Against |
+|---|---|---|
+| Stream-open and reset rate limit per connection | Bounded; abusive connections closed | HTTP/2 **Rapid Reset** (CVE-2023-44487) |
+| HTTP/2 library versions | Current grpc-go / `x/net` with the 2024 **CONTINUATION-flood** fixes | Unbounded header continuation |
+| Header limits | `MaxHeaderListSize` 16 KiB; HPACK table limits | HPACK bombs, header floods |
+| Message size | `MaxRecvMsgSize` / `MaxSendMsgSize` 128 KiB (a ciphertext chunk is ≤ 64 KiB, plaintext ≤ 65,497 B) | Memory exhaustion |
+| Streams per connection | `MaxConcurrentStreams` 128 (Worker `slots_max` ≤ 64 + Gateway ≤ 16 concurrent tasks + `Session`, with margin) | Stream exhaustion |
+| Keepalive | Enforcement `MinTime` 10 s, `PermitWithoutStream` true; server pings every 15 s, 2 missed = dead | Ping floods, half-dead connections |
+| Per-IP caps | Connection cap per IP; `DeviceStart` / `DevicePoll` rate-limited per IP | Connection floods, device-code brute force |
+| Pre-auth work | Unauthenticated calls other than `Session` / `Device*` rejected before any task state is allocated | Cheap amplification |
+| Introspection | gRPC **reflection and channelz disabled** in production; `grpc.health.v1` allowed | Reconnaissance |
+| Compression | No gRPC compression | CRIME-style oracles next to secrets; ciphertext does not compress anyway |
+| Client side (Rust) | Same message-size caps, `http2_max_header_list_size`, connect and request timeouts, bounded per-stream buffers | Hostile or compromised relay |
+
+### 16.3 Errors and the parser-differential rule
+
+- Relay **policy** errors travel as `Failed{code, retryable}` (Gateway side) or are answered by the Worker's `Nack{code, …}` inside the stream; gRPC status codes are reserved for transport and auth (`UNAUTHENTICATED`, `RESOURCE_EXHAUSTED`, `UNAVAILABLE`, `DEADLINE_EXCEEDED`). The Gateway maps policy codes to provider-native errors ([03 §10.3](03-wire-protocol.md)): `over_task_cap` → HTTP 400 `invalid_request_error`, `quota_exceeded` → HTTP 403 `permission_error`, both non-retryable. **Never 429** for a policy error, because agents retry 429.
+- **Protobuf is never trusted for strict security decisions.** proto3 parsers merge repeated singular fields (last wins), which is exactly the kind of ambiguity a parser-differential attack uses (T27). Every security or money decision reads the signed JSON bytes carried verbatim in `bytes` fields (route header in `SubmitOpen.route` / `Assign.route`, receipts, projections) with the strict parser of CONTRACT §1.
+
+---
+
+## 17. Client defences proved by a malicious relay (chaos scenarios)
+
+The Relay is the party users are asked **not** to trust (A3), so the E2E suite runs a relay that misbehaves on purpose (`relay serve --dev`, `POST /dev/chaos`, loopback only) and checks that the **clients** hold the line. These are part of the current definition of "working" (CONTRACT §8), not later phases.
+
+| Scenario | Chaos switch | What the relay does | What must happen |
+|---|---|---|---|
+| E11 | `ignore_caps` | Skips every pledge and member cap check | The Worker's local device cap still refuses work beyond the cap |
+| E15 | `tamper_route` | Flips one byte of the route header sent to the Worker | The Worker refuses with `bad_envelope` (route header is the HPKE AAD and is covered by the task signature); provider never called; zero spend |
+| E16 | `replay_assign` | Delivers the same assignment twice | The second delivery is refused with `unauthorized_task`; the provider is called once |
+| E17 | `inject_frame` | Injects a forged `Chunk` into the victim Gateway's **own live `Submit` stream** | The Gateway fails the task on the first AEAD failure, logs `bad_envelope`, and returns a native retryable error; no forged byte reaches the client |
+
+E17 injects into the victim's own stream on purpose (D8): a chunk sent on a different connection would be rejected by the Relay's per-connection stream binding (§16.1) before it ever reached the Gateway, which would test the Relay instead of the client.
+
+**Served-task set (D18), the defence behind E16.** The Worker keeps `(gateway_device, task_id)` pairs in memory for the ±10 minute ULID freshness window, plus a **boot-time floor**: it refuses any task whose ULID timestamp is earlier than its own process start. Replay across restarts is therefore impossible without writing the set to disk, and there is no fsync in the hot path (the Worker's Assign → Ack budget is ≤ 1 ms p50, CONTRACT §13). Earlier drafts persisted the set; the boot-time floor gives the same guarantee for free.

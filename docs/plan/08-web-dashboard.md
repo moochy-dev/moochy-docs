@@ -2,6 +2,8 @@
 
 > Server-rendered pages, live updates over SSE, and the public surfaces that make donations visible and verifiable: routes, page layouts, the SSE fan-out design, the verification page, README badges, and budgets.
 
+> **Updated 2026-10-01:** pages, budgets, and live updates now match `spec/CONTRACT.md` (§0a, §8, §9, §11, §13, §14) and ADR-01/34. Changes: hand-written CSS with custom properties and a native-first motion system replace Tailwind, with byte budgets (CSS ≤ 48 KB raw / ≤ 12 KB gzip, motion JS ≤ 12 KB gzip, at most one self-hosted variable font) and the fixed palette (C10); unique handles with signup choice, rename, 90-day tombstone redirects, and profiles at `/{handle}` (§12, CONTRACT §11, E21); public model slugs with native ids as secondary text (C11); pseudonyms `ps_…` (D10); SSE coalescing 250 ms for audit feed, pool, and station, goal bars ≤ 1 per 30 s, donor rankings ≤ 1 per 60 s (C12); TTFB ≤ 30 ms p50 / 80 ms p99; `mo-web` owns `relay/internal/web/**` behind the `Source` interface (§13); open-source client and closed web/relay, no self-hosting, footer "Open-source client (Apache-2.0) · 100% free" (ADR-01, CONTRACT §0a).
+
 ---
 
 ## 1. Principles
@@ -10,9 +12,11 @@
 2. **Read-only pages work without JavaScript.** HTMX and SSE only add liveness.
 3. **Render once, fan out to everyone.** A live fragment is rendered one time per update and the same bytes are written to every subscriber.
 4. **Privacy by default.** Aggregates are public; individuals appear only if they opt in ([06 §11](06-security-and-trust.md)).
-5. **Budgets**: ≤ 50 KB transferred for a public repo page (excluding the avatar images), first contentful paint under 1 s on 4G, Lighthouse accessibility ≥ 95.
-6. **Tailwind** is compiled at build time with the standalone CLI (no Node at runtime). The CSS is embedded in the binary and served with immutable cache headers (content-hashed filename).
-7. **"Open source · Free forever" on every page.** A persistent footer and the landing page say it plainly: *"Moochy is 100% open source (Apache-2.0 OR MIT) and 100% free. No fees, no commission, no paid tier. Donors pay their own provider directly; Moochy never touches money."* It links to the source, the self-hosting guide, and the public costs page.
+5. **Budgets** (CONTRACT §9, §13): landing page ≤ 150 KB transferred, dashboards and repo pages ≤ 100 KB (excluding avatar images); LCP ≤ 1.0 s on 4G, CLS = 0, INP ≤ 100 ms; TTFB for `/` and `/p/{owner}/{repo}` ≤ 30 ms p50 / ≤ 80 ms p99 (precompiled templates, in-memory aggregates, no N+1 queries; measured by E22); Lighthouse accessibility ≥ 95.
+6. **Hand-written CSS, no framework.** Earlier drafts compiled Tailwind at build time; it was dropped to keep the stylesheet small, readable, and free of a build toolchain. The CSS uses custom properties for the palette and themes, ≤ 48 KB raw (≤ 12 KB gzip). At most one self-hosted variable font (OFL, Latin subset, woff2 ≤ 45 KB, `font-display: swap`, preloaded); no third-party font services. htmx and its SSE extension are vendored locally. All assets are embedded in the binary and served from `/static/` with immutable cache headers (content-hashed filenames).
+7. **"Open-source client (Apache-2.0) · 100% free" on every page.** A persistent footer and the landing page say it plainly: *"The Moochy client is open source (Apache-2.0) and the service is 100% free. No fees, no commission, no paid tier. Donors pay their own provider directly; Moochy never touches money. Your keys, your code, and all cryptography stay in the open-source client you can verify; the relay only sees encrypted bytes."* It links to the client source, the protocol spec, and the public costs page. (The relay and web are closed source and self-hosting is not offered, ADR-01; the trust story does not depend on them.)
+8. **Palette (fixed):** white `#FFFFFF`, dark `#0B1220` (ink and dark background), light blue `#7DD3FC` (accent fills, highlights, focus rings, glows), `#0369A1` for small text links on white (contrast). Dark theme: background `#0B1220`, text `#F8FAFC`, accent `#7DD3FC`. Only tints and shades of these (for example the accent at reduced opacity for glows); no other brand colours.
+9. **Motion system, native first** (CONTRACT §9): CSS scroll-driven animations (`animation-timeline: scroll()/view()`), cross-document View Transitions (`@view-transition`), `linear()` spring easings, `@property`-animated numbers (goal bars and counters), SVG stroke animations. A small vanilla JS motion layer (≤ 12 KB gzip, external file, no framework, no CDN) covers only what CSS cannot: pointer-follow spotlight, theme-switch circular reveal, IntersectionObserver fallback. Animate only `transform` and `opacity` (`filter` sparingly), 60 fps on a mid-range phone, no layout shift; `prefers-reduced-motion` turns every non-essential motion off.
 
 ---
 
@@ -24,10 +28,10 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 |---|---|---|---|
 | GET | `/` | P | Landing: what Moochy is, **"open source and free" statement**, live global counters, featured repos, "works with any MCP client or OpenAI/Anthropic-compatible tool" |
 | GET | `/connect` | P | Integration guide: per-client snippets (OpenCode, Claude Code, Cursor, Cline, Zed, Goose, agent frameworks, SDKs) for the MCP door and the API door; supported donor providers (Anthropic, OpenAI, OpenRouter, DeepSeek, …) |
-| GET | `/open` | P | **Open source and costs**: links to the source, license, self-host guide; what running moochy.dev costs each month and who sponsors it (static page, updated monthly) |
+| GET | `/open` | P | **Open-source client and costs**: links to the client source (`moochy-cli`), its license (Apache-2.0), and the public protocol spec; why the closed relay does not need to be trusted; what running moochy.dev costs each month and who sponsors it (static page, updated monthly) |
 | GET | `/explore` | P | Repos seeking compute: goal %, donors, models wanted; filters |
 | GET | `/p/{owner}/{repo}` | P | Public repo page (§3) |
-| GET | `/p/{owner}/{repo}/events` | P | SSE: presence + goal + audit-feed fragments |
+| GET | `/p/{owner}/{repo}/events` | P | SSE: presence + goal + audit-feed fragments (E19) |
 | GET | `/p/{owner}/{repo}/badge.svg` | P | README badge (§8) |
 | GET | `/p/{owner}/{repo}/donate` | U | Pledge form |
 | POST | `/p/{owner}/{repo}/pledges` | U | Create pledge |
@@ -45,10 +49,15 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 | GET | `/log` | P | Key-log explorer: latest checkpoints, public Git anchor status, search by pseudonym or repo |
 | GET | `/log/checkpoint` · `/log/tile/...` · `/log/keys/...` | P | Machine endpoints for tlog clients (static, CDN-cacheable) |
 | GET | `/leaderboard` | P | Global donors (opt-in names) |
-| GET | `/auth/{provider}` · `/auth/{provider}/callback` · POST `/logout` | P/U | OAuth |
+| GET | `/auth/{provider}` · `/auth/{provider}/callback` · POST `/auth/logout` | P/U | OAuth (sign-out lives under `/auth/` so that every first path segment stays in the reserved-handle list) |
+| GET · POST | `/auth/handle` | U | Choose a handle at first sign-in; rename later (§12) |
+| GET | `/{handle}` | P | Public profile by handle: opt-in donor stats, repos owned, undisputed receipts; a tombstoned handle redirects for 90 days (§12) |
+| GET | `/static/...` | P | Embedded CSS, motion JS, vendored htmx + SSE extension, font (content-hashed, immutable) |
 | GET | `/admin/...` | operator | Minimal moderation and metrics (separate auth: operator device keys) |
 
-All routing uses the standard library `ServeMux` with method and path patterns. No router dependency.
+All routing uses the standard library `ServeMux` with method and path patterns. No router dependency. The landing page is registered as `GET /{$}` (exact match) and the profile as `GET /{handle}`, which is less specific than every fixed route above, so fixed routes always win.
+
+**Reserved handles = route first segments.** Every first path segment above (`connect`, `open`, `explore`, `p`, `station`, `console`, `claim`, `device`, `devices`, `r`, `log`, `leaderboard`, `auth`, `static`, `admin`), plus those of the API and dev surfaces (`api`, `dev`, `mcp`, `v1`), is in the reserved-handle list of CONTRACT §11. A new top-level route must add its segment to that list (checked in CI) and must not collide with an existing or tombstoned handle; prefer nesting new pages under an existing segment.
 
 ---
 
@@ -65,29 +74,34 @@ All routing uses the standard library `ServeMux` with method and path patterns. 
 │  ≈ 208M Sonnet-equivalent tokens committed · 23 donors               │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Live pool                    (SSE)                                  │
-│  ● 7 nodes online · claude-sonnet-5-5, deepseek-chat, 120+ via OpenRouter │
-│  ● 3 tasks running · median added latency 41 ms                     │
+│  ● 7 nodes online · anthropic/claude-sonnet-5.5, deepseek/deepseek-chat │
+│    (native: claude-sonnet-5-5, deepseek-chat) · 120+ via OpenRouter   │
+│  ● 3 tasks running · median added latency 41 ms                      │
 │  [opt-in donors]  ● alice (2 nodes)  ● bob-labs (1 node)              │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Top donors this month (undisputed receipts)                         │
 │  1. bob-labs   $210   ✓    2. alice   $140   ✓   3. anonymous  $90 ✓ │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Public audit feed            (SSE)                                  │
-│  ✓  r_7Hc2…  claude-sonnet-5.5   $0.034   donor: bob-labs   today  [details] │
-│  ✓  r_Q91x…  deepseek-chat       $0.002   donor: anon       today  [details] │
+│  ✓  r_7Hc2…  anthropic/claude-sonnet-5.5  $0.034  donor: bob-labs  today [details] │
+│  ✓  r_Q91x…  deepseek/deepseek-chat       $0.002  donor: ps_k7q2…  today [details] │
 │  key log 48,211 entries · checkpoint 13:02 · anchored in Git ✓       │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 | Section | Data source | Update |
 |---|---|---|
-| Header, goal | SQLite (pledges, receipts aggregates) | SSE `goal` event, coalesced to ≤ 1/30 s |
-| Live pool | Scheduler state (aggregated) | SSE `pool` event, coalesced to ≤ 1/s |
-| Donors | Receipt aggregates (undisputed only) | Page load + SSE every 60 s |
-| Audit feed | Newest donor-signed projections for this repo | SSE `audit` event per receipt, coalesced to ≤ 1/s, at most 20 rows kept |
+| Header, goal | SQLite (pledges, receipts aggregates) | SSE `goal` event, at most one update per 30 s |
+| Live pool | Scheduler state (aggregated) | SSE `pool` event, coalescing window 250 ms |
+| Donors | Receipt aggregates (undisputed only) | Page load + SSE at most one update per 60 s |
+| Audit feed | Newest donor-signed projections for this repo | SSE `audit` event per receipt, coalescing window 250 ms, at most 20 rows kept; a settled task is visible ≤ 500 ms after it settles |
 | Log footer | Latest checkpoint | SSE `log` event |
 
-Each row is a donor-signed **projection** ([03 §12.1](03-wire-protocol.md)): model, cost, donor (per their visibility setting), and the **day** only. No task ids, device ids, or timestamps, so the feed never reveals anyone's working hours. `✓` = undisputed, `⚠` = disputed by the maintainer. Each row links to `/r/{receipt_ref}`.
+Why two speeds (C12): the audit feed, the pool, and the Donor Station react to "a task settled" or "a node changed", which people watch live, so they follow the ≤ 500 ms responsiveness budget (CONTRACT §13). Goal bars and donor rankings are aggregates that barely move per task; refreshing them faster would only burn renders and animate noise.
+
+Model names are shown as **public slugs** (`anthropic/claude-sonnet-5.5`), the ids clients use and the catalog prices; the provider's native id appears only as secondary text (tooltip or smaller line) ([05 §2.1](05-ledger-and-accounting.md)).
+
+Each row is a donor-signed **projection** ([03 §12.1](03-wire-protocol.md)): model, cost, donor (their handle if they opted in, otherwise their public pseudonym `ps_…`), and the **day** only. No task ids, device ids, or timestamps, so the feed never reveals anyone's working hours. `✓` = undisputed, `⚠` = disputed by the maintainer. Each row links to `/r/{receipt_ref}`.
 
 The draft's per-node "RTT / GPG Verified" panel is replaced by the aggregate view. It shows individual donors only with their opt-in, and never their RTT or online schedule per person.
 
@@ -107,12 +121,14 @@ The draft's per-node "RTT / GPG Verified" panel is replaced by the aggregate vie
 │  owner/repo-b  Pending  haiku ≤medium       $5      —       —         │
 ├──────────────────────────────────────────────────────────────────────┤
 │ Live tasks (SSE)                                                     │
-│  repo-a · claude-sonnet-5-5 · streaming 12s · member m_8Hq…          │
+│  repo-a · anthropic/claude-sonnet-5.5 · streaming 12s · member ps_q3vd… │
 ├──────────────────────────────────────────────────────────────────────┤
 │ This month: $19.60 served · 412 tasks · cache hit 83% · saved ≈ $61   │
 │ Safety: provider spend limit ✓ (self-reported) · device caps ✓       │
 └──────────────────────────────────────────────────────────────────────┘
 ```
+
+Live tasks, device status, and budgets arrive over `/station/events` with the same 250 ms coalescing window as the repo page, so a settled task shows up within 500 ms (C12). Members are shown by public pseudonym (`ps_` + 16 random base32 characters, never derived from the internal `user_id`), never by internal id. Devices are listed by their name, unique per user (case-insensitive).
 
 "Saved ≈ $X" is the cost those tasks would have had without cache hits (computed from receipts). It shows donors the value of affinity and makes their donation feel larger, because it is.
 
@@ -147,7 +163,7 @@ The page also says what a receipt does **not** prove ("The signature shows which
 flowchart LR
   SCHED["Scheduler"] -- "domain events<br/>(non-blocking send)" --> HUB["SSE hub<br/>(one goroutine per topic shard)"]
   STORE["Store (receipt settled)"] --> HUB
-  HUB -- "coalesce per topic<br/>(≤1/s)" --> RENDER["Render fragment ONCE<br/>(html/template → bytes)"]
+  HUB -- "coalesce per topic<br/>(250 ms window)" --> RENDER["Render fragment ONCE<br/>(html/template → bytes)"]
   RENDER --> FAN["Fan-out: same bytes →<br/>each subscriber's bounded queue"]
   FAN --> C1["browser 1"]
   FAN --> C2["browser 2"]
@@ -155,7 +171,8 @@ flowchart LR
 ```
 
 - **Topics**: `repo:{id}`, `station:{user_id}`, `global`.
-- **Coalescing**: per-topic dirty flags. At most one render per topic per interval, whatever the event rate. 1,000 subscribers on one repo page cost **one** template render per second plus 1,000 buffered writes.
+- **Coalescing**: per-topic, per-fragment dirty flags. The first event after a quiet period opens a 250 ms window; at its end the fragment is rendered once, whatever the event rate inside the window. That keeps "task settled → visible in the browser" ≤ 500 ms (CONTRACT §13) while 1,000 subscribers on one repo page cost at most **four** template renders per second plus buffered writes. Slower fragments have their own floor: `goal` at most once per 30 s, donor rankings at most once per 60 s (C12).
+- **Writes**: each SSE event is flushed immediately (`http.Flusher`), no extra buffering in the hub.
 - **Backpressure**: each subscriber has a small bounded queue. If it is full, the subscriber is disconnected (the browser's EventSource reconnects automatically and gets a fresh snapshot). The hub never blocks the Scheduler.
 - **On connect**: the server sends the current full fragments immediately, so `Last-Event-ID` replay is not needed.
 - **HTTP/2** for all web traffic, so browsers' per-host connection limits do not starve SSE plus normal requests.
@@ -176,7 +193,8 @@ flowchart LR
 
 - Session cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, random 256-bit id (only its hash is stored).
 - **CSRF without token tables**: every state-changing request must carry the `HX-Request: true` header (a custom header cannot be set by cross-site forms without a CORS preflight, which is never granted) **and** an `Origin` that matches the site. Non-HTMX form fallbacks use a per-session token.
-- **CSP**: `default-src 'self'`; scripts only from self (htmx bundled locally); `frame-ancestors 'none'`.
+- **CSP**: `default-src 'self'`; scripts, styles, and the font only from self (htmx, the SSE extension, and the motion layer vendored locally); no inline script or `style` attributes; `frame-ancestors 'none'`.
+- **Handles** are ASCII-only and validated with the shared rules (CONTRACT §11), and every user-provided string is auto-escaped by `html/template`.
 - Avatars are proxied or limited to provider avatar hosts via CSP `img-src`.
 - Rate limits per IP and per session on POST routes and SSE connections.
 
@@ -197,6 +215,32 @@ flowchart LR
 
 - Live regions (`aria-live="polite"`) on the audit feed and pool summary, throttled so screen readers are not flooded.
 - Color is never the only signal: ✓ and ⚠ glyphs plus text, not just green and amber.
-- Animated "ping" dots respect `prefers-reduced-motion`.
+- Animated "ping" dots, counters, View Transitions, and every other non-essential motion respect `prefers-reduced-motion` (§1, principle 9).
 - Every money value shows dollars first, with tokens in a tooltip (or a details element without JS).
 - Dark and light themes via CSS custom properties and `prefers-color-scheme`.
+
+---
+
+## 12. Usernames: choice, rename, profiles
+
+Every user has exactly one Moochy handle, unique on the instance and case-insensitive (CONTRACT §11, threat rows T23–T24 in [06 §3](06-security-and-trust.md); verified by E21). The web is where handles are chosen and changed.
+
+- **Signup (`/auth/handle`, first sign-in).** The form is pre-filled with the provider login lowercased **if it is valid and free**. Otherwise the field is empty and the user must pick one; the page explains why. There is **no automatic suffix** (`alice-2`), because a silent suffix makes a newcomer look like an existing `alice`. Validation runs live as the user types (format, reserved, taken) and again on submit.
+- **Format:** ASCII only, lowercase, 3–32 characters, `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$`, no `--`. Input with uppercase letters is shown lowercased; input with any non-ASCII character (Cyrillic `а`, zero-width characters, RTL marks) is refused with a plain message, never silently transliterated.
+- **Reserved words** are refused: every first path segment of the routes (§2), staff and system words (`moochy`, `admin`, `root`, `support`, `security`, `staff`, `official`, `system`, `null`, `undefined`, `anonymous`, `relay`, `node`, `bot`), and every handle ever used before.
+- **Rename (`/auth/handle`, signed in).** Allowed at most once per 30 days; the page shows the date of the last change and when the next one is allowed. Before confirming, it states the consequences: the old handle is retired **for good** (no one, including the user, can take it again), it redirects to the new handle for 90 days, and links in READMEs or posts should be updated.
+- **Tombstones and redirects.** `GET /{old}` answers a permanent redirect to `/{new}` for 90 days after the rename, then `410 Gone` with a short "this handle was retired" page. A tombstoned handle is never reassigned, which blocks takeovers of links, badges, and reputation through username recycling.
+- **Profiles by handle (`/{handle}`).** The profile shows what the user opted to make public: donor totals and repos supported (undisputed receipts only), repos they own. Pages store user ids, not handles, so every page renders the current handle after a rename.
+- **Pseudonyms.** Users who do not opt in to public attribution appear as their pseudonym (`ps_` + 16 random base32 characters). The pseudonym is not derived from `user_id` or the handle and does not change on rename; the key log and projections use only pseudonyms ([06 §10.3](06-security-and-trust.md)).
+
+---
+
+## 13. Code ownership and the `Source` interface
+
+The web layer lives in `relay/internal/web/**` (Go, standard library only) and is owned by `mo-web` (CONTRACT §0, §9). It never touches the database or the Scheduler directly. The package exports:
+
+- `func New(src Source) http.Handler`: all pages, fragments, static assets, and SSE routes of §2 (OAuth and handle-choice logic come from `relay/internal/oauth`, owned by `mo-oauth`).
+- The `Source` interface, defined by `mo-web` and implemented by `mo-relay`: read-only queries (repo by slug, pool summary, goal numbers, recent projections, donor station data). `mo-web` ships a fake `Source` for its own tests.
+- `func (h) Publish(topic string, ev Event)`: domain events from the Relay into the SSE hub (§7); non-blocking for the caller.
+
+This boundary keeps the TTFB budget honest (every `Source` call is an in-memory aggregate or one indexed query, no N+1) and lets the web be built and tested without a running Relay. E19 checks the integration end to end: `/p/{owner}/{repo}` renders with the palette tokens present, and `/p/{owner}/{repo}/events` delivers a fragment after a task settles.

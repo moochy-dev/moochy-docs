@@ -1,6 +1,8 @@
 # 09 — Data Model (SQLite)
 
-> Tables described as column tables (no SQL yet), with keys, constraints, indexes, write paths, retention, migrations, backups, and size estimates. Replaces the draft's `schema.sql`.
+> Tables described as column tables, with keys, constraints, indexes, write paths, retention, migrations, backups, and size estimates. SQL is written out only for the uniqueness constraints (§9), because those are part of the contract. Replaces the draft's `schema.sql`.
+
+> **Updated 2026-10-01:** aligned with `spec/CONTRACT.md` §1, §11, §13 and ADR-33/34. Changes: adaptive group commit replaces the 10 ms window (ADR-34, C1); `users.id` = `u_`+ULID (internal) and pseudonym = `ps_`+16 random base32, never derived from the id (D10); usernames, tombstones, rename tracking and every CONTRACT §11 uniqueness rule enforced by the database with SQL in §9 (D11, ADR-35); a closing schedule window never changes pledge status (C3); key-log tables built on `x/mod/sumdb/tlog` (D16); restore drills boot with `relay serve --read-only` (D15); message names follow the gRPC `NodeLink` (ADR-33).
 
 ---
 
@@ -24,7 +26,7 @@
 | Pragma | Value | Why |
 |---|---|---|
 | `journal_mode` | `WAL` | Concurrent readers with one writer |
-| `synchronous` | **`FULL`** | `receipt.ack` promises durability. With 10 ms group commit this is ≤ 100 fsyncs/s, which is cheap on NVMe |
+| `synchronous` | **`FULL`** | `ReceiptAck` and `Assign` promise durability. Adaptive group commit (§4) keeps the fsync rate proportional to load: one fsync per commit, one commit in flight at a time, so a busy relay amortizes many ops per fsync and an idle one commits at once. Cheap on NVMe |
 | `foreign_keys` | `ON` | Integrity |
 | `busy_timeout` | 5000 ms | Readers vs checkpoints |
 | `temp_store` | `MEMORY` | — |
@@ -42,10 +44,10 @@
 **`users`**
 | Column | Type | Constraints / notes |
 |---|---|---|
-| `id` | TEXT | PK, ULID |
-| `username` | TEXT | **Unique handle**, case-insensitive (`UNIQUE COLLATE NOCASE`), ASCII `[a-z0-9-]`, 3–32 chars, reserved words refused (rules: `spec/CONTRACT.md` §11) |
-| `username_changed_at` | INTEGER | Rename allowed once per 30 days |
-| `pseudonym` | TEXT | UNIQUE, random (`u_…`); the **only** user identifier in the public log and projections |
+| `id` | TEXT | PK, `u_` + ULID. **Internal only**: never shown on a page, in the log, in a projection, or in a URL |
+| `username` | TEXT | **Unique handle**, stored lowercase, `UNIQUE COLLATE NOCASE`, ASCII `^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars, no `--`), reserved words and tombstoned handles refused (rules: `spec/CONTRACT.md` §11; SQL in §9) |
+| `username_changed_at` | INTEGER | ms of the last rename (NULL = never renamed). A trigger refuses a second rename within 30 days (§9) |
+| `pseudonym` | TEXT | UNIQUE, `ps_` + 16 random base32 chars, generated independently of `id` (never derived from it); the **only** user identifier in the public log and projections |
 | `display_name` | TEXT | Nullable |
 | `status` | TEXT | `active`, `suspended`, `deleted` |
 | `created_at` | INTEGER | ms |
@@ -58,14 +60,14 @@
 | `provider_user_id` | TEXT | Stable numeric id from the provider |
 | `username`, `avatar_url` | TEXT | Refreshed at login |
 | `account_created_at` | INTEGER | From the provider (shown to owners when approving donors) |
-| | | PK (`provider`, `provider_user_id`) |
+| | | PK (`provider`, `provider_user_id`); UNIQUE (`user_id`, `provider`): at most one identity per provider per user |
 
 **`devices`**
 | Column | Type | Constraints / notes |
 |---|---|---|
 | `id` | TEXT | PK (`d_…`) |
 | `user_id` | TEXT | FK users |
-| `name` | TEXT | User-chosen |
+| `name` | TEXT | User-chosen; UNIQUE per user, case-insensitive: (`user_id`, lower(`name`)) |
 | `sign_pub` | BLOB | 32 bytes, UNIQUE |
 | `enc_pub` | BLOB | 32 bytes |
 | `suite` | TEXT | Envelope suite id (bound into HPKE info) |
@@ -77,7 +79,7 @@
 
 **`device_usage`** (only for capped devices): `device_id`, `month` (PK together), `spent_uusd`, `reserved_uusd`, with `CHECK (spent_uusd >= 0 AND reserved_uusd >= 0)`.
 
-**`username_tombstones`**: `username` (PK, case-insensitive), `user_id`, `retired_at`, `redirect_until`. A handle that was ever used is never assigned again (blocks username-recycling takeovers).
+**`username_tombstones`**: `username` (PK, `COLLATE NOCASE`), `user_id`, `retired_at`, `redirect_until` (`retired_at` + 90 days). Written by a trigger whenever a username changes or an account is deleted (§9), so no code path can free a handle without tombstoning it. A handle that was ever used is never assigned again, to anyone (blocks username-recycling takeovers of links, badges and reputation). Until `redirect_until`, any page or link that resolves the old handle redirects to the user's current handle; after that they 404 but the handle stays retired.
 
 **`web_sessions`**: `id_hash` (PK, SHA-256 of the cookie value), `user_id`, `created_at`, `expires_at`.
 
@@ -90,7 +92,7 @@
 |---|---|---|
 | `id` | TEXT | PK (`r_…`) |
 | `provider`, `provider_repo_id` | TEXT | UNIQUE together (stable across renames) |
-| `owner`, `name` | TEXT | Current slug; UNIQUE (`provider`, `owner`, `name`) |
+| `owner`, `name` | TEXT | Current slug; UNIQUE (`provider`, lower(`owner`), lower(`name`)). Case-insensitive because GitHub and GitLab slugs are: `Foo/Bar` and `foo/bar` are the same repo and must not become two pools |
 | `claimed_by` | TEXT | FK users |
 | `claim_log_index` | INTEGER | Owner-signed `REPO_CLAIMED` entry |
 | `goal_uusd_month` | INTEGER | ≥ 0 |
@@ -118,11 +120,11 @@
 |---|---|---|
 | `id` | TEXT | PK (`p_…`) |
 | `donor_id`, `repo_id` | TEXT | FKs |
-| `status` | TEXT | `pending`, `active`, `paused`, `ended`, `declined` |
+| `status` | TEXT | `pending`, `active`, `paused`, `ended`, `declined`. `paused` only by explicit donor action; a closed `schedule` window is an eligibility check at match time and never writes this column ([05 §4.2](05-ledger-and-accounting.md)) |
 | `approval_log_index` | INTEGER | Owner-signed `DONOR_APPROVED` entry (NULL while pending) |
 | `budget_uusd` | INTEGER | Per period, ≥ 0 |
 | `per_task_cap_uusd` | INTEGER | > 0, default 5,000,000 |
-| `policy` | TEXT (JSON) | `{models[], max_effort, dialects[], flags[], max_slots?, schedule?}` |
+| `policy` | TEXT (JSON) | `{models[], max_effort, dialects[], flags[], max_slots?, schedule?}`; `models` are public slugs |
 | `visibility` | TEXT | `public`, `pseudonymous`, `anonymous` |
 | `rollover` | INTEGER | 0/1 |
 | `period_anchor_day` | INTEGER | 1–28 |
@@ -176,6 +178,8 @@
 
 ### 3.5 Key log
 
+The key log uses `golang.org/x/mod/sumdb/tlog` for hashing, inclusion and consistency proofs, `golang.org/x/mod/sumdb/note` for signed checkpoints, and our own C2SP tile path layer on top (D16; no Tessera). The tables below are just its storage: `tlog.StoredHashes` produces the `log_hashes` rows, and `tlog.TileHashReader` reads them back.
+
 **`log_entries`**: `log` (`keys`; reserved: `receipts` for the post-beta receipt log), `idx` (PK together), `kind`, `body` (exact bytes), `sigs` (BLOB: one or more signatures), `created_at`.
 
 **`log_hashes`**: `log`, `idx` (PK together), `hash` (32 bytes). Stored hashes for tiles and proofs.
@@ -200,7 +204,7 @@ Full tiles are immutable. They are computed on demand from `log_hashes` and cach
 
 | Producer | Operations | Batching |
 |---|---|---|
-| Scheduler | Task and attempt rows, reservations, releases, settlements (pledge, member, device, period rows) | **Group commit**: one transaction every 10 ms or 256 ops, each op in its own SAVEPOINT; the Scheduler is notified on the completion channel. **`task.assign` and `receipt.ack` are sent only after the commit returns** |
+| Scheduler | Task and attempt rows, reservations, releases, settlements (pledge, member, device, period rows) | **Adaptive group commit** (ADR-34): when the writer is idle, an op is committed immediately; ops that arrive while a commit is in flight are batched (up to 256) into the next commit, which starts as soon as the previous one finishes. No timer ever delays an idle commit. Each op runs in its own SAVEPOINT; the Scheduler is notified on the completion channel. **`Assign` and `ReceiptAck` are sent only after the commit returns.** Budget: Submit→Assign ≤ 2 ms p50 / ≤ 8 ms p99 (CONTRACT §13, E22) |
 | Receipt intake | Insert receipt (+ projection), settle the attempt | Same group commit, atomic with the balance update |
 | Disputes | Update `dispute_code` / `dispute_sig` | Group commit |
 | Key-log appends | Device events, owner-signed approvals and memberships, repo claims, catalog versions, moderation | Group commit; checkpoint signed only after Litestream has replicated the tree size |
@@ -238,9 +242,9 @@ A constraint violation inside a SAVEPOINT is treated as a **fatal bug**: the pro
 ## 7. Backups and restore
 
 - **Litestream** replicates the WAL continuously to S3-compatible storage (≈ 1 s RPO for the database). Snapshots daily, retention 30 days.
-- **Spend has an effective RPO of 0.** Workers keep acknowledged receipts 7 days and replay them on `receipt.replay_since` after a restore ([05 §7](05-ledger-and-accounting.md)).
+- **Spend has an effective RPO of 0.** Workers keep acknowledged receipts 7 days and replay them on `ReceiptReplaySince` after a restore ([05 §7](05-ledger-and-accounting.md)).
 - **Checkpoints never get ahead of the replica**, so a restore never contradicts a published checkpoint.
-- **Restore drill** monthly (automated): restore to a scratch VM, boot read-only, run the audit job, compare the key-log root with the published anchor.
+- **Restore drill** monthly (automated): restore to a scratch VM, boot with `relay serve --read-only` (opens the database `mode=ro`, runs no migrations, starts no writer, Scheduler, sweeps or NodeLink listener; web and audit reads only), run the audit job, compare the key-log root with the published anchor. Read-only boot guarantees the drill can never "repair" or append to a restored copy and hide a gap. The drill script lives with the ops artifacts (`deploy/`, `docs/ops/`, owned by mo-ops).
 - The **key log is mirrored by every Node** and anchored in a public Git repository. Losing the operator's copy would not lose the history.
 
 ---
@@ -258,3 +262,124 @@ A constraint violation inside a SAVEPOINT is treated as a **fatal bug**: the pro
 About 14 GB per year at that volume. One NVMe volume covers years.
 
 > **Ceiling note:** past ~100M receipts, archive receipts older than 13 months to compressed files in object storage (the projections stay in the DB) before considering anything else.
+
+---
+
+## 9. Uniqueness constraints (CONTRACT §11)
+
+Every uniqueness rule of `spec/CONTRACT.md` §11 is **enforced by the database, not only by code**. Code validates first so users get a clear error; the constraint is the second guard that holds when code has a bug, two requests race, or someone edits the database by hand. A constraint violation inside the writer is a fatal bug (§4), so a race can never leave two rows behind.
+
+| Thing | Unique key (CONTRACT §11) | Where it is enforced |
+|---|---|---|
+| User handle | `users.username` (case-insensitive) + `username_tombstones.username` | `users.username` `UNIQUE COLLATE NOCASE` + format `CHECK`; tombstone PK; triggers refuse tombstoned handles and write tombstones on rename/delete |
+| User pseudonym (public log) | `users.pseudonym` | `UNIQUE` + format `CHECK` |
+| Provider identity | (`provider`, `provider_user_id`); at most one identity per provider per user | `identities` PK + `UNIQUE (user_id, provider)` |
+| Device signing key | `devices.sign_pub` | `UNIQUE` |
+| Device name | (`user_id`, lower(`name`)) | Unique expression index |
+| Repository | (`provider`, `provider_repo_id`) and (`provider`, lower(`owner`), lower(`name`)) | `UNIQUE` + unique expression index |
+| Live pledge | (`donor_id`, `repo_id`) where status ∈ {pending, active, paused} | Partial unique index |
+| Membership | (`repo_id`, `user_id`) | `members` PK |
+| Local token | the random token itself (≥ 256-bit), stored hashed | **Node-side**, not in the relay database: the Node stores only SHA-256 of each `mooch_local_…` token, keyed by the hash, and compares with `subtle` ([06 §13](06-security-and-trust.md), [07 §4](07-client-cli.md)) |
+| Task | (`gateway_device`, `task_id`) | `tasks` PK (`gateway_device`, `id`) |
+| Receipt | (`task_id`, `attempt`); `receipt_ref` unique | `receipts` PK + `UNIQUE (receipt_ref)` |
+| Web session | `id_hash` | `web_sessions` PK |
+
+Reserved words (route segments, staff and system words) are checked in code with the shared vectors `spec/vectors/usernames.json`, identically in Go and Rust; they are not in a table because the list ships with the binary and changes with the route map. E21 exercises the duplicate, case-variant, reserved, confusable and tombstone cases end to end.
+
+### 9.1 Identity
+
+```sql
+CREATE TABLE users (
+  id                  TEXT PRIMARY KEY CHECK (id GLOB 'u_*' AND length(id) = 28),   -- 'u_' + ULID, internal
+  username            TEXT NOT NULL UNIQUE COLLATE NOCASE
+                      CHECK (username = lower(username)
+                             AND length(username) BETWEEN 3 AND 32
+                             AND username NOT GLOB '*[^a-z0-9-]*'
+                             AND username NOT GLOB '-*' AND username NOT GLOB '*-'
+                             AND instr(username, '--') = 0),
+  username_changed_at INTEGER,                                                      -- ms, NULL = never renamed
+  pseudonym           TEXT NOT NULL UNIQUE
+                      CHECK (pseudonym GLOB 'ps_*' AND length(pseudonym) = 19),     -- 'ps_' + 16 random base32
+  display_name        TEXT,
+  status              TEXT NOT NULL CHECK (status IN ('active','suspended','deleted')),
+  created_at          INTEGER NOT NULL
+);
+
+CREATE TABLE username_tombstones (
+  username       TEXT PRIMARY KEY COLLATE NOCASE,
+  user_id        TEXT NOT NULL REFERENCES users(id),
+  retired_at     INTEGER NOT NULL,
+  redirect_until INTEGER                                                            -- NULL = no redirect (deleted account)
+);
+
+-- A tombstoned handle is never assigned again, to anyone.
+CREATE TRIGGER users_username_not_tombstoned_ins BEFORE INSERT ON users
+WHEN EXISTS (SELECT 1 FROM username_tombstones t WHERE t.username = NEW.username)
+BEGIN SELECT RAISE(ABORT, 'username_tombstoned'); END;
+
+CREATE TRIGGER users_username_not_tombstoned_upd BEFORE UPDATE OF username ON users
+WHEN NEW.username <> OLD.username
+ AND EXISTS (SELECT 1 FROM username_tombstones t WHERE t.username = NEW.username)
+BEGIN SELECT RAISE(ABORT, 'username_tombstoned'); END;
+
+-- Rename at most once per 30 days; the caller sets username_changed_at = now.
+CREATE TRIGGER users_rename_rate BEFORE UPDATE OF username ON users
+WHEN NEW.username <> OLD.username
+ AND (NEW.username_changed_at IS NULL
+      OR (OLD.username_changed_at IS NOT NULL
+          AND NEW.username_changed_at - OLD.username_changed_at < 30 * 86400000))
+BEGIN SELECT RAISE(ABORT, 'rename_too_soon'); END;
+
+-- The old handle becomes a permanent tombstone that redirects for 90 days.
+CREATE TRIGGER users_rename_tombstone AFTER UPDATE OF username ON users
+WHEN NEW.username <> OLD.username
+BEGIN
+  INSERT INTO username_tombstones (username, user_id, retired_at, redirect_until)
+  VALUES (OLD.username, OLD.id, NEW.username_changed_at, NEW.username_changed_at + 90 * 86400000);
+END;
+
+-- Account deletion retires the handle too (no redirect).
+CREATE TRIGGER users_delete_tombstone AFTER UPDATE OF status ON users
+WHEN NEW.status = 'deleted' AND OLD.status <> 'deleted'
+BEGIN
+  INSERT OR IGNORE INTO username_tombstones (username, user_id, retired_at, redirect_until)
+  VALUES (OLD.username, OLD.id, CAST(unixepoch('subsec') * 1000 AS INTEGER), NULL);
+END;
+
+CREATE TABLE identities (
+  user_id            TEXT NOT NULL REFERENCES users(id),
+  provider           TEXT NOT NULL CHECK (provider IN ('github','gitlab')),
+  provider_user_id   TEXT NOT NULL,
+  -- username, avatar_url, account_created_at …
+  PRIMARY KEY (provider, provider_user_id),
+  UNIQUE (user_id, provider)                                                        -- one identity per provider per user
+);
+
+-- devices: sign_pub BLOB NOT NULL UNIQUE CHECK (length(sign_pub) = 32)
+CREATE UNIQUE INDEX devices_user_name ON devices (user_id, lower(name));
+
+-- web_sessions: id_hash BLOB PRIMARY KEY  (SHA-256 of the cookie value; the cookie itself is never stored)
+```
+
+`lower()` is ASCII-only in SQLite, which is exactly right here: handles are ASCII by rule, and repo/device names compare case-insensitively the way GitHub and GitLab do for ASCII slugs.
+
+### 9.2 Repositories, membership, pledges
+
+```sql
+-- repos
+--   UNIQUE (provider, provider_repo_id)                                stable across renames
+CREATE UNIQUE INDEX repos_slug ON repos (provider, lower(owner), lower(name));
+
+-- members: PRIMARY KEY (repo_id, user_id)
+
+CREATE UNIQUE INDEX pledges_live ON pledges (donor_id, repo_id)
+  WHERE status IN ('pending','active','paused');                      -- one live pledge per donor per repo
+```
+
+### 9.3 Tasks and receipts
+
+```sql
+-- tasks:    PRIMARY KEY (gateway_device, id)                          dedupe scope of the Gateway's ULID
+-- receipts: PRIMARY KEY (task_id, attempt)                            settlement idempotency key
+--           receipt_ref TEXT NOT NULL UNIQUE                          random public id of the projection
+```
