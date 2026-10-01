@@ -21,3 +21,4 @@ Owner: `mo-worker`. The firewall, the recursive validator, provider adapters, us
 | W13 | Usage parsers for both dialects bound every number; force `store:false` and stream-usage-on; `estimated` receipts settle pessimistically at the reservation | A65, A69 | U |
 | W14 | API keys and `R` wrapped in `zeroize`; never logged; redaction unit-tested; opt-in telemetry reports field **names** only, never values | A84 | U |
 | W15 | Firewall tables are data; allowlist-widening changes need two-person review; continuous fuzzing with real client corpora + mutations incl. deep nesting | A24 | M, U (fuzz) |
+| W16 | Strict SSE parser: treat CRLF/CR/LF alike, bound line and field length, require the blank-line terminator, reject injected `event:`/`id:` reframing; fail closed (`stream` Invalid) and never forward an event that failed to parse | A145, A147 | U:worker, E18 |
