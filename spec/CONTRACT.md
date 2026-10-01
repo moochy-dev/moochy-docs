@@ -6,7 +6,7 @@ Normative for every implementer. The design rationale lives in `docs/plan/` (03 
 
 | Side | Paths | License |
 |---|---|---|
-| **Open source** (published as `moochy-cli`) | `cli/**`, `spec/proto/**`, `spec/vectors/**`, `spec/protocol.md` (public protocol spec), `docs/guides/**`, client release tooling under `deploy/client/**` | **Apache-2.0**, contributions with DCO sign-off (`Signed-off-by:`) |
+| **Open source** (published as `moochy-cli`) | `cli/**`, `spec/proto/**`, `spec/vectors/**`, `spec/protocol.md` (public protocol spec), `spec/KEYLOG.md`, `docs/guides/**`, client release tooling under `deploy/client/**` | **Apache-2.0**, contributions with DCO sign-off (`Signed-off-by:`) |
 | **Closed source** (the `moochy-core` monorepo: backend + frontend) | `relay/**` (incl. `relay/internal/web/**`), `e2e/**`, `deploy/**` except `deploy/client/**`, `docs/plan/**`, `docs/ops/**`, `docs/security/**`, `docs/TRACEABILITY.md`, `spec/CONTRACT.md` | Proprietary, all rights reserved |
 
 Rules: **open code never imports, links, or copies closed code** (the Rust client depends only on open crates and `spec/`); closed code may use open code. Everything that touches donor keys, maintainer code, or cryptography is in the open client, so users never need to trust the closed relay (it only sees ciphertext). Self-hosting the relay is **not** offered; the Node's relay URL stays configurable for development and tests. The product stays **100% free** (no fees, no commission, no paid tier). Public wording: **"Open-source client (Apache-2.0) · 100% free"** — never "100% open source".
@@ -37,7 +37,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 - **Machine-to-machine messages are protobuf over gRPC** (§12, `spec/proto/moochy/v1/link.proto`). **Signed artifacts stay JSON bytes** carried verbatim in `bytes` fields: route header, inner payload, receipts, projections, catalog. They are signed and stored as exact bytes and parsed with the strict rules below.
 - **Parser-differential rule:** every JSON parse that feeds a security or money decision (route header, receipts, provider request bodies in the Worker firewall, provider responses for usage, MCP messages) MUST reject duplicate object keys, invalid UTF-8, lone surrogates, numbers outside i64/f64, and nesting deeper than 64. Go must not use plain `encoding/json` for these (use a decoder that detects duplicates); Rust must not rely on last-key-wins `serde_json::Value`. When the Worker mutates a body, it re-serializes from the validated tree; it never forwards bytes that a different parser could read differently.
-- Bytes in JSON: **base64url without padding** (`RFC 4648 §5`). Ids: `task` = ULID canonical 26-char string; `device_id` = `d_` + ULID; `user_id` = `u_` + ULID (internal, never public); public user **pseudonym** = `ps_` + 16 random base32 chars (never derived from `user_id`); `repo_id` = `r_` + ULID; `pledge_id` = `p_` + ULID. Money: JSON integer µ$ (`*_uusd`).
+- Bytes in JSON: **base64url without padding** (`RFC 4648 §5`). Ids: `task` = ULID canonical 26-char string; `device_id` = `d_` + ULID; `user_id` = `u_` + ULID (internal, never public); public user **pseudonym** = `ps_` + 16 random chars from lowercase Crockford base32 (`0-9a-hjkmnp-tv-z`, 80 bits, CSPRNG; never derived from `user_id`); `repo_id` = `r_` + ULID; `pledge_id` = `p_` + ULID. Money: JSON integer µ$ (`*_uusd`).
 - `lp(a, b, …)` = concatenation of `u32_be(len(x)) || x` for each field. Integer fields are encoded with the width written at the call site (`u32(x)` = 4 bytes BE, `u64(x)` = 8 bytes BE); an integer written without a width is `u64`. Strings as UTF-8 bytes. Test vectors pin every width.
 - Hash = SHA-256. HKDF = HKDF-SHA256 (RFC 5869); `Expand` length 32 unless stated.
 - Signatures: Ed25519, **verification = ZIP-215** in both languages (Rust `ed25519-zebra` or equivalent; Go `github.com/hdevalence/ed25519consensus`). Signing is plain RFC 8032.
@@ -46,7 +46,7 @@ Never edit a path you do not own. Need a change elsewhere? Write it under `## Re
 
 ## 2. Labels (exact strings, all inside `lp`)
 
-`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`, `moochy/v1/detail`.
+`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`, `moochy/v1/detail`; key log: `moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop` (exact use in `spec/KEYLOG.md`).
 
 ## 3. Keys and derivations (from docs/plan/03 §6, made exact)
 
@@ -248,3 +248,4 @@ Mandatory techniques: warm connections everywhere (provider HTTP/2 pools, the re
 | R6 | Crypto throughput target: ≥ 800 MB/s applies to AEAD alone (measured 976–1,375 MB/s); AEAD + running SHA-256 together must stay ≥ 750 MB/s per core (measured ~777 MB/s, the single-core ceiling). Both are orders of magnitude above token streaming rates. |
 | R7 | The reserved-username list is defined once in `spec/vectors/usernames.json` (`reserved` array); Rust and Go embed their copy and a test fails if either differs from the vector file. |
 | R5 | Vectors must also pin: task-id text form (canonical ULID, uppercase Crockford), `headers_sha256` input (canonical `lp` of sorted lowercase header name/value pairs), `resp_commit`, progress-signature field widths, and `sealed_detail` (above). |
+| R8 | **`spec/KEYLOG.md` is normative** for key-log entry formats, signatures and checkpoints (adopted from mo-keylog). `DeviceStartRequest.pop_sig` (field 7) carries the `moochy/v1/key-pop` proof-of-possession that goes into `KEY_ADDED`. The key log is open-spec (clients verify it) — `spec/KEYLOG.md` and `spec/vectors/keylog/` are on the open side of §0a. |

@@ -395,6 +395,7 @@ message DeviceStartRequest {
   string name = 4;
   string suite = 5;                // envelope suite id
   bytes sig = 6;                   // Ed25519(sign key, lp("moochy/v1/device-start", sign_pub, enc_pub, roles_csv, name, suite))
+  bytes pop_sig = 7;               // key-log proof of possession (label moochy/v1/key-pop, spec/KEYLOG.md); goes into KEY_ADDED
 }
 
 message DeviceStartResponse {
