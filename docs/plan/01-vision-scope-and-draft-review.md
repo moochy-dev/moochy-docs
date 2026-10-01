@@ -2,6 +2,8 @@
 
 > Why Moochy exists, the non-negotiable principles and invariants, what is in and out of scope, how success is measured, and a line-by-line verdict on the original `draft-spec.md`.
 
+> **Updated 2026-10-01:** draft verdicts and metrics now match `spec/CONTRACT.md` and ADR-33 to ADR-42. Changes: the draft's persistent WebSocket is replaced by gRPC streams (ADR-33); Tailwind replaced by hand-written CSS (CONTRACT §9); group commit is adaptive (ADR-34); responsiveness budgets added as a beta metric (CONTRACT §13, E22); unique usernames added as a missing draft item (ADR-35, CONTRACT §11).
+
 ---
 
 ## 1. Problem
@@ -84,6 +86,7 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 | Maintainer onboarding → agent running on donated compute | < 3 min |
 | Clients verified working (either door) | ≥ 10 |
 | Monthly infra cost of the public instance | ≤ $200 at 1M tasks/month |
+| Responsiveness budgets (Moochy-added time per hop, loopback, instant fake provider) | Every CONTRACT §13 row met at p50 and p99, measured by E22 (release blocker) |
 
 ---
 
@@ -95,13 +98,13 @@ Verdicts: **Keep** (as is), **Change** (keep the intent, change the design), **D
 |---|---|---|---|
 | Closed-source monorepo `moochy-core` | **Change** | Requirement: 100% open source; also enables self-hosting | One public monorepo, Apache-2.0 OR MIT ([02 §10](02-architecture-overview.md)) |
 | Open-source Rust client with MCP + daemon | Keep / Change | Keep Rust and open source; merge into one binary and one Node process | `moochy` Node with roles + two doors ([07](07-client-cli.md)) |
-| Go monolith, HTMX, SSE, Tailwind | Keep | Boring and effective | — |
+| Go monolith, HTMX, SSE, Tailwind | Keep / Change | Go + HTMX + SSE are boring and effective; Tailwind adds a build tool for a few pages | Hand-written CSS with custom properties, ≤ 12 KB, no framework, no web fonts (CONTRACT §9) |
 | `chi` router | Drop | Go ≥ 1.22 `ServeMux` covers it | stdlib |
-| SQLite WAL + `modernc.org/sqlite` | Keep | Right size; CGO-free | + single writer, group commit, Litestream ([09](09-data-model.md)) |
+| SQLite WAL + `modernc.org/sqlite` | Keep | Right size; CGO-free | + single writer, adaptive group commit (ADR-34), Litestream ([09](09-data-model.md)) |
 | "In-memory zero-latency routing table (<1 ms dispatch)" | Change | Sub-ms is real but irrelevant next to upload and model latency | Honest latency budget; compression, warm pools, affinity ([02 §11](02-architecture-overview.md)) |
 | Lock-free `sync.Map` registry | Change | Can't make match + reserve atomic → double-spend | Single-owner Scheduler actor; `sync.Map` for chunk forwarding only ([04 §1](04-routing-engine.md)) |
 | `simd-json` / "<2 ms" serialization | Drop | No measurable benefit; payloads are opaque to the relay | `serde_json` |
-| Persistent multiplexed WebSocket | Keep | — | One per Node, shared by all clients |
+| Persistent multiplexed WebSocket | Change | Keep the idea (one long-lived, multiplexed connection per Node, shared by all local clients); replace the transport. A custom WebSocket framing would have to rebuild per-task flow control, cancellation, and deadlines that HTTP/2 already provides | gRPC over HTTP/2 + TLS 1.3 (`moochy.v1.NodeLink`): one `Session` stream per connection, one stream per task and per attempt (ADR-33, [03 §2](03-wire-protocol.md)) |
 | 500 ms ACK + auto-redirect | Keep / Change | Keep the ACK; add slot grants so ACKs rarely fail, NACK codes, per-attempt keys and accounting, no failover after the provider started | [03 §10](03-wire-protocol.md), [04 §8](04-routing-engine.md) |
 | HMAC-signed payloads with a per-repo `mcp_secret` | Drop | Redundant with TLS; plaintext shared secret in the DB | Device-key handshake ([03 §3](03-wire-protocol.md)) |
 | GPG / Ed25519 signatures as "verification" | Change | Signatures can't prove which model produced output; GPG adds complexity | Ed25519 only; donor-signed receipts, signed tool calls, and maintainer disputes for **accountability** ([06 §8–9](06-security-and-trust.md)) |
@@ -121,3 +124,4 @@ Verdicts: **Keep** (as is), **Change** (keep the intent, change the design), **D
 | (missing) Provider terms | **Add** | Existential risk | [06 §14](06-security-and-trust.md), Phase 0 |
 | (missing) Prompt-cache economics | **Add** | ~10× cost lever | [04 §5](04-routing-engine.md) |
 | (missing) Crash-safe accounting | **Add** | Money correctness | Outbox ([05 §7](05-ledger-and-accounting.md)) |
+| (missing) Username uniqueness and impersonation | **Add** | Handles appear on public pages, badges, and the log; confusable or recycled names enable impersonation | One unique ASCII handle per user, case-insensitive, reserved words, permanent tombstones on rename (ADR-35, CONTRACT §11) |
