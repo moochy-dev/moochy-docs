@@ -19,9 +19,14 @@ service LocalControl {
   rpc Resume(PauseRequest) returns (PauseResponse);
   // Base URLs + repo-scoped local token for tools (`moochy env`). `rotate` invalidates every token.
   rpc Env(EnvRequest) returns (EnvResponse);
-  // Repo owner: sign a donor approval / membership change with this device (plan 06 §5).
-  rpc Approve(ApproveRequest) returns (ApproveResponse);
-  rpc Members(MembersRequest) returns (MembersResponse);
+  // Repo owner: sign a pending donor approval / membership change / repo claim with this device
+  // (plan 06 §5). The Node only signs a request the Relay pushed (ApprovalRequests), after
+  // checking its exact body; `dry_run` returns what would be signed without signing.
+  rpc Approve(ApproveRequest) returns (SignResponse);
+  rpc Members(MembersRequest) returns (SignResponse);
+  rpc Claim(ClaimRequest) returns (SignResponse);
+  // Requests waiting for this owner's signature.
+  rpc Pending(PendingRequest) returns (PendingResponse);
   // Local audit journal (metadata only). `follow` keeps the stream open for new entries.
   rpc Journal(JournalRequest) returns (stream JournalEntry);
   // stdio MCP shim: first message McpOpen, then raw newline-delimited JSON-RPC bytes both ways.
@@ -75,10 +80,35 @@ message EnvResponse {
 
 message ApproveRequest {
   string repo = 1;                 // owner/name
-  string donor = 2;                // donor username (CONTRACT §11 handle)
+  string donor = 2;                // donor username (CONTRACT §11 handle) or pseudonym
+  bool dry_run = 3;
+  bool revoke = 4;                 // DONOR_REVOKED instead of DONOR_APPROVED
 }
 
-message ApproveResponse {}
+message ClaimRequest {
+  string repo = 1;
+  bool dry_run = 2;
+}
+
+// What the owner signs (or would sign), decoded from the exact body bytes.
+message SignResponse {
+  string request_id = 1;
+  string kind = 2;
+  string repo_id = 3;
+  string repo_slug = 4;
+  string subject = 5;              // pseudonym / device id inside the signed body
+  string subject_username = 6;     // relay-provided, display only
+  string signer = 7;               // this device
+  int64 issued_at_ms = 8;
+  bool signed = 9;
+  uint64 log_index = 10;           // once appended
+}
+
+message PendingRequest {}
+
+message PendingResponse {
+  repeated SignResponse requests = 1;
+}
 
 message MembersRequest {
   string repo = 1;
@@ -88,11 +118,11 @@ message MembersRequest {
     OP_REMOVE = 2;
   }
   Op op = 2;
-  string user = 3;                 // username
-  int64 cap_uusd_month = 4;        // 0 = repo default
+  string user = 3;                 // username, pseudonym, or device id (with `device`)
+  int64 cap_uusd_month = 4;        // 0 = repo default (relay-side setting, not signed)
+  bool device = 5;                 // the subject is a device (CI / headless node)
+  bool dry_run = 6;
 }
-
-message MembersResponse {}
 
 message JournalRequest {
   bool follow = 1;
