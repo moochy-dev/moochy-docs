@@ -150,7 +150,7 @@ Package `moochy.dev/relay/internal/web` exports `func New(src Source) http.Handl
 
 **Provider logos:** real company logos, from each company's official brand/press assets (fallback: Simple Icons), vendored locally (never hot-linked; CSP stays `self`), shown in their official single-color variant so they fit the monochrome system, shapes unaltered, used only in a "works with" context; sources and usage notes recorded in `relay/internal/web/third_party/LOGOS.md`.
 
-**Information architecture:** public marketing pages are minimal (landing, explore, public repo page, leaderboard, receipts, open-source client, connect). **When signed in, `/` is the app**: an app shell with a menu bar/sidebar (Overview, Pledges, Repositories, Devices, Activity, Members for owners, Settings), each with listings (filters, sort, empty states), detail views, and configure forms; everything also works without JavaScript.
+**Information architecture:** public marketing pages are minimal (landing, explore, public repo page, leaderboard, receipts, open-source client, connect). **When signed in, `/` is the app**: an app shell with a menu bar/sidebar (Overview, Donations, Repositories, Devices, Activity, Members for owners, Settings), each with listings (filters, sort, empty states), detail views, and configure forms; everything also works without JavaScript.
 
 **Budgets (replace the earlier 12 KB / no-font rule):** CSS ≤ 48 KB raw (≤ 12 KB gzip); motion JS ≤ 12 KB gzip, no framework, no CDN, external files only (strict CSP, no inline script or style attributes); htmx + sse extension vendored; at most one self-hosted variable font (OFL, Latin subset, woff2 ≤ 45 KB, `font-display: swap`, preloaded); landing page ≤ 150 KB transferred, dashboards ≤ 100 KB; LCP ≤ 1.0 s on 4G, CLS = 0, INP ≤ 100 ms; TTFB budgets of §13 unchanged.
 
@@ -233,6 +233,11 @@ Mandatory techniques: warm connections everywhere (provider HTTP/2 pools, the re
 | ID | Scenario |
 |---|---|
 | E22 | Responsiveness budgets: run 1,000 tasks with an instant fake provider and measure every row of §13 from timestamps (client, Gateway, Relay, Worker, fake); fail if any p50/p99 budget is exceeded; print the table |
+| E92 | xAI (Grok): a donor with an `xai` key serves an OpenAI-dialect request routed to a `x-ai/*` model through the fake xAI provider; usage, cost and receipt are correct; the key never leaves the donor |
+| E93 | Sandbox filesystem (`moochy run`, §15.1): inside, the command edits the worktree; reading `~/.ssh`, `~/.aws`, the Moochy keystore or any dir outside the allowed view fails; nothing outside the worktree changes |
+| E94 | Sandbox network: inside, only the gateway is reachable (the request succeeds end to end); any other TCP/UDP/DNS destination fails; no provider key is visible in the environment |
+| E95 | Sandbox containment: a fork bomb and a memory hog hit the limits without affecting the host; terminal injection (TIOCSTI) and ptrace of the parent are denied; every descendant dies with `moochy run` |
+| E96 | Donor privilege separation (§15.2): the parser child cannot open files or sockets; a crash or hostile stream in it fails the attempt with a native retryable error and the broker keeps serving |
 
 ## 14. Integrator decisions (from docs/TRACEABILITY.md review, 2026-10-01)
 
