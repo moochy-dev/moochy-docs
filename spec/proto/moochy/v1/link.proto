@@ -34,6 +34,10 @@ service NodeLink {
   // Device login (unauthenticated, strictly rate-limited per IP).
   rpc DeviceStart(DeviceStartRequest) returns (DeviceStartResponse);
   rpc DevicePoll(DevicePollRequest) returns (DevicePollResponse);
+  // Public key-log tiles and checkpoint (C2SP tlog-tiles paths, e.g. "tile/0/000", "checkpoint").
+  // Unauthenticated, strictly rate-limited per IP, response capped at 64 KiB. Lets Nodes mirror and
+  // verify the key log over the link they already have.
+  rpc GetLogTile(LogTileRequest) returns (LogTileResponse);
 }
 
 enum Role {
@@ -52,6 +56,7 @@ message NodeMsg {
     ReceiptDispute dispute = 4;
     ReplayReceipt replay_receipt = 5;
     Ping ping = 6;
+    SignedLogEntry log_entry = 7;      // owner-signed claim / approval / membership (key log)
   }
 }
 
@@ -68,6 +73,8 @@ message RelayMsg {
     ReceiptAck receipt_ack = 9;
     Pong pong = 10;
     Error error = 11;
+    LogEntryAck log_entry_ack = 12;
+    ApprovalRequests approval_requests = 13;  // pushed to repo owners' Nodes
   }
 }
 
@@ -98,6 +105,8 @@ message PoolSync {
   bool full = 2;                   // true: replace the pool; false: upsert workers + remove listed ones
   repeated PoolWorker workers = 3;
   repeated string removed_worker_devices = 4;
+  string repo_slug = 5;            // "owner/name" (lowercase), for repo-scoped local tokens
+  string repo_provider = 6;        // "github" | "gitlab"
 }
 
 message PoolWorker {
@@ -109,6 +118,7 @@ message PoolWorker {
   repeated string dialects = 6;    // "anthropic.messages" | "openai.chat"
   repeated string models = 7;      // public model ids (slugs)
   uint32 hint = 8;                 // 0-100, coarse
+  bytes sign_pub = 9;              // Ed25519 key of the worker device (verifies receipts, progress checkpoints)
 }
 
 message WorkerOffer {
@@ -186,6 +196,50 @@ message Error {
   string code = 1;
   string message = 2;
   string task = 3;
+}
+
+// Owner-signed key-log entries (formats defined by the key-log spec, kind = KEY_* / REPO_CLAIMED /
+// DONOR_APPROVED / DONOR_REVOKED / MEMBER_ADDED / MEMBER_REMOVED). `body` is the exact signed bytes.
+message SignedLogEntry {
+  string request_id = 1;           // client-chosen id, echoed in LogEntryAck
+  string kind = 2;
+  bytes body = 3;
+  repeated bytes sigs = 4;
+}
+
+message LogEntryAck {
+  string request_id = 1;
+  uint64 index = 2;                // position in the key log once appended
+  string error = 3;                // empty on success
+}
+
+// Requests waiting for a repo owner's signature (donor approvals, member additions, repo claims).
+// The owner's Node MUST parse `body_to_sign`, show its meaning to the owner, and sign only on an
+// explicit `moochy approve` / `moochy members add` / `moochy claim`; it never signs what the relay
+// proposes automatically.
+message ApprovalRequests {
+  repeated ApprovalRequest requests = 1;
+}
+
+message ApprovalRequest {
+  string request_id = 1;
+  string kind = 2;
+  string repo_id = 3;
+  string repo_slug = 4;
+  string subject_username = 5;
+  string subject_pseudonym = 6;
+  string pledge_id = 7;
+  int64 created_at_ms = 8;
+  bytes body_to_sign = 9;
+  string summary = 10;             // human-readable, for display only (never signed as-is)
+}
+
+message LogTileRequest {
+  string path = 1;
+}
+
+message LogTileResponse {
+  bytes data = 1;
 }
 
 // ------------------------------------------------------- Shared payloads
