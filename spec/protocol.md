@@ -8,7 +8,8 @@ Sources of truth, in order:
 
 1. The golden test vectors in [`spec/vectors/`](vectors/). If this text and a vector disagree, the vector wins and this text is a bug.
 2. The protobuf schema [`spec/proto/moochy/v1/link.proto`](proto/moochy/v1/link.proto).
-3. This document.
+3. For the key log and the receipt log: [`spec/KEYLOG.md`](KEYLOG.md) (record formats, signatures, checkpoints, tiles, owner keys, monitor rules).
+4. This document.
 
 The words MUST, MUST NOT, SHOULD, and MAY are used as in RFC 2119.
 
@@ -69,7 +70,7 @@ Route headers, inner payloads, receipts, projections, and catalogs also reject u
 | Device id | `d_` + ULID |
 | Repository id | `r_` + ULID |
 | Pledge id | `p_` + ULID |
-| Public user pseudonym | `ps_` + 16 random base32 characters, never derived from any internal id |
+| Public user pseudonym | `ps_` + 16 random characters from lowercase Crockford base32 (`0-9a-hjkmnp-tv-z`, 80 bits), never derived from any internal id |
 | Money | JSON integer **micro-US-dollars** (µ$), field names end in `_uusd`. No floats in signed bytes |
 | Timestamps | integer milliseconds since the Unix epoch unless stated |
 | Dialects | `anthropic.messages`, `openai.chat` |
@@ -101,7 +102,7 @@ Every signature, hash commitment, key derivation info, and AAD in this protocol 
 
 Every signed, hashed, or derived value begins with one of these labels inside `lp`. A value made for one purpose can never be accepted for another.
 
-`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`.
+`moochy/v1/auth`, `moochy/v1/device-start`, `moochy/v1/req`, `moochy/v1/resp`, `moochy/v1/wrap`, `moochy/v1/task`, `moochy/v1/salt`, `moochy/v1/req-commit`, `moochy/v1/resp-commit`, `moochy/v1/provider-req`, `moochy/v1/receipt`, `moochy/v1/projection`, `moochy/v1/resp-progress`, `moochy/v1/dispute`, `moochy/v1/detail`; key log: `moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop`, `moochy/v1/receipt-log` (their use is defined in `spec/KEYLOG.md`).
 
 ---
 
@@ -120,9 +121,9 @@ The client stores them in the OS keychain, or in a passphrase-encrypted file on 
 
 Unauthenticated, strictly rate-limited per IP by the relay.
 
-1. The Node calls `DeviceStart(DeviceStartRequest{sign_pub, enc_pub, roles, name, suite, sig})` with
+1. The Node calls `DeviceStart(DeviceStartRequest{sign_pub, enc_pub, roles, name, suite, sig, pop_sig})` with
    `sig = Ed25519(sign_key, lp("moochy/v1/device-start", sign_pub, enc_pub, roles_csv, name, suite))`,
-   where `roles_csv` is the requested role names (`gateway`, `worker`) joined by `,` in the order sent, and `suite` is `suite_id`. The signature proves possession of the new key.
+   where `roles_csv` is the requested role names (`gateway`, `worker`) joined by `,` in the order sent, and `suite` is `suite_id`. The signature proves possession of the new key. `pop_sig` is the key-log proof of possession (label `moochy/v1/key-pop`, `spec/KEYLOG.md`) that goes into the `KEY_ADDED` entry.
 2. The relay returns `user_code` (`XXXX-XXXX`, shown to the user), a secret `device_code`, a poll interval, and an expiry.
 3. The user approves the code in a signed-in browser (and chooses roles and an optional repo scope).
 4. The Node polls `DevicePoll{device_code}` at the given interval until the state is `APPROVED` (with `device_id`, the user's `ps_…` pseudonym and username), `DENIED`, or `EXPIRED`.
@@ -158,6 +159,7 @@ service NodeLink {
   rpc Serve(stream ServeUp) returns (stream ServeDown);       // Worker: one per assigned attempt
   rpc DeviceStart(DeviceStartRequest) returns (DeviceStartResponse);
   rpc DevicePoll(DevicePollRequest) returns (DevicePollResponse);
+  rpc GetLogTile(LogTileRequest) returns (LogTileResponse);   // public key-log and receipt-log tiles
 }
 ```
 
@@ -190,15 +192,18 @@ sequenceDiagram
 | Message | Direction | Purpose |
 |---|---|---|
 | `Hello`, `Auth`, `Welcome` | | §6.1 |
-| `PoolSync{repo_id, full, workers[], removed_worker_devices[]}` | R → Gateway | Candidate Workers for a repo: `worker_device`, `enc_pub`, `key_log_index`, `approval_log_index`, `donor_pseudonym`, `dialects`, `models` (public slugs), `hint` (coarse 0–100). The Gateway **independently verifies** each key and approval in its key-log mirror (§13) before wrapping to it |
+| `PoolSync{repo_id, full, workers[], removed_worker_devices[], repo_slug, repo_provider, auto_cache, excluded_providers, allow_unsandboxed_tools}` | R → Gateway | Candidate Workers for a repo: `worker_device`, `enc_pub`, `sign_pub`, `key_log_index`, `approval_log_index`, `donor_pseudonym`, `dialects`, `models` (public slugs), `hint` (coarse 0–100). The Gateway **independently verifies** each key and approval in its key-log mirror (§13) before wrapping to it, and never wraps to a Worker serving through a provider in `excluded_providers`. Project settings: `auto_cache` (add automatic prompt caching to multi-turn Anthropic requests) and `allow_unsandboxed_tools` (§11.1) |
 | `KnownTasks{tasks[]}` | Worker → R | Sent right after `Welcome`: every `(task, attempt)` the Worker has `running` or in its `outbox`. The relay releases, at zero cost, reservations for this Worker that are not listed |
 | `WorkerOffer{slots_free, models[], pledges[], window_open, local_cap_left_uusd}` | Worker → R | Capacity the Worker will accept now. `models[]` = `{dialect, model, rl_headroom}`. `window_open = false` when the donor's schedule is closed (an eligibility condition, not a pledge state). Sent on connect and on every change; only the latest counts |
 | `AssignNotice{task, attempt}` | R → Worker | Open a `Serve` stream for this attempt. Sent only after the relay has durably reserved the cost |
 | `ReceiptDispute{task, attempt, code, gateway_sig}` | Gateway → R | §12.3 |
 | `ReplayReceipt{receipt}` | Worker → R | Resend a receipt from the outbox after a reconnect |
 | `ReceiptReplaySince{since_ms}` | R → Worker | After a relay restore: resend every receipt since that time, acknowledged or not |
-| `ReceiptAck{task, attempt}` | R → Worker | The receipt is durably stored. The Worker marks the outbox entry acknowledged and keeps it 7 more days |
+| `ReceiptAck{task, attempt, receipt_log_index, receipt_log_proof, receipt_log_checkpoint}` | R → Worker | The receipt is durably stored. The Worker marks the outbox entry acknowledged and keeps it 7 more days. The last three fields prove the receipt was appended to the public receipt log (§12.5); empty until it is |
+| `SignedLogEntry{request_id, kind, body, sigs}` / `LogEntryAck{request_id, index, error}` | Node → R / R → Node | Owner-signed key-log entries (claims, donor approvals and revocations, memberships, owner keys) and their position once appended (§13) |
+| `ApprovalRequests{requests[]}` | R → owner's Node | Requests waiting for the owner's signature. The Node parses `body_to_sign`, shows its meaning, and signs only after an explicit command and confirmation from the owner; `summary` is display text, never signed as-is |
 | `LogCheckpoint{note}` | R → Node | Newest signed key-log checkpoint (§13) |
+| `GetLogTile{path}` (unary RPC) | Node → R | One C2SP tile or checkpoint of the key log (receipt log under the prefix `receipts/`), at most 123,392 bytes. Unauthenticated, rate-limited per IP |
 | `CatalogUpdate{version, catalog_json, sig}` | R → Node | Signed price catalog (§14). Nodes reject version decreases |
 | `Draining{reconnect_after_ms}` | R → Node | The relay will restart; reconnect after the delay |
 | `Ping` / `Pong` | both | Liveness and RTT |
@@ -217,7 +222,7 @@ sequenceDiagram
 | `Chunk` | R → G | Sealed response chunks of the accepted attempt, in `seq` order |
 | `Checkpoint{attempt, seq, running_hash, sig}` | R → G | Forwarded Worker progress signature (§11) |
 | `SignedReceipt` (as `end`) | R → G | Final receipt and projection (§12) |
-| `Failed{code, retryable, retry_after_ms, sealed_detail}` | R → G | Task failed; the Gateway converts it to a provider-native error (§15) |
+| `Failed{code, retryable, retry_after_ms, sealed_detail, attempt, worker_device, r}` | R → G | Task failed; the Gateway converts it to a provider-native error (§15). `attempt`, `worker_device` and `r` identify the Worker that produced `sealed_detail` (`attempt = 0` for a relay-side failure), so the Gateway can derive `K_det` (§15.3) |
 | `Cancel{reason}` | G → R | The client went away. Cancelling the gRPC stream has the same effect |
 
 ### 6.4 `Serve` stream (Worker, one per assigned attempt)
@@ -225,7 +230,7 @@ sequenceDiagram
 | Message | Direction | Meaning |
 |---|---|---|
 | `ServeOpen{task, attempt}` | W → R | First message, after `AssignNotice` |
-| `Assign{task, attempt, route, wrap, pledge_id, repo_id, deadline_ack_ms, body_len, body_chunks}` | R → W | First server message. `route` = the same bytes the Gateway sent; `wrap` = this Worker's wrap |
+| `Assign{task, attempt, route, wrap, pledge_id, repo_id, deadline_ack_ms, body_len, body_chunks, pledge_policy, pledge_headroom_uusd, per_task_cap_uusd, catalog_version}` | R → W | First server message. `route` = the same bytes the Gateway sent; `wrap` = this Worker's wrap. `pledge_policy` is the exact policy JSON (models, maximum effort, dialects, flags, slots, schedule) the Worker enforces locally; `pledge_headroom_uusd` is advisory (the Worker's own caps still rule); `catalog_version` is the price catalog in effect at the start of the attempt |
 | `Chunk` (as `body`) | R → W | The sealed request chunks |
 | `Ack{r}` | W → R | Authentic, decrypted, firewall passed, local caps reserved, provider call starting. Carries the fresh salt `R`. Deadline: `deadline_ack_ms` after the last body chunk (default 500 ms) |
 | `Nack{r, code, retryable, retry_after_ms, sealed_detail}` | W → R | Refusal (§15). Details are sealed to the Gateway (§15.3) |
@@ -337,6 +342,8 @@ Any failure is a `Nack` with the codes of §15. A malicious relay therefore cann
 
 The Worker seals the provider's response bytes exactly as received, one chunk per provider read, and sends each chunk immediately.
 
+The Gateway never passes a donor's bytes to the client as-is: it parses each event strictly (bounded, pure-Rust decompression, 32 MiB cap) and re-emits it from its typed form (allowlisted fields, canonical JSON, normalized SSE framing). The client receives the same events the provider sent, but no byte chosen by the donor reaches the client's parser verbatim.
+
 Because `R` is fresh per attempt and bound into both the key and the AAD, **no two response streams ever share a key**, whatever the relay does (honest failover or a deliberate double assignment). The Gateway:
 
 - decrypts only chunks of the attempt named in `Accepted`;
@@ -354,6 +361,10 @@ A malicious Worker could stream a poisoned tool call and disconnect before signi
 where `running_sha256` is the SHA-256 of all response plaintext up to and including chunk `seq`.
 
 The Gateway holds each tool-call block until it ends, runs its local checks, and **releases it to the client only after verifying a checkpoint that covers it**; otherwise it substitutes an error tool result. Text streams immediately. Every tool call a client executes is therefore signed by a known donor device.
+
+### 11.1 Sandboxed sessions
+
+By default the Gateway releases tool calls from donated tokens only to **sandboxed sessions**: requests that carry a run token minted for a live `moochy run` sandbox. Other clients receive the text and a visible `[moochy]` notice in place of each tool call, unless the project's `allow_unsandboxed_tools` setting (in `PoolSync`) is on. This is local client behaviour; nothing about it travels on the wire except that setting.
 
 ---
 
@@ -385,6 +396,10 @@ UTF-8 JSON, signed as exact bytes by the Worker:
 
 The Worker appends the signed receipt to its local outbox (durably) before sending it, and keeps it 7 days after `ReceiptAck`, so no receipt is lost if the relay restarts.
 
+### 12.5 Receipt transparency log
+
+The relay appends every settled receipt to a second public log (origin `moochy.dev/receipts`, its own key), whose leaf is `lp("moochy/v1/receipt-log", SHA-256(receipt_bytes))`: the receipt itself never enters the log. `ReceiptAck` returns the index, an inclusion proof, and the signed receipt-log checkpoint, so either party can prove its receipt was logged, and the relay cannot silently leave a settled receipt out of what it publishes. Formats: `spec/KEYLOG.md` §8.
+
 ### 12.3 Projection (public)
 
 The public audit feed shows only a **projection**, signed by the same donor key:
@@ -410,18 +425,20 @@ If everything matches, the Gateway sends nothing (**silence = acceptance**). Oth
 
 ## 13. Key log
 
-A public, append-only Merkle log of identities, approvals, and prices. Clients mirror it fully (it is small) and verify it themselves; they never take the relay's word for a key or an approval.
+A public, append-only Merkle log of identities, approvals, and prices. Clients mirror it fully (it is small) and verify it themselves; they never take the relay's word for a key or an approval. Record formats, signatures, checkpoints, tiles, and monitor rules are normative in [`spec/KEYLOG.md`](KEYLOG.md); this section summarizes them.
 
 | Entry | Signed by |
 |---|---|
 | `KEY_ADDED` / `KEY_REVOKED` | relay (binding to a user) + the new key (proof of possession, §4) |
-| `REPO_CLAIMED` | relay (repository admin check) + the owner's device |
-| `DONOR_APPROVED` / `DONOR_REVOKED` | the repo owner's device |
-| `MEMBER_ADDED` / `MEMBER_REMOVED` | the repo owner's device |
+| `OWNER_KEY_ADDED` / `OWNER_KEY_REVOKED` | the new owner key (and the previous one on rotation); revocation is relay-asserted and only removes trust |
+| `REPO_CLAIMED` | relay (repository admin check) + the owner key |
+| `DONOR_APPROVED` / `DONOR_REVOKED` | the repo's owner key |
+| `MEMBER_ADDED` / `MEMBER_REMOVED` | the repo's owner key |
 | `CATALOG` | relay catalog key |
 | `MODERATION` | relay |
 
-- Tree hashing, inclusion proofs, and consistency proofs follow RFC 6962 as implemented by Go's `golang.org/x/mod/sumdb/tlog`; tiles follow the C2SP tlog-tiles layout; checkpoints are C2SP signed notes.
+- **Owner keys.** Approvals are signed with an owner key, separate from every device key, held encrypted by the foreground command-line app and loaded only for one command the owner typed and confirmed. The background process never reads it, so a compromised background process cannot approve anyone. Approvals signed with a device key are refused.
+- Tree hashing, inclusion proofs, and consistency proofs follow RFC 6962 / RFC 9162 as implemented by Go's `golang.org/x/mod/sumdb/tlog`; tiles follow the C2SP tlog-tiles layout (fetched with `GetLogTile` or over HTTPS under `/log/`); checkpoints are C2SP signed notes, signed only for sizes already replicated. Witness cosignatures (C2SP `tlog-cosignature`) may be required by a client before it applies a checkpoint.
 - Every Node verifies consistency between every checkpoint it receives (`Hello.log_checkpoint`, `LogCheckpoint`) and the previous one, and compares them with the **hourly public Git anchor** of checkpoints. A fork or rewrite is visible to anyone who ever fetched the anchor.
 - Entries contain only pseudonymous ids, device public keys, repo ids, signatures, and catalog data. No personal data.
 
@@ -429,7 +446,7 @@ Client duties:
 
 - **Every Node** alerts on any key on its own account it did not create.
 - **An owner's Node** alerts on any `REPO_CLAIMED`, approval, or membership for its repos it did not sign.
-- **Gateways** wrap only to Worker keys that are logged, not revoked, and whose donor has an owner-signed `DONOR_APPROVED` for the repo.
+- **Gateways** wrap only to Worker keys that are logged, not revoked, and whose donor has an owner-signed `DONOR_APPROVED` for the repo, and only while their mirror holds a checkpoint verified in the last 10 minutes. With no verified checkpoint, a stale one, or a detected fork, the Gateway refuses to seal at all (`spec/KEYLOG.md` §6).
 - **Workers** accept tasks only from Gateway keys whose user has an owner-signed `MEMBER_ADDED` for the repo or is its owner (§9).
 
 ---
@@ -467,7 +484,12 @@ Unknown codes are treated as non-retryable. `unauthorized_task` and `bad_envelop
 
 ### 15.3 Sealed details
 
-`Nack.sealed_detail` is encrypted by the Worker for the Gateway under keys derived from that attempt's `CK` and `R` (exact construction pinned by the vectors), and the relay copies it unchanged into `Failed.sealed_detail`. The relay sees only the code, never, for example, the name of a rejected field.
+`Nack.sealed_detail` is encrypted by the Worker for the Gateway, and the relay copies it unchanged into `Failed.sealed_detail`:
+
+- `K_det = HKDF(salt = R, ikm = CK, info = lp("moochy/v1/detail", task_id, worker_device, u64(attempt)))`
+- `sealed_detail = AEAD(K_det, nonce = 12 zero bytes, aad = lp("moochy/v1/detail", task_id_16B, u64(attempt), code), pt)`, with `pt` the UTF-8 detail, at most 1 KiB
+
+There is one detail per attempt, so the zero nonce is never reused under a key. The relay sees only the code, never, for example, the name of a rejected field.
 
 ### 15.4 Errors shown to clients
 

@@ -3,6 +3,8 @@
 > The decision record (ADR-style, one line of context each), the ideas deliberately not built or deferred, and the questions that still need an owner's answer. Revisit a decision only when its "revisit when" condition is met.
 
 > **Updated 2026-10-01:** the record now covers the decisions taken while writing `spec/CONTRACT.md` and in the 2026-10-01 traceability review, and agrees with the revised ADR-01 source boundary. Changes: ADR-35 to ADR-42 appended (unique handles, three crates, served-task boot floor, key log now, tlog + note without Tessera, `ps_` pseudonyms, window = eligibility, policy errors never 429); ADR-02, ADR-30, ADR-31, Q2, and the rejected-ideas table no longer rely on self-hosted relays; ADR-21 no longer mentions frame kinds (ADR-33).
+>
+> **Updated again 2026-10-01 (main `b65289e7`):** ADR-43 to ADR-48 (sandboxing, owner keys, receipt log and witnesses, vocabulary and visual direction, xAI, `/u/{handle}`); receipt log moved from deferred to adopted.
 
 ---
 
@@ -52,6 +54,12 @@
 | ADR-40 | **Public pseudonym `ps_` + 16 random base32 characters**, stored in `users.pseudonym`, **never derived from** the internal `user_id` (`u_` + ULID, never public) (decision D10) | Pseudonym = `u_…` id; hash of `user_id` | Distinct prefixes stop internal ids leaking through copy-paste; a random value cannot be linked back to the account or brute-forced from a known id | — |
 | ADR-41 | **A closing schedule window is an eligibility condition**, sent as `WorkerOffer.window_open`; it never changes pledge status. A pledge is `paused` only by explicit donor action. Pledge schedules and device schedules both exist and both only gate eligibility (C3) | Pledge goes Active → Paused when its window closes | One meaning per state: status changes are donor decisions recorded in the ledger, while availability changes many times a day and belongs in scheduler memory; no write per window edge | — |
 | ADR-42 | **Policy errors are never HTTP 429**: `over_task_cap` → 400 `invalid_request_error`, `quota_exceeded` → 403 `permission_error`, both non-retryable (C4) | 429 for quota errors | Agents retry 429 automatically, so a hopeless request would loop and burn time; 400/403 make them stop | A major client mishandles 403 for quota |
+| ADR-43 | **The donor computes, the maintainer executes** (CONTRACT §15): agents run in the built-in `moochy run` sandbox (Linux namespaces + Landlock + seccomp, macOS Seatbelt; worktree only, no network but the gateway, secrets masked); pooled tool calls are released only to sandboxed sessions unless a project sets `allow_unsandboxed_tools`; the donor process locks itself down (no `exec`, state dir only, provider and relay only) and parses each request in a single-use validator child | Checks alone (tool-call gate + tripwire); Docker-based sandboxes; trusting donor-side output checks | A malicious donor controls its output completely, so T8 can only be contained where commands run; no daemon or container runtime to install; fail closed | Windows support (AppContainer + Job objects) lands |
+| ADR-44 | **Owner keys separate from device keys** (`spec/KEYLOG.md` §4): approvals, memberships, and claims are signed with an owner key held encrypted by the foreground CLI, loaded only for one confirmed command, never by the background process; `moochy pending` / `moochy accept` (alias `approve`); the website never approves | Device key signs approvals | A compromised background process must not be able to approve a donor; one key, one role | — |
+| ADR-45 | **Receipt transparency log and witnesses in v1** (`spec/KEYLOG.md` §7–§8): every settled receipt's hash is appended to a second log (`moochy.dev/receipts`), with index, inclusion proof, and checkpoint returned in `ReceiptAck`; witness cosignatures can be required for both logs | Deferred to post-beta (earlier revision of this plan) | Removes the relay's ability to silently omit settled receipts once parties check inclusion; small cost on the existing tlog code | — |
+| ADR-46 | **User-facing vocabulary and visual direction** (`docs/brand/VOICE.md`, CONTRACT §9): "Donate tokens" as the key phrase, donation instead of pledge; a strictly monochrome three-color system (Ink, Paper, Sky) with no gradients, glows, or scroll effects; a small mascot; subtle functional motion; a donate-button studio for READMEs | "Donate compute", "pledge"; the earlier maximal motion system | Product owner review: plain words people already use, and a calm product that does not read as AI-made | — |
+| ADR-47 | **xAI (Grok) is a supported donor provider** alongside Anthropic, OpenAI, OpenRouter, and DeepSeek, with its own adapter, `moochy keys add xai`, catalog entries, fake provider, and E2E scenarios | Reaching Grok only through OpenRouter or the generic OpenAI-compatible list | Product owner decision (CONTRACT §9) | — |
+| ADR-48 | **Profiles at `/u/{handle}`** (R1), never a bare `/{handle}`; `POST /auth/logout`; handle choice at `/auth/handle` | Profiles at the root | A handle can never collide with a page name, now or later | — |
 
 ---
 
@@ -69,7 +77,8 @@
 | `moochy self-verify` | Rejected | A binary vouching for itself proves nothing; verify externally |
 | Trust tiers, auto-approval, tier headers | Deferred | Owner-signed approvals cover v1; add when owners ask for scale |
 | Countersigning every receipt | Deferred | Disputes cover v1 |
-| Public receipt log, witnesses, in-browser verifier | Deferred | Key log + Git anchor + projections + CLI verification cover v1 |
+| Public receipt log and witnesses | **Adopted** (ADR-45) | Receipt transparency log and C2SP witnesses are in `spec/KEYLOG.md` §7–§8 |
+| In-browser verifier | Deferred | Design note in `spec/KEYLOG.md` §11; CLI verification covers v1 |
 | Prefix-delta transfer | Deferred | ADR-21 |
 | Blue/green deploys | Deferred | ADR-22 |
 | Stream resume after Gateway reconnect | Deferred | Add if mid-stream disconnects exceed 0.5% |
@@ -82,7 +91,7 @@
 | Tailwind or another CSS framework | Rejected | Hand-written CSS within the CONTRACT §9 budgets; no build toolchain |
 | Cross-dialect translation | Deferred | ADR-19 |
 | Verified compute (TLS notarization, TEEs) | Research track, opt-in and free | [06 §15](06-security-and-trust.md) |
-| Local GPU donors | Research track | Needs token-denominated goals |
+| Local GPU donors | Research track (announced to donors as coming) | Needs token-denominated goals; the zero-commands donor rule (ADR-43) will apply |
 | Email notifications | Deferred | No v1 need |
 
 ---
