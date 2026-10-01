@@ -283,6 +283,9 @@ message Failed {
   bool retryable = 2;
   uint32 retry_after_ms = 3;
   bytes sealed_detail = 4;         // detail sealed to the Gateway (Relay sees only `code`)
+  uint32 attempt = 5;              // attempt whose Worker produced sealed_detail (0 = relay-side failure)
+  string worker_device = 6;        // needed with `r` to derive K_det (CONTRACT §3)
+  bytes r = 7;                     // the attempt's response salt
 }
 
 // --------------------------------------------------------------- Submit
@@ -384,6 +387,10 @@ message Assign {
   uint32 deadline_ack_ms = 7;
   uint64 body_len = 8;
   uint32 body_chunks = 9;
+  bytes pledge_policy = 10;        // exact pledge policy JSON (models, max_effort, dialects, flags, max_slots, schedule) for local enforcement
+  int64 pledge_headroom_uusd = 11; // budget - spent - reserved at assignment (advisory; the Worker's local caps still rule)
+  int64 per_task_cap_uusd = 12;
+  uint64 catalog_version = 13;     // catalog version in effect at attempt start
 }
 
 // ---------------------------------------------------------- Device login
