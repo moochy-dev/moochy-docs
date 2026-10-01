@@ -196,7 +196,7 @@ The draft's claim "text-only, zero arbitrary execution" is **not automatically t
 - set `metadata.user_id` to a pseudonymous `H(repo_id ‖ member_id)`, so the donor's provider account can attribute abuse to a specific end user;
 - map the public model id to the provider's model id through the signed catalog.
 
-### 7.2 OpenAI-compatible adapters (OpenAI, OpenRouter, DeepSeek, vetted hosts)
+### 7.2 OpenAI-compatible adapters (OpenAI, OpenRouter, DeepSeek, xAI, vetted hosts)
 
 Allow `POST /v1/chat/completions` with messages, function tools, standard sampling, and reasoning-effort parameters. **Deny:** hosted or built-in tools (web search, file search, code interpreter, computer use), web-search options, `n > 1` (multiplies output beyond `max_tokens`), predicted outputs (billed as output), `service_tier`, audio and other modalities, any file or stored-response reference, and non-chat endpoints. **Safe mutations:** force `store: false` where storage exists, and **turn on stream usage reporting** so every streamed receipt has real usage.
 
@@ -338,7 +338,7 @@ This section is for counsel review in Phase 0. It is not legal advice.
 
 - **API keys only.** Consumer subscription credentials (chat-app logins, subscription OAuth tokens) are **refused technically**: adapters accept only API-key authentication against official API hosts.
 - **The donor is the provider's customer of record.** The donor's terms with their provider govern the calls their key makes. Moochy's terms state this, and onboarding obtains explicit consent ("Requests from maintainers of repos that approve you will be sent to your provider under your account and its usage policies").
-- Each provider's commercial terms and usage policies (Anthropic, OpenAI, OpenRouter, DeepSeek, every vetted host) must be reviewed for (a) serving third-party end users through one's own key, with end-user attribution like `metadata.user_id`; (b) resale restrictions (Moochy involves **no payment** between donor and maintainer and takes no cut, which matters here); (c) abuse-handling expectations.
+- Each provider's commercial terms and usage policies (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI, every vetted host) must be reviewed for (a) serving third-party end users through one's own key, with end-user attribution like `metadata.user_id`; (b) resale restrictions (Moochy involves **no payment** between donor and maintainer and takes no cut, which matters here); (c) abuse-handling expectations.
 - **Moochy never holds donors' or maintainers' money, ever.** It is free, takes no commission, and has no paid tier, which avoids payment, escrow, and tax regimes entirely. The project's own hosting is covered by open sponsorship with public accounts ([10 §10](10-operations.md)).
 
 ---
