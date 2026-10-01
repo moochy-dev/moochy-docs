@@ -58,3 +58,12 @@ Owner: `mo-node`. CLI, config, keystore, relay link, the Gateway API door and MC
 | N28 | Create/rebind safely in a 0700 dir: bind to a temp name + atomic `rename`, `fchmod`, refuse if the final path is a symlink or non-socket (symlink/TOCTOU) | A102 | A101 |
 | N29 | Security decisions read the signed JSON `bytes`, never a protobuf scalar; the route header is re-parsed with the strict decoder | A90 | U |
 | N30 | Handles, repo and display names printed by the CLI go through `sanitize_for_terminal()` (N16) and handle validation mirrors the relay's vectors | A110, A112 | U |
+
+## Source boundary (CONTRACT §0a)
+
+| # | Control | Attack | Proof |
+|---|---|---|---|
+| N31 | The client is the whole trust base: every guarantee (sealing, signatures, caps, firewall, tool-call gating) is enforced here against a **malicious** relay, never delegated to it | A130 | E11, E15–E17 |
+| N32 | No dependency on closed code: crates.io deps + `spec/**` only; no path/git deps outside `cli/` and `spec/` | A131 | M (CI) |
+| N33 | Implement only `spec/protocol.md` + `spec/vectors`; ignore unknown relay messages, refuse unknown suites/versions | A133 | V |
+| N34 | Release builds default to the official relay; a non-default `--relay` requires `MOOCHY_INSECURE_DEV=1`, prints a persistent warning, and uses a separate keystore + key-log mirror per relay origin | A135 | U |

@@ -1,8 +1,8 @@
 # Moochy security docs (`mo-sec`)
 
-The red-team surface of the project.
+The red-team surface of the project. **Internal** (closed side of CONTRACT §0a): do not export to the public `moochy-cli` repository. The threat model assumes the closed relay is untrusted (adversary A3); every user-facing guarantee is enforced and verifiable in the open-source client (Apache-2.0).
 
-- [attack-catalog.md](attack-catalog.md) — every attack (A01–A89) with its countermeasure, owner, verification and status. Start here. The **top-10 gaps** are in §10.
+- [attack-catalog.md](attack-catalog.md) — every attack (A01–A135) with its countermeasure, owner, verification and status. Start here. The **top-10 gaps** are in §15.
 - `hardening-<component>.md` — per-owner, testable checklists:
   [proto](hardening-proto.md), [worker](hardening-worker.md), [node](hardening-node.md), [relay](hardening-relay.md), [web](hardening-web.md).
 - Black-box attack tests live in [`e2e/attacks/`](../../e2e/attacks/) as `TestA<NN>_*`, same harness conventions as `e2e/`. They skip with `pending:` until the relay/moochy binaries exist (`RELAY_BIN`, `MOOCHY_BIN`).

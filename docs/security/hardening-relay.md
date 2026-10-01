@@ -8,9 +8,9 @@ Owner: `mo-relay`. The relay is **untrusted for confidentiality** (adversary A3)
 |---|---|---|---|
 | R1 | `tls.Config{MinVersion: VersionTLS13}`; TLS terminated in-process (channel binding) | A10 | A10 |
 | R2 | `http.Server` with `ReadHeaderTimeout` 10 s, `ReadTimeout`, `IdleTimeout` 60 s, `MaxHeaderBytes` 32 KiB; `http.MaxBytesReader` on every body (API JSON ≤ 64 KiB) | A15, A16 | A15, A16 |
-| R3 | `/v1/node` upgrade: require subprotocol `moochy.v1`; **refuse any upgrade carrying an `Origin` header** (nodes never send one — CSWSH defense); never `InsecureSkipVerify`/`OriginPatterns:*` | A11, A12 | A11, A12 |
-| R4 | WebSocket: `CompressionDisabled`; `SetReadLimit(64 KiB)` before the first read; control text ≤ 16 KiB pre-auth; binary before `welcome` → close 1008 | A13, A14 | A13, A14 |
-| R5 | Auth deadline 10 s after `hello`; per-IP cap on pre-auth sockets and total connections | A19 | A19 |
+| R3 | (Superseded by the gRPC link, ADR-33.) The HTTP listener (`--addr`) serves only web, OAuth and dev routes: it never upgrades to WebSocket and never exposes `NodeLink` | A11, A12 | A12 |
+| R4 | (Superseded.) No compression anywhere on the link: no gRPC compressor registered (never import `grpc/encoding/gzip`), per-message size caps in R21 | A13 | A13 |
+| R5 | Per-IP caps on total and unauthenticated connections on both listeners; the auth deadline itself is R24 | A11, A15 | A11 |
 | R6 | Go toolchain pinned to the latest patch (CVE-2025-22871 bare-LF smuggling, HTTP/2 rapid-reset/CONTINUATION); `govulncheck` in CI | A17, A87 | A17, M |
 | R7 | `--dev` registers `/dev/*` and is refused unless `--addr` is a loopback literal | A18 | A18 |
 

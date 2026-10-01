@@ -6,7 +6,11 @@ Owner: `mo-sec`. The running list of attacks on Moochy with the countermeasure t
 **Verification:** `E<NN>` = CONTRACT §8 scenario; `A<NN>` = black-box test `TestA<NN>_*` in `e2e/attacks/`; `V` = golden vector in `spec/vectors/`; `U:<owner>` = unit/fuzz test the owner must write (attack needs a forged peer, which this suite deliberately does not build); `M` = manual/process check.
 **Owners:** proto = `cli/crates/proto`, worker = `cli/crates/worker`, node = `cli/crates/node`, relay = `relay/` (minus web), web = `relay/internal/web`, e2e = `e2e/`, int = integrator (contract, CI, legal).
 
-As of this commit no component binary exists, so nothing is `implemented` yet: every `A` test currently skips with `pending:`.
+**Trust boundary (CONTRACT §0a, ADR-01).** The `moochy` client (`cli/`), `spec/proto`, `spec/vectors` and `spec/protocol.md` are open source (Apache-2.0): users and auditors can read them, and verify release binaries through reproducible builds and signed provenance. The relay and web app are **closed source and not self-hostable**, so nobody outside the operator can audit or reproduce them. This catalog therefore treats the relay as adversary **A3 (malicious or compromised operator)** in every row: every confidentiality, authenticity and money guarantee must be enforced, and provable, **in the open client** (the relay sees only ciphertext and signed bytes). Relay hardening rows protect availability and the operator's own integrity; they are never the reason a user's keys, code or budget are safe. Public wording: "Open-source client (Apache-2.0) · 100% free".
+
+This document, `hardening-*.md` and `e2e/attacks/` are **internal** (closed side of §0a). Public security material for the client (a `SECURITY.md` disclosure policy, threat-model summary) belongs to the open side and must not copy closed internals.
+
+As of this commit the web package exists on `main` but no relay or client binary is built, so nothing is `implemented` yet: every `A` test currently skips with `pending:`.
 
 ## 1. Cryptography and protocol (A01–A09)
 
@@ -87,9 +91,9 @@ As of this commit no component binary exists, so nothing is `implemented` yet: e
 | ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|---|---|
 | A50 | Stored XSS through repo/owner names, usernames, avatars | web, relay | A5, A8 | Session theft | Accept only `^[A-Za-z0-9._-]{1,100}$` names at claim time (relay); `html/template` everywhere; no `template.HTML` from data | web, relay | A50 | designed (auto-escape); **gap** (name validation) |
-| A51 | SVG badge injection (markup in names or numbers; SVG opened directly runs script in the site's origin) [S17.3] | web | A5 | XSS on the relay origin | Badge from a `text/template` with only digits and fixed strings, plus XML escaping of every value; headers `Content-Type: image/svg+xml`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`, `X-Content-Type-Options: nosniff` | web | A50 | **gap** (badge headers) |
-| A52 | CSRF on state-changing routes | web | A5 | Pledges or approvals made by the victim | `HX-Request: true` **and** exact `Origin` match; form fallback token; `SameSite=Lax` | web | A52 | designed |
-| A53 | Missing browser hardening (framing, sniffing, inline script) | web | A5 | Clickjacking, XSS amplification | CSP `default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`, no `unsafe-inline` scripts; `nosniff`; `Referrer-Policy: same-origin` | web | A53 | designed |
+| A51 | SVG badge injection (markup in names or numbers; SVG opened directly runs script in the site's origin) [S17.3] | web | A5 | XSS on the relay origin | Badge from a `text/template` with only digits and fixed strings, plus XML escaping of every value; headers `Content-Type: image/svg+xml`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`, `X-Content-Type-Options: nosniff` | web | A50 | designed (code on `main`: `relay/internal/web` sets `image/svg+xml` + `default-src 'none'`, escapes every value; nosniff from the shared header set; A50 pending a relay binary) |
+| A52 | CSRF on state-changing routes | web | A5 | Pledges or approvals made by the victim | `HX-Request: true` **and** exact `Origin` match; form fallback token; `SameSite=Lax` | web | A52 | designed (code on `main`; A-test pending a relay binary) |
+| A53 | Missing browser hardening (framing, sniffing, inline script) | web | A5 | Clickjacking, XSS amplification | CSP `default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`, no `unsafe-inline` scripts; `nosniff`; `Referrer-Policy: same-origin` | web | A53 | designed (code on `main`; A-test pending a relay binary) |
 | A54 | OAuth login CSRF / code injection / mix-up (missing `state` or PKCE) [S17.1] | relay | A5 | Victim logged into the attacker's account | RFC 9700: PKCE S256 + one-time `state` bound to a pre-login cookie; exact `redirect_uri`; reject a reused `state` | relay | U:relay | **gap** |
 | A55 | Session fixation [S17.2] | relay | A5 | Account takeover | New random 256-bit session id at login; store only its hash; `__Host-` prefixed cookie, `Secure; HttpOnly; SameSite=Lax; Path=/` | relay, web | U:relay | **gap** (rotation not stated) |
 | A56 | Open redirect (`?next=//evil.example`) | web, relay | A5 | Phishing from the moochy.dev origin | `next` accepted only when it starts with a single `/` (not `//` or `/\`), else `/` | web, relay | U:web | **gap** |
@@ -133,12 +137,12 @@ As of this commit no component binary exists, so nothing is `implemented` yet: e
 |---|---|---|---|---|---|---|---|---|
 | A80 | Crate typosquat or a malicious `build.rs` / proc-macro (`faster_log`, `proc-macro1` via `arrayref`) [S15.1, S15.2] | cli | A7 | Code execution at build time | `Cargo.lock` committed; `cargo build --locked`; `cargo-deny` (advisories, bans, sources = crates.io only); `cargo-vet` for new crates; review every new `build.rs` | int | M (CI) | designed; **gap** (CI absent) |
 | A81 | Go module typosquat or proxy-cached backdoor (`boltdb-go`) [S15.3] | relay, e2e | A7 | Backdoored relay | Allowlist of modules (AGENTS §4); `go.sum` committed; `-mod=readonly`; `govulncheck` in CI | int | M (CI) | **gap** (CI absent) |
-| A82 | Release pipeline compromise (xz-style) [S15.4] | release | A7 | Backdoored binaries | Sigstore + SLSA provenance; reproducible musl builds; no build steps from release tarballs | int | M | designed |
+| A82 | Release pipeline compromise (xz-style) [S15.4] | release | A7 | Backdoored client or relay | **Open client:** Sigstore keyless signatures + SLSA provenance + reproducible Linux musl builds, so anyone can rebuild from the public `moochy-cli` source and compare; verification is external (`cosign`/`gh attestation`), never self-check. **Closed relay:** internal signed builds; users cannot verify them and need not: confidentiality never depends on the relay binary (A3 model) | int | M | designed |
 | A83 | Update hijack | node | A7 | Backdoor | No silent auto-update; signature-verified `moochy update` | node | U:node | designed |
 | A84 | Provider key or secrets in logs or crash reports | node | A1 | Key theft | `secrecy`/`zeroize` wrappers whose `Debug` redacts; redaction unit test | node, worker | U:node | designed |
 | A85 | Secret-scrubber bypass (novel formats) | node | A9 | Secret to donor | Best-effort; deny secret-shaped files outright (A42) | node | U:node | designed (residual) |
 | A86 | Offline brute force of the headless keystore | node | A6 | Device key theft | scrypt N=2¹⁷, r=8, p=1 minimum (or argon2id m=64 MiB); file mode 0600; refuse to start if group/world-readable | node | U:node | **gap** (params unset) |
-| A87 | HTTP/2 Rapid Reset / CONTINUATION flood [S9.3, S9.4] | relay | any | DoS | Go toolchain at the latest patch; `govulncheck`; HTTP/2 stream limits left at Go defaults | relay | M | **gap** (CI) |
+| A87 | HTTP/2 Rapid Reset / CONTINUATION flood [S9.3, S9.4] | relay | any | DoS | Go toolchain at the latest patch; `govulncheck`; **explicit** HTTP/2 and gRPC limits (grpc-go defaults are unsafe: `MaxConcurrentStreams` = MaxUint32), see A13/A14 and hardening-relay R21–R22 [S23.3] | relay | M | **gap** (CI) |
 | A88 | SQLite engine CVEs (modernc tracks upstream; CVE-2025-6965) [S10.2] | relay | any | Memory corruption via crafted SQL | Never run SQL text from input; keep modernc ≥ the SQLite 3.50.2 build | relay | M | designed |
 | A89 | Relay resource exhaustion by authenticated nodes (body budgets, wraps > 8, frames for unknown tasks) | relay | A1, A2 | DoS, memory | Per-device and global byte budgets; ≤ 8 wraps; drop and count frames from non-source connections; 1 MiB response buffer per task | relay | U:relay, E20 | designed |
 
@@ -182,7 +186,18 @@ Responsiveness is now a hard requirement (CONTRACT §13). Its mechanisms open th
 | A122 | Adaptive group commit abused: drive the writer into permanent "in-flight" batching, or force a sync per op | relay | A1 | Latency or durability regression | Commit idle-first (CONTRACT §13); batch only while a commit is in flight; the batch is bounded and always makes progress; `synchronous=FULL` never skipped | relay | E22, U:relay | designed (ADR-34) |
 | A123 | Warm-connection pools exhausted (open many sessions to hold pooled provider/link connections) | node, relay | A1, A2 | Denial of responsiveness | Per-device connection and stream caps; pools bounded with eviction; A89 budgets | relay, node | U | designed |
 
-## 14. Top gaps (ranked)
+## 14. Source boundary: open client, closed relay (A130–A135)
+
+| ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
+|---|---|---|---|---|---|---|---|---|
+| A130 | A security guarantee silently depends on relay behavior that users cannot audit (closed source) | all | A3 | Trust claim false for users | Every guarantee is enforced by the open client against a **malicious** relay; the chaos hooks prove it end to end (E11, E15–E17); a new guarantee is not "done" until a chaos/E-test shows the client defending itself | int, node, worker | E11, E15–E17 | designed |
+| A131 | Open client depends on, imports or copies closed code (boundary leak; unverifiable code in the trusted binary) | cli | A7 | Users can no longer verify what touches their keys | CI check: `cli/**` dependencies resolve only to crates.io and `spec/**` (no path or git deps outside `cli/` and `spec/`); `cargo-deny` sources = crates.io; export script copies an **allowlist** (CONTRACT §0a open paths) | int | M (CI) | **gap** |
+| A132 | Closed internals leak into the public export (`e2e/attacks`, `docs/security`, relay code, dev API details) | release | A4 | Attack roadmap or proprietary code published | Export by allowlist only (`cli/`, `spec/proto`, `spec/vectors`, `spec/protocol.md`, `docs/guides`, `deploy/client`); CI diff of the export tree against the allowlist | int | M | **gap** |
+| A133 | Divergence between the public protocol spec/vectors and the closed relay: users cannot check the relay, so a relay "feature" could weaken the protocol unnoticed | proto, node | A3 | Downgrade outside the spec | The client implements **only** `spec/protocol.md` + `spec/vectors`; unknown relay messages ignored, unknown suites refused (A05); vectors run in the open client's CI | proto, node | V | designed |
+| A134 | Misleading public wording ("100% open source", "self-host the relay", "audit the relay") creates trust users cannot exercise | docs, web | — | Users rely on audits that cannot happen | Wording fixed to "Open-source client (Apache-2.0) · 100% free"; CI grep on public pages and `docs/guides` for "100% open source" / "self-host"; the trust story says: verify the client, the relay only sees ciphertext | int, web, docs | M | **gap** (README table still says "self-hostable relay") |
+| A135 | Phishing build or config points users at an attacker relay (the relay URL is configurable for dev/tests) | node | A3, A5 | Ciphertext + metadata to an attacker; device-code phishing via a look-alike relay | Release builds default to the official relay; a non-default `--relay` needs `MOOCHY_INSECURE_DEV=1` (same gate as `--base-url`), prints a persistent warning, and keeps a **separate** key-log mirror and keystore per relay origin (the auth signature already binds `dialed_origin`, A08) | node | U:node | **gap** |
+
+## 15. Top gaps (ranked)
 
 | Rank | ID | Gap | Owner | Severity |
 |---|---|---|---|---|
@@ -197,7 +212,7 @@ Responsiveness is now a hard requirement (CONTRACT §13). Its mechanisms open th
 | 9 | A14 / A91 | HTTP/2 Rapid-Reset and stream-open/flow-control rate limits on the gRPC link | relay | Medium |
 | 10 | A80 / A81 / A87 | No CI yet: cargo-deny/vet, govulncheck, `--locked` | int | Medium |
 
-Also open: A21 (zstd window/FCS decoder config), A19 (gRPC reflection off), A121 (`TCP_NODELAY` tiny-packet rate limit), A113 (confusable repo slugs).
+Also open: A131/A132 (open/closed boundary CI and allowlist export), A135 (non-default relay gate), A21 (zstd window/FCS decoder config), A19 (gRPC reflection off), A121 (`TCP_NODELAY` tiny-packet rate limit), A113 (confusable repo slugs).
 
 ## Sources
 
