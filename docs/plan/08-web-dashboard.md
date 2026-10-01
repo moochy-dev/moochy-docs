@@ -27,7 +27,7 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/` | P | Landing: what Moochy is, **"open source and free" statement**, live global counters, featured repos, "works with any MCP client or OpenAI/Anthropic-compatible tool" |
-| GET | `/connect` | P | Integration guide: per-client snippets (OpenCode, Claude Code, Cursor, Cline, Zed, Goose, agent frameworks, SDKs) for the MCP door and the API door; supported donor providers (Anthropic, OpenAI, OpenRouter, DeepSeek, …) |
+| GET | `/connect` | P | Integration guide: per-client snippets (OpenCode, Claude Code, Cursor, Cline, Zed, Goose, agent frameworks, SDKs) for the MCP door and the API door; supported donor providers (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI, …) |
 | GET | `/open` | P | **Open-source client and costs**: links to the client source (`moochy-cli`), its license (Apache-2.0), and the public protocol spec; why the closed relay does not need to be trusted; what running moochy.dev costs each month and who sponsors it (static page, updated monthly) |
 | GET | `/explore` | P | Repos seeking compute: goal %, donors, models wanted; filters |
 | GET | `/p/{owner}/{repo}` | P | Public repo page (§3) |

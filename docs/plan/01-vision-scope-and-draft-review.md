@@ -33,7 +33,7 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 
 1. **Open-source client (Apache-2.0).** The `moochy` client, the protocol definition (`.proto`, test vectors, public protocol spec), and the user guides are Apache-2.0 with DCO sign-off, published as the public `moochy-cli` repository. Everything that touches a donor's key, a maintainer's code, or the cryptography is in that client, so anyone can audit it, verify the release, or write a compatible client. The relay and web are closed source and operated by Moochy; self-hosting the relay is not offered.
 2. **100% free.** Public wording: "Open-source client (Apache-2.0) · 100% free". No fees, no commission on compute, no paid tier, no feature gating. Donors pay their own provider directly; Moochy never holds anyone's money. The public instance's small hosting bill is covered by open sponsorship, with public accounts.
-3. **Works with anything.** Any MCP client or AI agent (MCP door), any tool or SDK with a configurable base URL (API door), and any major provider on the donor side (Anthropic, OpenAI, OpenRouter, DeepSeek, OpenAI-compatible hosts).
+3. **Works with anything.** Any MCP client or AI agent (MCP door), any tool or SDK with a configurable base URL (API door), and any major provider on the donor side (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI (Grok), OpenAI-compatible hosts).
 4. **Trust no operator.** Nobody can verify what a server runs, open source or not, so confidentiality and integrity are enforced cryptographically by the open-source client on the user's own machine. The relay only ever sees encrypted bytes plus the plaintext route header and accounting metadata; owner-signed approvals, the key log, Worker local caps, and the provider's own spend limit cover the rest.
 5. **Donated money is sacred.** Every design choice that can make a donated dollar go further (cache affinity, cancellation propagation, no hedging, budget-proportional routing) is taken.
 6. **Boring infrastructure.** One Go relay binary + one SQLite file + one Rust client binary. No queue, no cache cluster, no microservices.
@@ -60,7 +60,7 @@ Open-source maintainers increasingly do their work with AI coding agents, and th
 
 ### 5.1 Goals (v1 / public beta)
 
-- Donors pledge µ$ budgets to public repos using Anthropic, OpenRouter, DeepSeek, or OpenAI keys.
+- Donors pledge µ$ budgets to public repos using Anthropic, OpenAI, OpenRouter, DeepSeek, or xAI keys.
 - Maintainers and members consume through MCP or provider-compatible APIs from any client.
 - Real-time public pages, README badges, verifiable receipts.
 - Open-source client with reproducible, signed releases that users can verify.

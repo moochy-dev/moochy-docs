@@ -1,8 +1,10 @@
 # Moochy — Architecture Plan (master index)
 
+> **User-facing wording:** these plan docs keep internal terms (pledge, budget, Node, Worker, station, …). Every word a user sees follows [`docs/brand/VOICE.md`](../brand/VOICE.md) ("Donate tokens", donation, monthly limit, Dashboard, Project settings, …).
+
 > **Moochy lets developers donate a capped slice of their own LLM API budget to open-source projects, and lets maintainers use it from any AI client or agent. The donor's key never leaves their machine, and every request is end-to-end encrypted and accountable.**
 >
-> **Open-source client (Apache-2.0) · 100% free** (no fees, no commission, no paid tier; Moochy never holds anyone's money) · **works with anything** (any MCP client or agent, any tool with a base URL; Anthropic, OpenRouter, DeepSeek, OpenAI, and OpenAI-compatible donors).
+> **Open-source client (Apache-2.0) · 100% free** (no fees, no commission, no paid tier; Moochy never holds anyone's money) · **works with anything** (any MCP client or agent, any tool with a base URL; Anthropic, OpenAI, OpenRouter, DeepSeek, xAI (Grok), and OpenAI-compatible donors).
 
 > **Updated 2026-10-01:** the index and summary now match `spec/CONTRACT.md`, revised ADR-01, and ADR-33 to ADR-42. Changes: open-source client (Apache-2.0, DCO) with a closed-source relay and web, no relay self-hosting (ADR-01, CONTRACT §0a); gRPC streams replace the WebSocket link and binary frames (ADR-33); adaptive group commit and responsiveness budgets (ADR-34, CONTRACT §13); unique ASCII usernames with tombstones (ADR-35, CONTRACT §11); key log in scope now, not deferred (ADR-38, ADR-39); three Rust crates (ADR-36); the CONTRACT §8 E2E table (E01–E22) is the definition of "working".
 
@@ -71,7 +73,7 @@ Decisions taken after the review passes, while the implementation contract was w
 | 04 | [Routing engine](04-routing-engine.md) | Scheduler actor, backpressure, eligibility, affinity, P2C, commit-before-assign with adaptive group commit, deadlines, fairness |
 | 05 | [Ledger and accounting](05-ledger-and-accounting.md) | µ$, model ids and catalog, cost function, per-attempt reservations, caps, durability, reconciliation |
 | 06 | [Security and trust](06-security-and-trust.md) | Threat model, keys, owner-signed approvals, firewall, output-injection defense, key log, privacy, terms |
-| 07 | [Client (`moochy`)](07-client-cli.md) | Node, MCP door, API door, integration matrix, Worker, adapters (Anthropic, OpenRouter, DeepSeek, …), setup flows |
+| 07 | [Client (`moochy`)](07-client-cli.md) | Node, MCP door, API door, integration matrix, Worker, adapters (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI, …), setup flows |
 | 08 | [Web and dashboards](08-web-dashboard.md) | Routes, public pages, donor station, console, SSE fan-out, projections, badge |
 | 09 | [Data model](09-data-model.md) | Tables, uniqueness constraints (handles, tombstones), write and read paths, migrations, backups, sizes |
 | 10 | [Operations](10-operations.md) | Deploys, observability, SLOs, runbooks, costs, staying free |

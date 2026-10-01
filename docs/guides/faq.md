@@ -4,112 +4,116 @@
 
 ### Is Moochy free?
 
-Yes, completely. No fees, no commission, no paid tier, no "pro" features. Donors pay their own provider (Anthropic, OpenRouter, DeepSeek, OpenAI) directly for the tasks their key actually serves. Moochy never holds, moves, or touches anyone's money. The moochy.dev infrastructure is cheap and funded by sponsors; its monthly cost and sponsors are published on moochy.dev/open.
+Yes. No fees, no commission, no paid tier, no paid features. Donors pay their own provider (Anthropic, OpenAI, OpenRouter, DeepSeek, or xAI) directly, and only for the requests their donation actually serves. Moochy never holds, moves, or touches anyone's money. Running moochy.dev costs little and is paid for by sponsors; the monthly cost and the sponsors are published on moochy.dev/open.
 
 ### What is open source?
 
-**The client is open source (Apache-2.0)**: the `moochy` binary that runs on your machine, the protocol definition (`spec/proto`, test vectors, and the [protocol specification](../../spec/protocol.md)), and these guides. Contributions are welcome with a DCO sign-off (`git commit -s`).
+**The Moochy app is open source (Apache-2.0)**: the `moochy` app that runs on your machine, the protocol definition (`spec/proto`, test vectors, and the [protocol specification](../../spec/protocol.md)), and these guides. Contributions are welcome with a DCO sign-off (`git commit -s`).
 
-The relay and the moochy.dev web app are **not** open source.
+Moochy's servers and the moochy.dev website are **not** open source.
 
 ### Why is that enough to trust it?
 
-Because everything that matters to your safety runs in the client you can read:
+Because everything that matters for your safety runs in the app you can read:
 
-- your provider API key is stored and used only by the client on the donor's machine;
-- prompts, code, and outputs are encrypted and decrypted only by the clients at both ends;
-- every check that protects a donor (task authenticity, the request firewall, the device spending cap) and every check that protects a maintainer (tool-call checks, receipt verification) runs in the client.
+- your provider API key is stored and used only by the app on the donor's machine;
+- prompts, code, and responses are encrypted and decrypted only by the apps at both ends;
+- every check that protects a donor (is this request genuine, the safety checks on each request, the device's monthly limit) and every check that protects a maintainer (tool-call checks, receipt checks) runs in the app.
 
-The relay only ever sees encrypted bytes plus the small amount of routing and accounting data listed below. It cannot read your prompts, forge a task, or overspend your cap on your machine. You do not have to trust what code the server runs; you only need to trust the client, and you can read and rebuild it.
+Moochy's servers (the relay) only see encrypted bytes, plus the small amount of routing and accounting data listed below. The relay cannot read your prompts, invent requests, or go past the monthly limit your own device enforces. You do not need to trust the code running on the server, only the app, which you can read and build yourself.
 
-### Can I run my own relay?
+### Can I run my own server?
 
-No. Moochy runs one relay at moochy.dev and does not offer self-hosting. The client's relay URL is configurable only for development and testing of the client.
+No. Moochy runs one service, at moochy.dev, and does not offer self-hosting. The app's server address can be changed only for developing and testing the app.
 
 ### Are private repositories supported?
 
-No. Only public repositories can receive donations: the purpose is open source, and public use is auditable.
+No. Only public repositories can receive donations: Moochy exists for open source, and public use can be checked by anyone.
 
 ## Privacy
 
-### What does the relay see?
+### What does Moochy's server see?
 
 | Sees | Never sees |
 |---|---|
-| Which repository a request is for, the model, effort, `max_tokens`, a size estimate, whether it streams | Your prompts, system prompts, code, files, tools, or outputs |
-| Sizes and timing of encrypted chunks | Your provider API key |
-| Usage and cost of each task (to keep budgets) | Error details (they are encrypted for the maintainer) |
-| Your account, devices' public keys, pledges | The provider's request id (only a salted hash) |
+| Which repository a request is for, the model, reasoning effort, the maximum output length, a size estimate, whether it streams | Your prompts, system prompts, code, files, tools, or responses |
+| Sizes and timing of encrypted pieces | Your provider API key |
+| Tokens used and cost of each request (to keep monthly limits) | Error details (they are encrypted for the maintainer) |
+| Your account, your devices' public keys, your donations | The provider's request id (only a salted hash) |
 
-The relay keeps task metadata (model, sizes, cost) for 90 days, then only daily aggregates. Connection logs with IP addresses are kept 7 days.
+Request details (model, sizes, cost) are kept 90 days, then only daily totals. Connection logs with IP addresses are kept 7 days.
 
 ### What is public?
 
-- The project's goal and totals.
-- A short, donor-signed record per task: model, cost, the **day** (never the time), and the donor's name only as the donor chose (`public`, `pseudonymous`, or `anonymous`). No device names, no task ids, no prompts.
-- Which donors are online is shown only as an aggregate ("7 nodes online") unless a donor opts in.
-- The key log (see below) contains pseudonymous ids (`ps_…`) and public keys, never names or emails.
+- The project's monthly goal and totals.
+- A public receipt per request, signed by the donor: model, cost, the **day** (never the time), and the donor's name only as the donor chose (**Show my handle**, **Show a pseudonym**, or **Hide me**). No device names, no request ids, no prompts.
+- Who is online is shown only as a total ("7 devices online"), unless a donor chooses to show it.
+- The public key log contains pseudonyms (`ps_…`) and public keys, never names or emails.
 
 ### What stays on my machine?
 
-The donor's journal (what each task was, model, cost) and, only if you turn it on, the full text of requests and responses. The maintainer's client keeps its own journal. Both are local files, kept 90 days by default.
+Your journal (each request, its model and cost) and, only if you turn it on, the full text of requests and responses. Both donors and maintainers have one. It is a local file, kept 90 days by default.
 
-## Security model, in plain words
+## How your key and code are protected
 
 ### Can a donor see my code?
 
-Yes: the donor's machine decrypts the request in order to send it to their provider, and the provider sees it too, exactly as when you use the provider directly. Maintainers choose which donors to approve. What the design guarantees is that **nobody in between** (the relay, its operator, its hosting company, someone who steals its database) can read it.
+Yes. The donor's device decrypts the request to send it to their provider, and the provider sees it too, just as when you use the provider directly. You choose which donors to accept. What the design guarantees is that **nobody in between** (Moochy's servers, the people who run them, their hosting company, someone who steals their database) can read it.
 
-Before anything leaves your machine, the client scrubs secret-looking strings (API keys, tokens, private keys) from requests. Files you delegate are read only from inside your repository; `.git`, ignored files, and secret-shaped files are refused.
+Before anything leaves your machine, the app removes text that looks like a secret (API keys, tokens, private keys). Files you hand to `moochy_delegate` are read only from inside your repository; `.git`, files ignored by git, and secret-looking files are refused.
 
 ### Can someone use a donor's key for something else?
 
-The donor's client accepts a task only if it is signed by a device of a member the repository owner approved with their own signature, is fresh (created in the last 10 minutes, and not before the donor's client started), and was never served before. It then checks the request against a strict allowlist: no server-side tools, no remote MCP servers, no file stores, no paid add-ons unless the donor opted in. A malicious relay cannot invent tasks, replay them, or move them to another project.
+The donor's app serves a request only if it is signed by a device of a member the repository owner accepted with their own signature, is fresh (created in the last 10 minutes, and not before the donor's app started), and was never served before. It then runs safety checks against a strict list of what is allowed: no server-side tools, no remote MCP servers, no provider file storage, no paid extras unless the donor allowed them. The relay cannot invent requests, send one twice, or move a request to another project.
 
-### Can I lose more than I pledged?
+### Can I lose more than I chose to donate?
 
-Three independent limits stop spending, and the strictest wins:
+Three separate limits stop spending, and the smallest one wins:
 
-1. your pledge budgets (enforced by the relay);
-2. your **device monthly cap**, enforced by the client on your machine before every call, even if the relay misbehaves;
-3. the **spend limit at your provider**, which does not depend on Moochy at all. Set it.
+1. the monthly limit of each donation, kept by Moochy;
+2. your **device's monthly limit**, checked by the app on your machine before every call, whatever the relay does;
+3. the **spending limit at your provider**, which does not depend on Moochy at all. Set it.
 
-### Can a donor attack me with the model's output?
+### Can a donor attack me through the model's response?
 
-Model output is untrusted input. Every tool call in a response is held until complete, checked against the tools and schemas your client actually offered, scanned for dangerous patterns, and released only if a signature from the donor's device covers it. Delegated results are labelled as untrusted content from a named donor. A donor who misbehaves can be identified (every response is signed by their device) and removed.
+Treat model output as input you did not write. Every tool call in a response is held until complete, checked against the tools and schemas your tool actually offered, scanned for dangerous patterns, and released only if a signature from the donor's device covers it. Results from `moochy_delegate` are marked as untrusted content from a named donor. A donor who misbehaves can be identified (every response is signed by their device) and removed.
 
 ### How do I know a donor really used the model they claim?
 
-Nobody can prove that cryptographically today. What the system does: the donor signs a receipt for every task; the maintainer's client checks it against what it sent and received (sizes, token counts, reported model) and files a signed dispute when something does not match; disputed receipts are excluded from rankings. Donors are approved by the project owner, and they pay their own provider: there is little to gain by cheating.
+Nobody can prove that with cryptography today. What Moochy does: the donor signs a receipt for every request; the maintainer's app checks it against what it sent and received (sizes, token counts, the model the provider reported) and files a signed dispute when something does not match; disputed receipts do not count in rankings. Donors are accepted by the project owner, and they pay their own provider, so there is little to gain by cheating.
 
-### What stops the relay from adding a fake donor or member?
+### What stops Moochy's servers from adding a fake donor or member?
 
-Approvals of donors and members are signed by the repository owner's own device and published in a public, append-only **key log**. Every client keeps a copy and checks it: maintainers' clients encrypt only to donors the owner approved; donors' clients accept tasks only from members the owner approved. Each client also alerts its user if a key appears on their account, or an approval appears for their repository, that they did not create. The log's checkpoints are published hourly to a public Git repository, so a rewritten history would be visible to everyone.
+The repository owner's own device signs every accepted donor and member, and those signatures are published in a public, append-only **public key log**. Every app keeps a copy and checks it: a maintainer's app encrypts only for donors the owner accepted, and a donor's app serves only members the owner accepted. Each app also warns its user if a key appears on their account, or a donor or member appears for their repository, that they did not add. The log's checkpoints are published every hour to a public Git repository, so a rewritten history would be visible to everyone.
 
-### How do I check the binary I run?
+### How do I check the app I run?
 
-- Release artifacts are signed with Sigstore and carry SLSA build provenance. Verify with `gh attestation verify <file> --repo <moochy-cli repository>` or `cosign verify-blob`.
+- Release files are signed with Sigstore and carry SLSA build provenance. Check them with `gh attestation verify <file> --repo <moochy-cli repository>` or `cosign verify-blob`.
 - Builds are reproducible: build the tagged source yourself and compare.
-- Or simply build from source and run your own build.
+- Or build from source and run your own build.
 
-A binary cannot vouch for itself, so verification always happens outside it.
+An app cannot vouch for itself, so the check always happens outside it.
 
-## Usernames
+## Handles
 
-### Why can't I use capital letters or accented characters in my username?
+### Why can't I use capital letters or accented characters in my handle?
 
-Usernames are lowercase ASCII (`a-z`, `0-9`, single hyphens, 3–32 characters) so that nobody can register a look-alike of yours using characters from another alphabet. `Alice` and `alice` are the same name. Old names are retired forever after a rename, so nobody can take over links that pointed to you.
+Handles use lowercase `a–z`, digits, and single hyphens (3–32 characters), so nobody can register a look-alike of yours with letters from another alphabet. `Alice` and `alice` are the same handle. After you change your handle, the old one is retired for good, so nobody can take over links that pointed to you.
 
 ## Using it
 
 ### Which tools work?
 
-Anything that speaks MCP, and anything that lets you set an Anthropic- or OpenAI-compatible base URL. See [Integrations](integrations.md).
+Anything that speaks MCP, and anything that lets you set an Anthropic- or OpenAI-compatible base URL. See [Connect your tools](integrations.md).
+
+### Which providers can donors use?
+
+Anthropic, OpenAI, OpenRouter, DeepSeek, and xAI (Grok). Only API keys are accepted, never chat-subscription logins.
 
 ### Why does my agent get a 400 or 403 instead of a retry?
 
-Policy refusals (over the per-task cap: 400; quota used up: 403) are deliberately not 429, which agents retry in a loop. Temporary problems (a busy or rate-limited donor) are retried on another donor automatically, and come back as 429/529 only if every candidate failed.
+On purpose. When a request could cost more than the donors' limit per request (400), or your monthly limit is used (403), retrying will not help, and agents retry 429 in a loop. Temporary problems, such as a busy or rate-limited donor, are retried on another donor automatically, and come back as 429 or 529 only if every donor failed.
 
 ### What happens if moochy.dev is down?
 
-Tasks fail with normal, retryable provider errors. If the maintainer enabled the **own-key fallback**, their client calls the provider directly with their own key until the relay is back. Donors' receipts wait safely in their local outbox and are delivered after recovery, so nothing is lost or charged twice.
+Requests fail with normal provider errors that tools retry. If the maintainer turned on **own key as a fallback**, their app calls the provider directly with their own key until the service is back. Donors' receipts wait safely on their own machines and are delivered afterwards, so nothing is lost or charged twice.

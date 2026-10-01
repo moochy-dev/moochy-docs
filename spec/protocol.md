@@ -12,6 +12,8 @@ Sources of truth, in order:
 
 The words MUST, MUST NOT, SHOULD, and MAY are used as in RFC 2119.
 
+**Terms.** This is a technical document, so it uses the protocol's own names, which are also the identifiers in messages and signed fields. In the app and the guides they read differently: a *pledge* (`pledge_id`) is a **donation**; its *budget* is the **monthly limit**; the *per-task cap* is the **limit per request**; the *Node* (with its *Gateway* and *Worker* roles) is **the Moochy app** on a user's device; the *firewall* is the **safety checks**; a *projection* is a **public receipt**; amounts in µ$ are shown in dollars. The identifiers themselves never change.
+
 ---
 
 ## 1. Overview and trust model
