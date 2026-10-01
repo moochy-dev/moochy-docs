@@ -9,7 +9,8 @@ Normative for every implementer. The design rationale lives in `docs/plan/` (03 
 | `spec/` | — | integrator | This contract; `spec/vectors/*.json` are written by `mo-proto` |
 | `cli/` | Rust workspace | — | `cli/Cargo.toml` = workspace root (members + profiles only; owned by integrator) |
 | `cli/crates/proto` | Rust lib `moochy-proto` | `mo-proto` | Wire types, `lp`, labels, crypto, frames, receipts, vector generator |
-| `cli/crates/node` | Rust lib+bin `moochy` | `mo-node` | Node: link, keystore, gateway (API + MCP doors), worker, adapters, firewall, outbox |
+| `cli/crates/worker` | Rust lib `moochy-worker` | `mo-worker` | Provider-facing logic, **no dependency on `moochy-proto`**: firewall tables + recursive validator, provider adapters (anthropic, openrouter, deepseek, openai), safe mutations, SSE/usage parsers for both dialects, tool-call inspection (structural checks + tripwire), outbox file, served-task set, local reservation counters |
+| `cli/crates/node` | Rust lib+bin `moochy` | `mo-node` | Node binary: CLI, config, keystore, relay link (TLS + channel binding), gateway API door + MCP door (stdio + Streamable HTTP), local security (tokens, Host check), wiring of `moochy-proto` (sealing) and `moochy-worker` (execution) |
 | `relay/` | Go module `moochy.dev/relay` | `mo-relay` | Relay binary `relay`; everything except `relay/internal/web/**` |
 | `relay/internal/web/**` | Go (stdlib only) | `mo-web` | Pages, fragments, CSS, SSE hub; exposes the interface in §9 |
 | `e2e/` | Go module `moochy.dev/e2e` | `mo-e2e` | Harness, fake providers, scenarios; except `e2e/attacks/**` |
