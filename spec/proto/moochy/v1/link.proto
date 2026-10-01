@@ -1,0 +1,370 @@
+// Moochy Node <-> Relay link. Normative. Owner: integrator (changes go through spec review).
+//
+// Transport: gRPC over HTTP/2, TLS 1.3 only, ALPN "h2". No gRPC compression (ciphertext does not
+// compress, and compression next to secrets invites CRIME-style oracles).
+//
+// Authentication is PER HTTP/2 CONNECTION, like a WebSocket session:
+//   1. The Node opens Session(); the Relay sends Hello{nonce} first.
+//   2. The Node answers Auth{device_id, roles, sig} where
+//      sig = Ed25519(device_key, lp("moochy/v1/auth", nonce, dialed_origin, tls_exporter, device_id))
+//      and tls_exporter is the RFC 9266 channel-binding value of THIS TLS connection.
+//   3. The Relay replies Welcome{session_id}. Submit/Serve streams are then accepted only when they
+//      arrive on the SAME underlying connection (the Relay's TransportCredentials tag every
+//      connection with an id; streams from any other connection get UNAUTHENTICATED), and they must
+//      carry metadata "x-moochy-session: <session_id>".
+// A Node that loses its connection rebuilds the channel and authenticates again.
+//
+// Payload security is unchanged by the transport: request bodies and responses travel as AEAD
+// ciphertext in `bytes` fields; route headers, receipts and projections are the exact signed JSON
+// bytes (see spec/CONTRACT.md §1, §3). IDs are strings as in CONTRACT §1. Money is int64 micro-USD.
+syntax = "proto3";
+
+package moochy.v1;
+
+option go_package = "moochy.dev/relay/internal/pb;pb";
+
+service NodeLink {
+  // Long-lived control stream. Exactly one per connection. First server message: Hello.
+  rpc Session(stream NodeMsg) returns (stream RelayMsg);
+  // Gateway role: one stream per task. First client message: SubmitOpen.
+  rpc Submit(stream SubmitUp) returns (stream SubmitDown);
+  // Worker role: one stream per assigned attempt, opened after an AssignNotice on Session.
+  // First client message: ServeOpen. First server message: Assign.
+  rpc Serve(stream ServeUp) returns (stream ServeDown);
+  // Device login (unauthenticated, strictly rate-limited per IP).
+  rpc DeviceStart(DeviceStartRequest) returns (DeviceStartResponse);
+  rpc DevicePoll(DevicePollRequest) returns (DevicePollResponse);
+}
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_GATEWAY = 1;
+  ROLE_WORKER = 2;
+}
+
+// ---------------------------------------------------------------- Session
+
+message NodeMsg {
+  oneof msg {
+    Auth auth = 1;
+    WorkerOffer offer = 2;
+    KnownTasks known_tasks = 3;
+    ReceiptDispute dispute = 4;
+    ReplayReceipt replay_receipt = 5;
+    Ping ping = 6;
+  }
+}
+
+message RelayMsg {
+  oneof msg {
+    Hello hello = 1;
+    Welcome welcome = 2;
+    PoolSync pool_sync = 3;
+    AssignNotice assign = 4;
+    LogCheckpoint log_checkpoint = 5;
+    CatalogUpdate catalog = 6;
+    Draining draining = 7;
+    ReceiptReplaySince replay_since = 8;
+    ReceiptAck receipt_ack = 9;
+    Pong pong = 10;
+    Error error = 11;
+  }
+}
+
+message Hello {
+  bytes nonce = 1;                 // 32 random bytes
+  int64 server_time_ms = 2;
+  string min_client_version = 3;
+  string relay_release = 4;
+  bytes log_checkpoint = 5;        // signed-note bytes of the latest key-log checkpoint (may be empty)
+}
+
+message Auth {
+  string device_id = 1;
+  repeated Role roles = 2;
+  bytes sig = 3;                   // see header comment
+  string client_version = 4;
+}
+
+message Welcome {
+  string session_id = 1;
+  repeated Role roles = 2;
+  uint32 max_concurrent_tasks = 3;
+  uint64 catalog_version = 4;
+}
+
+message PoolSync {
+  string repo_id = 1;
+  bool full = 2;                   // true: replace the pool; false: upsert workers + remove listed ones
+  repeated PoolWorker workers = 3;
+  repeated string removed_worker_devices = 4;
+}
+
+message PoolWorker {
+  string worker_device = 1;
+  bytes enc_pub = 2;               // X25519 public key (32 bytes)
+  uint64 key_log_index = 3;
+  uint64 approval_log_index = 4;
+  string donor_pseudonym = 5;
+  repeated string dialects = 6;    // "anthropic.messages" | "openai.chat"
+  repeated string models = 7;      // public model ids (slugs)
+  uint32 hint = 8;                 // 0-100, coarse
+}
+
+message WorkerOffer {
+  uint32 slots_free = 1;
+  repeated ModelOffer models = 2;
+  repeated string pledges = 3;
+  bool window_open = 4;
+  int64 local_cap_left_uusd = 5;
+}
+
+message ModelOffer {
+  string dialect = 1;
+  string model = 2;
+  uint32 rl_headroom = 3;          // 0-100
+}
+
+message KnownTasks {
+  repeated KnownTask tasks = 1;
+}
+
+message KnownTask {
+  string task = 1;
+  uint32 attempt = 2;
+  string state = 3;                // "running" | "outbox"
+}
+
+message AssignNotice {
+  string task = 1;
+  uint32 attempt = 2;
+}
+
+message ReceiptDispute {
+  string task = 1;
+  uint32 attempt = 2;
+  string code = 3;
+  bytes gateway_sig = 4;           // Ed25519 over lp("moochy/v1/dispute", task, u64(attempt), code)
+}
+
+message ReplayReceipt {
+  SignedReceipt receipt = 1;
+}
+
+message ReceiptReplaySince {
+  int64 since_ms = 1;
+}
+
+message ReceiptAck {
+  string task = 1;
+  uint32 attempt = 2;
+}
+
+message LogCheckpoint {
+  bytes note = 1;                  // signed-note bytes
+}
+
+message CatalogUpdate {
+  uint64 version = 1;
+  bytes catalog_json = 2;          // exact signed bytes
+  bytes sig = 3;
+}
+
+message Draining {
+  uint32 reconnect_after_ms = 1;
+}
+
+message Ping {
+  int64 t_ms = 1;
+}
+
+message Pong {
+  int64 t_ms = 1;
+}
+
+message Error {
+  string code = 1;
+  string message = 2;
+  string task = 3;
+}
+
+// ------------------------------------------------------- Shared payloads
+
+// AEAD ciphertext chunk. For request bodies attempt = 0. Plaintext <= 65,497 bytes.
+// AAD binds task id, attempt, seq and last (CONTRACT §3); the stream itself identifies the task.
+message Chunk {
+  uint32 attempt = 1;
+  uint32 seq = 2;
+  bool last = 3;
+  bytes ct = 4;
+}
+
+message Wrap {
+  string worker_device = 1;
+  bytes wrap = 2;                  // 80 bytes: HPKE enc (32) || ct (48)
+}
+
+message Checkpoint {
+  uint32 attempt = 1;
+  uint32 seq = 2;
+  bytes running_hash = 3;
+  bytes sig = 4;
+}
+
+message SignedReceipt {
+  string task = 1;
+  uint32 attempt = 2;
+  bytes receipt = 3;               // exact signed JSON bytes
+  bytes donor_sig = 4;
+  bytes projection = 5;            // exact signed JSON bytes
+  bytes projection_sig = 6;
+}
+
+message Cancel {
+  string reason = 1;
+}
+
+message Failed {
+  string code = 1;                 // CONTRACT / plan 03 §10.2-10.3 codes
+  bool retryable = 2;
+  uint32 retry_after_ms = 3;
+  bytes sealed_detail = 4;         // detail sealed to the Gateway (Relay sees only `code`)
+}
+
+// --------------------------------------------------------------- Submit
+
+message SubmitUp {
+  oneof msg {
+    SubmitOpen open = 1;
+    Chunk body = 2;
+    Wraps wraps = 3;               // answer to NeedWraps
+    Cancel cancel = 4;
+  }
+}
+
+message SubmitOpen {
+  string task = 1;
+  bytes route = 2;                 // exact route-header JSON bytes (bound as HPKE AAD)
+  repeated Wrap wraps = 3;         // <= 8
+  uint64 body_len = 4;
+  uint32 body_chunks = 5;
+}
+
+message Wraps {
+  repeated Wrap wraps = 1;
+}
+
+message SubmitDown {
+  oneof msg {
+    NeedWraps need_wraps = 1;
+    Accepted accepted = 2;
+    Started started = 3;
+    Chunk chunk = 4;
+    Checkpoint checkpoint = 5;
+    SignedReceipt end = 6;
+    Failed failed = 7;
+  }
+}
+
+message NeedWraps {
+  repeated string workers = 1;
+}
+
+message Accepted {
+  uint32 attempt = 1;
+  string worker_device = 2;
+  bytes r = 3;                     // the Worker's per-attempt response salt
+}
+
+message Started {
+  uint32 attempt = 1;
+}
+
+// ---------------------------------------------------------------- Serve
+
+message ServeUp {
+  oneof msg {
+    ServeOpen open = 1;
+    Ack ack = 2;
+    Nack nack = 3;
+    Started started = 4;
+    Chunk chunk = 5;
+    Checkpoint checkpoint = 6;
+    SignedReceipt end = 7;
+  }
+}
+
+message ServeOpen {
+  string task = 1;
+  uint32 attempt = 2;
+}
+
+message Ack {
+  bytes r = 1;
+}
+
+message Nack {
+  bytes r = 1;
+  string code = 2;
+  bool retryable = 3;
+  uint32 retry_after_ms = 4;
+  bytes sealed_detail = 5;
+}
+
+message ServeDown {
+  oneof msg {
+    Assign assign = 1;
+    Chunk body = 2;
+    Cancel cancel = 3;
+    ReceiptAck receipt_ack = 4;
+  }
+}
+
+message Assign {
+  string task = 1;
+  uint32 attempt = 2;
+  bytes route = 3;                 // exact route-header JSON bytes
+  bytes wrap = 4;                  // this worker's wrap
+  string pledge_id = 5;
+  string repo_id = 6;
+  uint32 deadline_ack_ms = 7;
+  uint64 body_len = 8;
+  uint32 body_chunks = 9;
+}
+
+// ---------------------------------------------------------- Device login
+
+message DeviceStartRequest {
+  bytes sign_pub = 1;              // Ed25519 public key
+  bytes enc_pub = 2;               // X25519 public key
+  repeated Role roles = 3;
+  string name = 4;
+  string suite = 5;                // envelope suite id
+  bytes sig = 6;                   // Ed25519(sign key, lp("moochy/v1/device-start", sign_pub, enc_pub, roles_csv, name, suite))
+}
+
+message DeviceStartResponse {
+  string user_code = 1;            // "XXXX-XXXX", shown to the user
+  string device_code = 2;          // secret, used only for polling
+  uint32 poll_interval_ms = 3;
+  int64 expires_at_ms = 4;
+}
+
+message DevicePollRequest {
+  string device_code = 1;
+}
+
+enum DeviceState {
+  DEVICE_STATE_UNSPECIFIED = 0;
+  DEVICE_STATE_PENDING = 1;
+  DEVICE_STATE_APPROVED = 2;
+  DEVICE_STATE_DENIED = 3;
+  DEVICE_STATE_EXPIRED = 4;
+}
+
+message DevicePollResponse {
+  DeviceState state = 1;
+  string device_id = 2;
+  string user_pseudonym = 3;
+  string username = 4;
+}

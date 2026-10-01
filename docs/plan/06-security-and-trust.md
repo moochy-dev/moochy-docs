@@ -58,6 +58,7 @@
 | T19 | Donor's provider account banned because of a maintainer's prompts | A1 | Donors pledge only to repos they choose and that approve them; `metadata.user_id` pseudonymous attribution; local journal | Provider decisions are outside Moochy's control → explicit donor consent |
 | T20 | Secrets from the maintainer's environment leaking to donors | A1 (accidental), A9 | Gateway **secret scrubber** before sealing (also on MCP files) | Novel secret formats |
 | T21 | Prompt-cache timing side channel between members sharing a donor key | A1 | Only reveals whether an *exact* prefix is cached; prefixes include per-repo content | Accepted (low) |
+| T23 | Impersonation through look-alike, case-variant, reserved, or recycled usernames | A8 | Unique ASCII-only lowercase handles (case-insensitive uniqueness), reserved words, permanent tombstones for released handles, control characters escaped everywhere they are printed (`spec/CONTRACT.md` §11) | Visually similar ASCII handles (`rn` vs `m`) |
 | T22 | Denial of service on the Relay | any | Per-IP connection limits, per-device rate limits, byte budgets for buffered bodies, sheddable submit queue | Large volumetric attacks → optional CDN/DDoS front |
 
 ---

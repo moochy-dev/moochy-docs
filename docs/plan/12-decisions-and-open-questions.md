@@ -40,6 +40,8 @@
 | ADR-30 | **Never host donor keys; no relay-hosted MCP endpoint**; remote-only MCP clients get an opt-in **self-tunnel** mode (Phase 5) | Custodial "cloud workers"; hosted MCP URL | Both would require trusting the operator with keys or plaintext | — |
 | ADR-31 | **Public repositories only** on the public instance | Allow private repos | Purpose is open source; public use is auditable; private pools fit self-hosted relays | Q3 |
 | ADR-32 | Durations, deadlines, and weights are **configuration values with documented defaults** | Hard-coded constants | They will be tuned from telemetry | — |
+| ADR-33 | **gRPC (HTTP/2, protobuf) for every machine-to-machine link**: Node ↔ Relay (`NodeLink`: Session + one stream per task/attempt + device login), CLI/MCP shim ↔ Node (`LocalControl` over a 0600 Unix socket), operator ↔ Relay (`RelayAdmin` over a Unix socket). HTTP/JSON/SSE kept only where external compatibility requires it (provider API door, MCP transports, browser, OAuth, badges). Signed artifacts stay exact JSON bytes inside protobuf `bytes` | Custom WebSocket framing (earlier draft of this plan) | Product owner requirement; one typed schema for Go and Rust; per-task HTTP/2 flow control, cancellation and deadlines for free; supersedes the 23-byte frame header (plan 03 §4.2) | — |
+| ADR-34 | **Responsiveness budgets** are release blockers (`spec/CONTRACT.md` §13, measured by E22); **adaptive group commit** (commit at once when idle, batch only while a commit is in flight) replaces the fixed 10 ms window of plans 04/05/09 | Throughput-first batching | Product owner requirement ("drastic responsiveness"); idle-first commits remove up to 10 ms from every assignment at no durability cost | — |
 
 ---
 

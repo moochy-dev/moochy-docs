@@ -18,6 +18,8 @@
 
 ---
 
+> **Update (ADR-33):** the transport is **gRPC over HTTP/2** (`spec/proto/moochy/v1/link.proto`, `spec/CONTRACT.md` §12). The WebSocket subprotocol and the 23-byte binary frame header below are superseded: a gRPC stream identifies each task, `Chunk{attempt, seq, last, ct}` carries ciphertext, and all cryptography, AAD, signatures, receipts and semantics in this document are unchanged.
+
 ## 2. Transport
 
 | Property | Value |
