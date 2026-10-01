@@ -1,5 +1,5 @@
 {
-  "_schema": "Usernames (CONTRACT §11). Format: {cases:[{input, verdict, canonical, note}], taken, tombstoned, reserved}. reserved is THE reserved-handle list (CONTRACT R7): Rust and Go embed a copy and test it against this array. canonical(input): reject any non-ASCII byte (confusables, zero-width, bidi) → ASCII-lowercase → ^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$ with no '--' → not in reserved. verdict(input) = first of: invalid | reserved | taken (canonical ∈ taken) | tombstoned (canonical ∈ tombstoned) | ok. canonical is null when refused before the lookups; note is descriptive only.",
+  "_schema": "Usernames (CONTRACT §11). Format: {cases:[{input, verdict, canonical, note}], taken, tombstoned, reserved, skeletons:[{input, skeleton}]}. skeleton(h) = ASCII-lowercase, then rn→m, vv→w, 0→o, 1→l, then '-' removed (each a left-to-right replace-all, in that order). Reserved words, taken and tombstoned handles all compare on skeletons: reserved iff skeleton(canonical) = skeleton(some reserved word); taken iff it equals skeleton(some taken handle); tombstoned likewise. reserved is THE reserved-handle list (CONTRACT R7): Rust and Go embed a copy and test it against this array. canonical(input): reject any non-ASCII byte (confusables, zero-width, bidi) → ASCII-lowercase → ^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$ with no '--' → not in reserved. verdict(input) = first of: invalid | reserved | taken | tombstoned | ok. canonical is null when refused before the lookups; note is descriptive only.",
   "cases": [
     {
       "canonical": "abc",
@@ -141,6 +141,138 @@
     },
     {
       "canonical": null,
+      "input": "rnoochy",
+      "note": "look-alike of reserved moochy (rn→m)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "m00chy",
+      "note": "look-alike of reserved moochy (0→o)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "adrnin",
+      "note": "look-alike of reserved admin (rn→m)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "r00t",
+      "note": "look-alike of reserved root (0→o)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "a-p-i",
+      "note": "look-alike of reserved api (hyphens)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "v-1",
+      "note": "look-alike of reserved v1 (hyphen)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": null,
+      "input": "dev-ice",
+      "note": "look-alike of reserved device (hyphen)",
+      "verdict": "reserved"
+    },
+    {
+      "canonical": "dev1ce",
+      "input": "dev1ce",
+      "note": "not a look-alike: 1→l gives devlce",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "5upport",
+      "input": "5upport",
+      "note": "not a look-alike: 5→s is not a rule",
+      "verdict": "ok"
+    },
+    {
+      "canonical": "a1ice",
+      "input": "a1ice",
+      "note": "look-alike of taken alice (1→l)",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "a1ice",
+      "input": "A1ICE",
+      "note": "look-alike of taken alice, uppercase",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "ali1ce",
+      "input": "ali1ce",
+      "note": "look-alike of taken alilce",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "anges",
+      "input": "anges",
+      "note": "look-alike of taken ange-s (hyphen)",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "bobsmith",
+      "input": "bobsmith",
+      "note": "look-alike of taken bob-smith",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "b0b-smith",
+      "input": "b0b-smith",
+      "note": "look-alike of taken bob-smith (0→o)",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "x-9",
+      "input": "x-9",
+      "note": "look-alike of taken x9 (hyphen)",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "wendy",
+      "input": "wendy",
+      "note": "look-alike of taken vvendy (vv→w)",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "rnary",
+      "input": "rnary",
+      "note": "look-alike of taken mary; also tombstoned rnary: taken wins",
+      "verdict": "taken"
+    },
+    {
+      "canonical": "oldname",
+      "input": "oldname",
+      "note": "look-alike of tombstone old-name",
+      "verdict": "tombstoned"
+    },
+    {
+      "canonical": "o1d-name",
+      "input": "o1d-name",
+      "note": "look-alike of tombstone old-name (1→l)",
+      "verdict": "tombstoned"
+    },
+    {
+      "canonical": "caro1",
+      "input": "caro1",
+      "note": "look-alike of tombstone carol (1→l)",
+      "verdict": "tombstoned"
+    },
+    {
+      "canonical": "r-n-a",
+      "input": "r-n-a",
+      "note": "hyphens go last: r-n-a → rna, not ma",
+      "verdict": "ok"
+    },
+    {
+      "canonical": null,
       "input": "ab",
       "note": "invalid",
       "verdict": "invalid"
@@ -279,13 +411,89 @@
     "node",
     "bot"
   ],
+  "skeletons": [
+    {
+      "input": "moochy",
+      "skeleton": "moochy"
+    },
+    {
+      "input": "rnoochy",
+      "skeleton": "moochy"
+    },
+    {
+      "input": "m00chy",
+      "skeleton": "moochy"
+    },
+    {
+      "input": "RNOOCHY",
+      "skeleton": "moochy"
+    },
+    {
+      "input": "ange-s",
+      "skeleton": "anges"
+    },
+    {
+      "input": "ali1ce",
+      "skeleton": "alilce"
+    },
+    {
+      "input": "vvalt",
+      "skeleton": "walt"
+    },
+    {
+      "input": "rnrn",
+      "skeleton": "mm"
+    },
+    {
+      "input": "rrn",
+      "skeleton": "rm"
+    },
+    {
+      "input": "rnn",
+      "skeleton": "mn"
+    },
+    {
+      "input": "vvv",
+      "skeleton": "wv"
+    },
+    {
+      "input": "r-n",
+      "skeleton": "rn"
+    },
+    {
+      "input": "v-v",
+      "skeleton": "vv"
+    },
+    {
+      "input": "r0n",
+      "skeleton": "ron"
+    },
+    {
+      "input": "a-b-c",
+      "skeleton": "abc"
+    },
+    {
+      "input": "x9",
+      "skeleton": "x9"
+    },
+    {
+      "input": "1o1",
+      "skeleton": "lol"
+    }
+  ],
   "taken": [
     "alice",
     "bob-smith",
-    "x9"
+    "x9",
+    "alilce",
+    "ange-s",
+    "vvendy",
+    "mary",
+    "ma"
   ],
   "tombstoned": [
     "old-name",
-    "carol"
+    "carol",
+    "rnary"
   ]
 }
