@@ -8,8 +8,8 @@ Evidence: fresh build of main at `384ea340` in this audit — E2E `go test ./...
 
 | Status | Rows |
 |---|---|
-| done | 530 |
-| partial | 426 |
+| done | 529 |
+| partial | 427 |
 | todo | 103 |
 | deferred | 29 |
 | superseded | 22 |
@@ -21,7 +21,7 @@ Evidence: fresh build of main at `384ea340` in this audit — E2E `go test ./...
 |---|---|---|---|---|---|
 | `mo-relay` | 181 | 190 | 13 | 16 | 3 |
 | `mo-node` | 132 | 116 | 23 | 2 | 2 |
-| `mo-web` | 43 | 35 | 4 | 1 | 4 |
+| `mo-web` | 42 | 36 | 4 | 1 | 4 |
 | `mo-worker` | 76 | 22 | 5 | 2 | 0 |
 | `mo-ops` | 11 | 16 | 8 | 0 | 3 |
 | `mo-e2e` | 10 | 5 | 13 | 0 | 0 |
@@ -1445,5 +1445,5 @@ E23–E91 were adopted as real tests (`e2e/SCENARIOS.md`); E92–E97 are in CONT
 
 ## F. Statistics
 
-- Rows: **1110**; done 530, partial 426, todo 103, deferred 29, superseded 22.
+- Rows: **1110**; done 529, partial 427, todo 103, deferred 29, superseded 22.
 - Rows per table prefix: 00: 7, 01: 37, 02: 46, 03: 150, 04: 69, 05: 80, 06: 117, 07: 92, 08: 64, 09: 37, 10: 57, 11: 70, 12: 47, 13: 45, C00: 3, C01: 13, C02: 1, C03: 4, C06: 14, C07: 4, C08: 1, C09: 12, C10: 1, C11: 16, C12: 22, C13: 14, LP: 20, AG: 15, OWN: 6, C0: 5, C14: 10, C15: 25, E: 6.
