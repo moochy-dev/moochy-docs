@@ -11,17 +11,18 @@ Owner: `mo-sec`. The running list of attacks on Moochy with the countermeasure t
 This document, `hardening-*.md` and `e2e/attacks/` are **internal** (closed side of §0a). Public security material for the client (a `SECURITY.md` disclosure policy, threat-model summary) belongs to the open side and must not copy closed internals.
 
 
-## Open risks (as of 2026-10-02, main a10a344e9)
+## Open risks (as of 2026-10-02, main after mo-relay's key-log chaos hooks)
 
-**No HIGH risk remains open on a shipped path.** Every §14b source-audit vulnerability (A180 relay takeover, A173/A175 node gates, A174 worker-approval fail-open) and the rounds-6–10 findings are fixed and verified by a passing test. Black-box attack suite: **68 pass, 0 fail, 7 skip** (the skips are pending a relay key-log chaos hook — A33 is N/A). What remains, by severity and owner (full list and the fixed history in §15):
+**No HIGH risk remains open, and nothing security-critical is left unproven.** Every §14b source-audit vulnerability (A180 relay takeover, A173/A175 node gates, A174 worker-approval fail-open), the rounds-6–10 findings, and the key-log attacks A136–A139/A164 are fixed and verified by a passing test; A253 (passkey removal needs a fresh assertion) is decided, built and proven this round. Black-box attack suite: **76 pass, 0 fail, 2 skip** (A180's reproducer needs harness tooling; A33 is N/A — the MCP HTTP server is stateless). What remains, by severity and owner (full history in §15):
 
 | Risk | Severity | Owner | State |
 |---|---|---|---|
 | A77 provider terms on key sharing/resale | Med (legal, not code) | int | open policy question |
-| A253 passkey removal needs a fresh assertion | Med | mo-oauth, mo-web | **decided this round**, ceremony to build ([passkey-removal.md](passkey-removal.md)) |
-| A136–A139 relay forges/forks/rolls back the key log | Med (node-side covered, E2E pending) | mo-relay, mo-keylog, mo-node | seal rule + monitor in and unit-tested; needs a dev chaos hook + key-log-over-link |
-| A218/A224 approval-by-handle label trust; first owner key TOFU | Med | mo-donor, mo-keylog | partial |
-| A234 studio uses `Host`; A223 macOS Landlock warning; A121 tiny-packet floor; A113 confusable slugs | Low | mo-web / mo-donor / relay+node | residual |
+| A218 / A224 approval-by-handle label trust (CLI half on the mo-donor branch); the very first owner key of an account is TOFU, gated only by the 72 h email-change hold | Med | mo-donor, mo-keylog | partial |
+| A234 studio builds snippets from `Host` (signed-in, no shared cache: not poisonable) | Low | mo-web | residual |
+| A223 macOS Seatbelt reports Landlock ABI 0 → false "ABI < 4/< 6" `doctor` warnings | Low | mo-donor | residual |
+| A121 `TCP_NODELAY` tiny-packet flood: per-message rate limit exists, no egress coalescing floor | Low | relay, node | residual |
+| A113 confusable repo owner/name (ASCII slug only; homoglyph/length residual) | Low | relay, web | residual |
 
 Statuses change only on a test result. Reproducers live in `e2e/attacks/` as `TestA<NN>_*`.
 
@@ -165,10 +166,10 @@ The append-only key log (owner: `mo-keylog`; `relay/internal/tlog` + `cli/crates
 
 | ID | Attack | Target | Adv. | Impact | Countermeasure (exact) | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|---|---|
-| A136 | Relay invents an "approved donor" (worker key with no owner signature) and offers it in `pool.sync` | node | A3 | Content sealed to a relay-controlled key | Gateway verifies an owner-signed `DONOR_APPROVED` in its key-log mirror before sealing; unsigned → refuse | node, keylog | A136 (pending chaos hook); cli/crates/keylog mirror.rs | designed |
-| A137 | Relay serves a forked or rewritten log to different Nodes | node | A3 | Split view, hidden revocation | tlog consistency proofs + hourly public Git anchor; a fork is visible to anyone who fetched the anchor | keylog | A137; relay/internal/tlog vectors_test.go, cli/crates/keylog | designed |
-| A138 | Stale/replayed checkpoint (older tree head) | node | A3 | Roll back a revocation | Monotonic tree size; reject a checkpoint smaller/inconsistent with the last; signed-note verify | keylog | A138; cli/crates/keylog state.rs, relay/internal/tlog tlog_test.go | designed |
-| A139 | Rogue device added to a user's account without the user | relay, node | A3, A8 | Impersonation | Every Node alerts on a `KEY_ADDED` on its own account it did not create; `KEY_ADDED` carries the new key's proof-of-possession | node, keylog | A139; cli/crates/keylog mirror.rs own-key alert | designed |
+| A136 | Relay invents an "approved donor" (worker key with no owner signature) and offers it in `pool.sync` | node | A3 | Content sealed to a relay-controlled key | Gateway verifies an owner-signed `DONOR_APPROVED` in its key-log mirror before sealing; unsigned → refuse | node, keylog | A136 (pending chaos hook); cli/crates/keylog mirror.rs | **implemented** (`TestA136_ForgedDonorApproval` PASS: a forged `DONOR_APPROVED` → the Gateway does not seal; an honest donor still serves; real `/dev/keylog/forge`) |
+| A137 | Relay serves a forked or rewritten log to different Nodes | node | A3 | Split view, hidden revocation | tlog consistency proofs + hourly public Git anchor; a fork is visible to anyone who fetched the anchor | keylog | A137; relay/internal/tlog vectors_test.go, cli/crates/keylog | **implemented** (`TestA137_KeyLogForkVsAnchor` PASS: a fork targeted at one Gateway → it logs `KEY LOG FORK` and refuses to seal; the honest-view Gateway keeps serving; `/dev/keylog/chaos mode=fork`) |
+| A138 | Stale/replayed checkpoint (older tree head) | node | A3 | Roll back a revocation | Monotonic tree size; reject a checkpoint smaller/inconsistent with the last; signed-note verify | keylog | A138; cli/crates/keylog state.rs, relay/internal/tlog tlog_test.go | **implemented** (`TestA138_StaleCheckpoint` PASS: a stale checkpoint frozen on one Gateway → it alerts and refuses to seal; the honest-view Gateway keeps serving; `/dev/keylog/chaos mode=stale`) |
+| A139 | Rogue device added to a user's account without the user | relay, node | A3, A8 | Impersonation | Every Node alerts on a `KEY_ADDED` on its own account it did not create; `KEY_ADDED` carries the new key's proof-of-possession | node, keylog | A139; cli/crates/keylog mirror.rs own-key alert | **implemented** (`TestA139_RogueKeyAlert` PASS: a rogue `KEY_ADDED` on the owner → the owner Node flags `UnknownKey`; `/dev/keylog/inject`) |
 
 ## 10. gRPC and protobuf specifics (A90–A99)
 
@@ -261,7 +262,7 @@ Raw-frame DoS against the relay's gRPC (`--grpc-addr`) HTTP/2 listener, driven b
 | A161 | Donor returns a **valid** tool call to a non-sandboxed client | node | A2 | Tool runs outside a sandbox | By default release tool calls only to a sandboxed `moochy run` session (run token); otherwise text + `[moochy]` notice, unless `allow_unsandboxed_tools` per project with a warning | node | A161 | **implemented** (A161 passes: valid donor tool call to an unsandboxed client replaced by a `[moochy] … not sandboxed` notice) |
 | A162 | SSE injection / fabricated framing (extra `event:`/`id:`/`retry:`, CR-only endings, oversized fields, invalid UTF-8, duplicate JSON keys) to smuggle events past the agent's parser | node, worker | A2 | Forged assistant events, parser confusion | The Gateway re-emits every event from its parsed, typed form (canonical JSON, normalized SSE framing, allowlisted fields): no donor byte reaches the agent verbatim; strict SSE parser fails closed (A145/W16) | node, worker | A162, U:worker | **implemented** (A162 passes: `#inject:1` fabricated SSE never reaches the client; gateway ends with a native fail-closed error) |
 | A163 | Donor output tells the agent (or human) to read `.env`/secrets into a prompt | node, sandbox | A2, A9 | Secret exfiltration | Inside `moochy run`, secret-shaped and git-ignored files (`.env*`, `*.pem`, `*.key`, `id_*`, `.npmrc`, `.netrc`, `credentials*`) are hidden from the agent; env carries only the run's gateway token; tripwire flags dangerous commands in text | node, sandbox | A163 | **implemented** (A163 passes: `.env`/`id_*` contents unreadable inside `moochy run`) |
-| A164 | Relay injects a worker into the pool with no owner-signed `DONOR_APPROVED`; a donor on an excluded provider | node | A3 | Content sealed to an attacker-chosen donor | Gateway seals only to logged, unrevoked, owner-approved worker keys (`node.rs worker_approved`); excluded providers never receive a wrap; the D14 Phase-1 fallback ends when the key log is served over the link | node, keylog | A164, A136 | designed — pending key-log-over-link ends D14 fallback |
+| A164 | Relay injects a worker into the pool with no owner-signed `DONOR_APPROVED`; a donor on an excluded provider | node | A3 | Content sealed to an attacker-chosen donor | Gateway seals only to logged, unrevoked, owner-approved worker keys (`node.rs worker_approved`); excluded providers never receive a wrap; the D14 Phase-1 fallback ends when the key log is served over the link | node, keylog | A164, A136 | **implemented** (`TestA164_UnapprovedWorkerNoWrap` PASS: a worker offered in `pool.sync` with no owner `DONOR_APPROVED` gets no wrap; the seal rule reads the verified log, A174) |
 | A165 | Donor embeds ANSI/OSC terminal escapes (OSC 8 links, OSC 52 clipboard write, CSI, C1, bidi) in output or a delegate result | node | A2 | Terminal hijack, clipboard theft, spoofed UI | Strip terminal control sequences wherever text is displayed; donor output never rendered as HTML (E91) | node | A46, E91 | **implemented** (A46 passes) |
 | A166 | Donor lies about usage, forges or omits the progress checkpoint, or sends a `resp_commit` that mismatches the stream | relay, node | A2 | Leaderboard fraud; unsigned tool call; billing mismatch | Relay recomputes cost from usage and rejects mismatches with an alert; the Gateway disputes a `resp_commit`/usage mismatch; a tool-call block is released only after a verified donor-signed checkpoint | relay, node | E40, E18 | implemented (mo-e2e E40: wrong_cost, resp_commit_mismatch, bad sig, unknown task) |
 | A167 | Donor returns a decompression bomb in the request path it parses, or an oversized response stream | worker, relay | A2 | Worker/relay OOM | Worker bounded pure-Rust zstd decode (32 MiB cap, §15.2); relay 1 MiB per-task response buffer (A89); donor-side parsing runs in the privilege-separated child | worker, relay, sandbox | A21, A89 | designed (A21/A89 rows) |
@@ -439,26 +440,24 @@ Main a10a344e9. Flipped to **implemented** this round (each with a passing test 
 
 | ID | Sev | Finding | File:line | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|
-| A253 | Med | Passkey REMOVAL from Settings needs only a session + CSRF (`passkeyRevoke`, `web/security.go:177`), no WebAuthn assertion. Revocation grants nothing by itself, but it is the enabling step of a takeover: once an account has no active owner key, the key log accepts a new *first* passkey with the email proof alone (`tlog/state.go` `OwnerPasskey`, `Authorizer==""` needs `passkeysOf==0`), gated only by the 72 h `FirstPasskeyHold` after an email change (zero when the address was never changed). A stolen web session that does not control an authenticator should not be able to reach the no-owner-key state. **Decision: require a fresh passkey assertion to revoke** (same ceremony as `/decide` accept); last-passkey loss goes through recovery, not a session-only button; keep `/auth/email` behind a fresh provider sign-in. Full write-up: [passkey-removal.md](passkey-removal.md) | `relay/internal/web/security.go:177`, `internal/source/webext.go:75`, `internal/oauth/decide.go` (ceremony to reuse) | mo-oauth, mo-web/mo-design, mo-relay | U:oauth + A253 (black-box, pending the ceremony) | gap |
+| A253 | Med | Passkey REMOVAL from Settings needs only a session + CSRF (`passkeyRevoke`, `web/security.go:177`), no WebAuthn assertion. Revocation grants nothing by itself, but it is the enabling step of a takeover: once an account has no active owner key, the key log accepts a new *first* passkey with the email proof alone (`tlog/state.go` `OwnerPasskey`, `Authorizer==""` needs `passkeysOf==0`), gated only by the 72 h `FirstPasskeyHold` after an email change (zero when the address was never changed). A stolen web session that does not control an authenticator should not be able to reach the no-owner-key state. **Decision: require a fresh passkey assertion to revoke** (same ceremony as `/decide` accept); last-passkey loss goes through recovery, not a session-only button; keep `/auth/email` behind a fresh provider sign-in. Full write-up: [passkey-removal.md](passkey-removal.md) | `relay/internal/web/security.go:177`, `internal/source/webext.go:75`, `internal/oauth/decide.go` (ceremony to reuse) | mo-oauth, mo-web/mo-design, mo-relay | U:oauth + A253 (black-box, pending the ceremony) | **implemented** (ceremony wired by mo-relay: `POST /settings/passkeys/{key}/revoke` needs a fresh WebAuthn assertion, `oauth/passkey.go:559`; `TestA253_PasskeyRevokeNeedsAssertion` PASS: a session + CSRF with no assertion → 403 `assertion_required`) |
 
 ## 15. Top gaps (ranked)
 
-Nothing is left at **HIGH** on a shipped path. The remaining items and their owners:
+Nothing is left at **HIGH**, and the key-log attacks that used to sit here are now proven end to end. The remaining items and their owners:
 
 | Rank | ID | Open risk | Owner | Severity |
 |---|---|---|---|---|
 | 1 | A77 | Provider terms on key sharing/resale — a legal/policy question, not a code control; the integrator's call | int | Med (legal) |
-| 2 | A253 | Passkey removal needs a fresh assertion (decided this round); build the ceremony | mo-oauth, mo-web | Med |
-| 3 | A136–A139 | Relay forges/forks/rolls back the key log: the node-side defense is in and unit-tested (the seal rule A174 + monitor consistency proofs); the end-to-end proof needs a relay `--dev` chaos hook (forge approval, serve a fork, stale checkpoint) and key-log-over-link to land | mo-relay, mo-keylog, mo-node | Med (node-side covered, E2E pending) |
-| 4 | A218 / A224 | Owner approval by handle binds only the unsigned label (CLI half of A218, mo-donor branch); the very first owner key of an account is TOFU gated only by the email-change hold | mo-donor, mo-keylog | Med |
-| 5 | A234 | The studio builds snippets from the `Host` header (signed-in, no shared cache: not poisonable; use the configured base) | mo-web | Low |
-| 6 | A223 | macOS Seatbelt reports Landlock ABI 0 → false "ABI < 4/< 6" warnings in `doctor` | mo-donor | Low |
-| 7 | A121 | `TCP_NODELAY` tiny-packet flood: per-message rate limit exists (`msgs.take`), no egress coalescing floor | relay, node | Low |
-| 8 | A113 | Confusable repo owner/name (ASCII slug only; homoglyph/length residual) | relay, web | Low |
-| 9 | A135b | A non-default `--relay` needs `MOOCHY_INSECURE_DEV=1` + a separate keystore; the warning is the only user-facing signal | mo-node | Low |
-| 10 | A33 | MCP session hijack — N/A today (the MCP HTTP server is stateless); re-test if sessions are added | mo-node | Info |
+| 2 | A218 / A224 | Owner approval by handle binds only the unsigned label (CLI half of A218, mo-donor branch); the very first owner key of an account is TOFU gated only by the 72 h email-change hold | mo-donor, mo-keylog | Med |
+| 3 | A234 | The studio builds snippets from the `Host` header (signed-in, no shared cache: not poisonable; use the configured base) | mo-web | Low |
+| 4 | A223 | macOS Seatbelt reports Landlock ABI 0 → false "ABI < 4/< 6" warnings in `doctor` | mo-donor | Low |
+| 5 | A121 | `TCP_NODELAY` tiny-packet flood: per-message rate limit exists (`msgs.take`), no egress coalescing floor | relay, node | Low |
+| 6 | A113 | Confusable repo owner/name (ASCII slug only; homoglyph/length residual) | relay, web | Low |
+| 7 | A135b | A non-default `--relay` needs `MOOCHY_INSECURE_DEV=1` + a separate keystore; the warning is the only user-facing signal | mo-node | Low |
+| 8 | A33 | MCP session hijack — N/A today (the MCP HTTP server is stateless); re-test if sessions are added | mo-node | Info |
 
-Recently FIXED (verified by a passing test): A19/A21/A174/A182/A189 (re-review), A227/A231/A243/A247/A248/A250/A251/A252 (round 10), A229/A233/A240/A241/A244/A245/A246 (round 9), A216/A220/A226/A228/A230/A232/A235, A207/A214/A215, A208–A213r, A217/A219/A221/A222, A180, A173/A175/A171/A172/A206, A161–A163, A150–A155/A191/A194, A211/E96, A135.
+Recently FIXED (verified by a passing test): A136–A139/A164 (key-log chaos proofs) and A253 (passkey-removal assertion) this round; A19/A21/A174/A182/A189, A227/A231/A243/A247/A248/A250/A251/A252, A229/A233/A240/A241/A244/A245/A246, A216/A220/A226/A228/A230/A232/A235, A207/A214/A215, A208–A213r, A217/A219/A221/A222, A180, A173/A175/A171/A172/A206, A161–A163, A150–A155/A191/A194, A211/E96, A135.
 
 ## Sources
 
