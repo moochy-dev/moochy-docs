@@ -1,8 +1,9 @@
 # Key log formats (normative, CONTRACT R8)
 
 Implemented by `relay/internal/tlog` (Go, relay) and `cli/crates/keylog` (Rust, Node); golden
-vectors in `spec/vectors/keylog/*.json` (written by the Go test `TestVectors`, verified by the
-Rust tests `tests/vectors.rs` and `tests/monitor.rs`). Rationale: plan 06 §10, 09 §3.5, D14, D16,
+vectors in `spec/vectors/keylog/*.json` (written by the Go tests `TestVectors` and
+`TestWebAuthnVectors`, verified by the Rust tests `tests/vectors.rs`, `tests/monitor.rs` and
+`tests/webauthn.rs`). Rationale: plan 06 §10, 09 §3.5, D14, D16,
 CONTRACT §15.4.
 
 ## 1. Tree, checkpoints, tiles, transport
@@ -33,9 +34,14 @@ CONTRACT §15.4.
   Nothing in it is trusted: the Node verifies `Ed25519(sign_pub, lp("moochy/v1/projection",
   projection))` with the `sign_pub` of the `KEY_ADDED` at `key_log_index` in its **own** mirror, and
   checks the projection names the requested `receipt_ref`.
-- **Size bound.** A record is ≤ 480 bytes (the largest real record, a `KEY_ADDED` with every field
-  at its maximum, is 397), so a full entry bundle is ≤ 256 × 482 = 123,392 bytes and fits one
-  128 KiB gRPC message. `GetLogTile` answers are ≤ that bound.
+- **Size bound.** A record is ≤ 480 bytes (the largest plain record, a `KEY_ADDED` with every
+  field at its maximum, is 397), except records carrying a WebAuthn assertion (§4a: kinds 3–7
+  signed by a passkey, passkey `OWNER_KEY_ADDED`), ≤ 2048 bytes. An entry bundle is always
+  ≤ 256 × 482 = 123,392 bytes and fits one 128 KiB gRPC message: before appending a record of
+  `L` bytes at bundle slot `c` (0–255) when the bundle already holds `S` bytes (`Σ 2 + len`), the
+  relay first appends `PAD` entries (kind 12, empty body and sig) while `S + 2 + L > 482 × (c + 1)`.
+  Plain records never need one; an assertion record needs at most 4. Verifiers refuse an entry
+  over its bound and a bundle over 123,392 bytes. `GetLogTile` answers are ≤ that bound.
 - **Git anchor.** Every hour the newest checkpoint note is written to the file `checkpoint` of the
   anchor repository, committed (`keylog checkpoint <size>`) and pushed to the public remote. The
   relay refuses to anchor, and to boot, when the anchored or signed checkpoint is not a prefix of
@@ -45,7 +51,7 @@ CONTRACT §15.4.
 ## 2. Record (tree leaf data)
 
 ```
-record = lp("moochy/v1/keylog", u32(kind), u64(logged_at_ms), body, sig)     ≤ 480 bytes
+record = lp("moochy/v1/keylog", u32(kind), u64(logged_at_ms), body, sig)     ≤ 480 bytes (§1)
 ```
 
 `logged_at_ms` = relay clock at append. Ids are the canonical strings of CONTRACT §1; byte strings
@@ -60,11 +66,14 @@ are raw. `owner_key_id(pub) = "ok_" + lowercase hex(SHA-256(pub)[0..16])`.
 | 6 / 7 | `MEMBER_ADDED` / `MEMBER_REMOVED` | `repo_id, member_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 8 | `CATALOG` | `u64(version), sha256(catalog_json)(32), catalog_sig(1..128, opaque)` | — |
 | 9 | `MODERATION` | `subject_pseudonym, action, reason` | — |
-| 10 | `OWNER_KEY_ADDED` | `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)` | `new_sig` (64), or `new_sig ‖ prev_sig` (128) when `prev` is set |
-| 11 | `OWNER_KEY_REVOKED` | `pseudonym, owner_pub(32), reason` | — (relay-asserted; only removes trust) |
+| 10 | `OWNER_KEY_ADDED` | Ed25519 (4 fields): `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)`; passkey (9 fields, §4a) | `new_sig` (64), or `new_sig ‖ prev_sig` (128) when `prev` is set; passkey: §4a |
+| 11 | `OWNER_KEY_REVOKED` | `pseudonym, owner_pub(32) or passkey cose_key(77), reason` | — (relay-asserted; only removes trust) |
+| 12 | `PAD` | empty | — (relay filler for the bundle budget, §1; no effect) |
 
-Owner signature (kinds 3–7) and both signatures of kind 10:
-`Ed25519(key, lp("moochy/v1/keylog-sig", u32(kind), body))`.
+Owner signature (kinds 3–7) and both signatures of kind 10, for an Ed25519 owner key:
+`Ed25519(key, lp("moochy/v1/keylog-sig", u32(kind), body))`; for a passkey owner key, kinds 3–7
+carry a WebAuthn assertion over the same message instead (§4a). The state decides which form a
+signature has from the `signer`'s key type, never from its length.
 
 Field grammar (identical in both languages; anything else is refused):
 `device_id` = `d_` + ULID, `repo_id` = `r_` + ULID (26 Crockford chars, uppercase, first ≤ `7`);
@@ -94,7 +103,8 @@ session's own device closes that session, the acknowledgement may never arrive; 
 ## 3. Labels
 
 `moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop`, `moochy/v1/receipt-log`; device
-requests (§2a): `moochy/v1/key-revoke`, `moochy/v1/key-rotate`.
+requests (§2a): `moochy/v1/key-revoke`, `moochy/v1/key-rotate`; passkeys (§4a):
+`moochy/v1/email-proof`.
 
 ## 4. Owner keys (CONTRACT §15.4)
 
@@ -122,6 +132,93 @@ Ed25519 key distinct from all of their device keys:
 - **Past approvals stay valid** after rotation or revocation: authority is evaluated at the entry's
   position in the log.
 
+### 4a. Passkey owner keys (`webauthn-es256`, CONTRACT §16.6)
+
+A user may also hold **passkeys** as owner keys, so that the Accept button of an email or the web
+signs `DONOR_APPROVED` (and every other kind 3–7) with the human's authenticator: a WebAuthn
+assertion with user verification, whose challenge is the hash of the exact entry. A passkey is an
+additional active owner key of its user (any number; the Ed25519 CLI key, if any, stays the single
+rotated one). Vectors: `spec/vectors/keylog/webauthn.json`.
+
+**Key.** `cose_key` = the canonical CTAP2 encoding of the EC2 P-256 credential public key, exactly
+77 bytes: `A5 01 02 03 26 20 01 21 58 20 ‖ x(32) ‖ 22 58 20 ‖ y(32)` (`{1:2, 3:-7, -1:1, -2:x, -3:y}`),
+with `(x, y)` a point of P-256. Nothing else is accepted: verifiers parse only this subset, the
+relay re-encodes the authenticator's COSE key into it at registration. `owner_key_id(cose_key)` =
+`ok_` + hex(SHA-256(cose_key)[0..16]); monitors name a passkey by `SHA-256(cose_key)`.
+
+**`OWNER_KEY_ADDED` (passkey)** = 9 fields (the Ed25519 form has 4):
+
+```
+body = lp(pseudonym, cose_key(77), authorizer, u64(issued_at_ms), "webauthn-es256",
+          credential_id(1..255), rp_id, origins, email_proof)
+sig  = lp(pop_assertion, authorizer_sig)
+```
+
+- `authorizer` = `""` (the account's **first** owner key: then `email_proof` is 32 bytes and
+  `authorizer_sig` is empty) or the `owner_key_id` of an active owner key of the same user (then
+  `email_proof` is empty and `authorizer_sig` is that key's signature over the same message:
+  64-byte Ed25519 or an assertion).
+- `rp_id` = lowercase DNS name (or IPv4 literal for dev), ≤ 253 chars. `origins` = 1–4
+  comma-separated origins, ≤ 256 bytes: `https://host[:port]` (dev: `http://localhost[:port]`,
+  `http://127.0.0.1[:port]`), each `host` equal to `rp_id` or a subdomain of it; no path, no
+  trailing slash. The assertion's `origin` must equal one of them byte for byte.
+- `pop_assertion`: an assertion by the new credential itself over the entry (proof of possession;
+  the web runs `navigator.credentials.create()` then immediately `get()` with that challenge).
+
+**Assertion** (wire form, wherever a passkey signs) = `lp(authenticatorData(37..256),
+clientDataJSON(1..768), signature(DER, 8..72))`; a record carrying one is ≤ 2048 bytes (§1).
+
+**Signed message and challenge.** The message is the same as for Ed25519 owner keys,
+`m = lp("moochy/v1/keylog-sig", u32(kind), body)` over the **exact** body bytes that are logged
+(the relay never re-encodes a body after it was signed). The WebAuthn challenge is
+`SHA-256(m)` (32 bytes); `clientDataJSON.challenge` is its base64url encoding without padding (43
+chars), compared as a string.
+
+**Verification** of an assertion `a` by passkey `k` over `m`, given the last sign counter `prev`
+seen for that credential, in this order (first failure wins, codes are shared):
+
+1. `clientDataJSON` is UTF-8 and one JSON object (RFC 8259), with no duplicate member name at any
+   level (after unescaping), nesting ≤ 4, no lone surrogate or U+FFFD, nothing after it, else
+   `webauthn_format`. Then `type` is the string `"webauthn.get"` (`webauthn_type`); `challenge` is
+   the string above (`webauthn_challenge`); `origin` is a string in `k.origins`, `crossOrigin` is
+   absent or `false`, `topOrigin` is absent (`webauthn_origin`). Other members are ignored.
+2. `authenticatorData[0..32] = SHA-256(k.rp_id)` (`webauthn_rp`).
+3. Flags `authenticatorData[32]`: UP (0x01) and UV (0x04) set, AT (0x40) clear, ED (0x80) set iff
+   the data is longer than 37 bytes (`webauthn_flags`). Extensions are covered by the signature
+   and otherwise ignored.
+4. Sign counter `c = u32_be(authenticatorData[33..37])`: `c > prev`, or `c = prev = 0`
+   (authenticators without a counter) (`counter`). A counter that does not move although it once
+   did is a cloned authenticator or a replay; the first assertion of a credential is checked with
+   `prev = 0`.
+5. `signature` is strict DER `SEQUENCE {INTEGER r, INTEGER s}`: definite short-form lengths,
+   minimal positive integers, `1 ≤ r, s ≤ n − 1`, nothing trailing (`webauthn_format`); and
+   **low-S**: `s ≤ n / 2` (`high_s`), `n` the P-256 order. Signatures are not malleable in the log:
+   the relay rewrites a high-S signature to `(r, n − s)` (which verifies identically) before
+   appending, and verifiers refuse high-S.
+6. ECDSA P-256 / SHA-256 over `authenticatorData ‖ SHA-256(clientDataJSON)` with `(x, y)` of
+   `cose_key` (`bad_sig`).
+
+A rejected assertion consumes nothing; an accepted entry sets the credential's counter to `c`.
+
+**First passkey: the confirmed-email proof (A224).** An account with **no** active owner key of
+any kind may bind its first passkey without a co-signature, on the relay's attestation that the
+user just proved control of the account's confirmed email (a one-time token mailed to it and
+redeemed in the same browser session as the ceremony):
+
+```
+email_proof = SHA-256(lp("moochy/v1/email-proof", SHA-256(token), owner_key_id(cose_key), pseudonym))
+```
+
+The proof binds the token to this key and account; it is **relay-attested**, not verifiable by
+third parties (the token stays secret). Its presence in the log is the flag: every Node of the
+user raises `UnknownPasskey{email_proof: true}` for an email-proof passkey it did not create,
+naming it as the takeover path of a compromised mailbox or relay; public monitors can count such
+registrations. With an active owner key, a new passkey needs that key's co-signature
+(`owner_key_exists` otherwise), and an Ed25519 `OWNER_KEY_ADDED` without `prev` is refused while a
+passkey is active (`owner_key_exists`): bind the CLI key from a passkey session instead (todo).
+
+**Revocation.** `OWNER_KEY_REVOKED` with the 77-byte `cose_key` (relay-asserted, as for Ed25519).
+
 ## 5. State machine (authority derived from a log prefix)
 
 Entries apply in log order; a rejected entry confers nothing (the relay refuses to append it; a
@@ -132,11 +229,16 @@ Node that finds one in the log raises an alert). Codes are shared strings.
 | `KEY_ADDED` | device id new (`dup_device`), `sign_pub` new among all keys (`dup_key`), PoP valid (`bad_pop`) | device active |
 | `KEY_REVOKED` | device logged for that pseudonym (`unknown_device`), not yet revoked (`revoked`) | device revoked |
 | `OWNER_KEY_ADDED` | `owner_pub` new among all keys (`dup_key`); no active key and no `prev`, or `prev` = the active key (`unknown_owner_key` / `owner_key_exists`); new-key signature (`bad_pop`); `prev` signature (`bad_sig`) | key active; `prev` revoked |
-| `OWNER_KEY_REVOKED` | key logged for that pseudonym (`unknown_owner_key`), not revoked (`revoked`) | key revoked, user has no active key |
+| `OWNER_KEY_ADDED` (passkey, §4a) | `cose_key` and `credential_id` new (`dup_key`); PoP assertion (§4a codes, `prev` = 0); first key: no active owner key of any kind (`owner_key_exists`); else `authorizer` an unrevoked owner key of the same user (`unknown_owner_key`/`revoked`/`not_owner`) whose signature verifies (`bad_sig` / §4a codes) | passkey active, counter = PoP counter; authorizer's counter moves |
+| `OWNER_KEY_REVOKED` | key logged for that pseudonym (`unknown_owner_key`), not revoked (`revoked`) | key revoked (an Ed25519 revocation leaves the user with no active CLI key) |
 | `REPO_CLAIMED` | `signer` is a logged owner key (`unknown_owner_key`), unrevoked (`revoked`), of `owner_pseudonym` (`not_owner`), signature (`bad_sig`); repo id keeps its provider binding (`repo_binding`); `issued_at` > previous claim's (`replay`) | owner set; a **new** owner drops every approval and membership |
 | `DONOR_*`, `MEMBER_*` | repo claimed (`unclaimed`); `signer` is an unrevoked owner key of the **current** owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); `issued_at` > previous for (repo, donor\|member, subject) (`replay`) | grant on/off, remembers the entry index |
 | `CATALOG` | version > previous (`catalog_version`) | version → sha256 |
 | `MODERATION` | well-formed | informational |
+| `PAD` | empty body and sig | none |
+
+For a passkey `signer`, "signature" in kinds 3–7 means the §4a verification with the credential's
+last counter; the counter moves only when the entry is accepted.
 
 Relay append also enforces `|issued_at − relay clock| ≤ 10 min` for kinds 3–7 and 10 (`skew`). The
 owner's Node rebuilds a relay-proposed `ApprovalRequest.body_to_sign` with its own owner key id
@@ -189,7 +291,10 @@ publishes once the parties check inclusion.
 ## 9. Monitor rules (Node)
 
 With `me` = own pseudonym + device keys + owner keys the user created or acknowledged:
-`UnknownKey` (device key on my pseudonym I don't know), `UnknownOwnerKey`, `OwnerKeyRevoked`,
+`UnknownKey` (device key on my pseudonym I don't know), `UnknownOwnerKey`, `UnknownPasskey` (a
+passkey on my pseudonym whose `SHA-256(cose_key)` I don't know; `email_proof` says it was bound as
+the first owner key on the relay's email attestation, §4a), `PasskeyCounter` (an entry signed by one
+of my passkeys refused with `counter`: cloned authenticator or replay), `OwnerKeyRevoked`,
 `KeyHijack` (my key under another pseudonym), `NotSignedByMe` (claim/approval/membership on a repo I
 own, or a claim naming me, signed by an owner key I do not know), `RepoClaimedByOther`,
 `Rejected`/`Invalid` (an entry no valid signer made). Forks: a checkpoint whose root does not match
