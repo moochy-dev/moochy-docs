@@ -12,7 +12,7 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | [Run your agent safely with `moochy run`](run.md) | The sandbox your coding agent runs in: what it can reach, Linux and macOS notes |
 | [Add a "Donate tokens" button](donate-button.md) | The exact recipe, for people and AI agents: find the project, check it, pick the snippet, put it in the README |
 | [For AI agents](for-ai-agents.md) | How agents read these docs (`/llms.txt`, `.md` pages), rules for agents, a snippet for your `AGENTS.md` |
-| [Connect your tools](integrations.md) | Exact settings for OpenCode, Claude Code, Cursor, Cline, Continue, Zed, Goose, Windsurf, VS Code, Claude Desktop, Aider, agent frameworks, and SDKs |
+| [Connect your tools](integrations.md) | Exact settings for 22 coding agents (Claude Code, Codex, GitHub Copilot CLI, Gemini CLI, Cursor, OpenCode, Amp, Droid, Kiro CLI, …), Claude Desktop, agent frameworks, and SDKs |
 | [Use Moochy in cloud boxes](boxes.md) | Agents in boat.dev, E2B, Daytona, Modal, Morph, Fly, Codespaces; donating from cloud machines and rented GPUs |
 | [Run Moochy on a server or in CI](headless-node.md) | An always-on donation from a machine you control; agents in CI |
 | [How Moochy protects you](threat-model.md) | The attacks Moochy is designed against, and where each defence lives |
