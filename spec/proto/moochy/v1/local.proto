@@ -36,6 +36,9 @@ service LocalControl {
   // Donate / DonationAction on the node's authenticated session (the relay knows the user from
   // the session, never from a field). `request`/`response` are the link.proto messages' bytes.
   rpc Donations(DonationsRequest) returns (DonationsResponse);
+  // `moochy verify <receipt_ref>` (E63): fetch the public projection over the link and check the
+  // donor's signature against the device key in this node's verified key-log mirror.
+  rpc Verify(VerifyRequest) returns (VerifyResponse);
   // Local audit journal (metadata only). `follow` keeps the stream open for new entries.
   rpc Journal(JournalRequest) returns (stream JournalEntry);
   // stdio MCP shim: first message McpOpen, then raw newline-delimited JSON-RPC bytes both ways.
@@ -212,4 +215,12 @@ message DonationsRequest {
 
 message DonationsResponse {
   bytes response = 1;              // ListDonationsResponse | Donation
+}
+
+message VerifyRequest {
+  string receipt_ref = 1;
+}
+
+message VerifyResponse {
+  string result_json = 1;          // {"verified","receipt_ref","donor","revoked","repo_id","model","cost_uusd","day","trust"}
 }
