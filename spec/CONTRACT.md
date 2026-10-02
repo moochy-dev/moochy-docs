@@ -35,6 +35,7 @@ Rules: **open code never imports, links, or copies closed code** (the Rust clien
 | `docs/plan/**`, `docs/guides/**`, `SECURITY.md`, `cli/SECURITY.md` | Markdown | `mo-docs` | Keep the plan consistent with CONTRACT/ADRs; donor, maintainer, headless-node, and MCP/API integration guides; also the public `spec/protocol.md` |
 | `relay/internal/docsite/**` | Go (closed) | `mo-docs` | Public docs site (2026-10-02): renders `docs/guides/**` (embedded) as `/docs`, `/docs/{slug}`, `/docs/{slug}.md`, `/llms.txt`, `/llms-full.txt`; exposes an `http.Handler` that mo-relay mounts in a few lines; pages use mo-design's layout/stylesheet through an exported web helper |
 | `relay/internal/notify/**` | Go (closed) | `mo-notify` | Email notifications through Resend (CONTRACT §16): outbox, templates, preferences, unsubscribe, Resend webhooks, fake Resend for dev/E2E; exposes hooks mo-relay calls on events and handlers mo-relay mounts; the Settings UI is mo-design's, the sign-up email step mo-oauth's |
+| `relay/internal/web/review/CRITIQUE.md`, `relay/internal/web/review/references/**` | Markdown + captures | `mo-critic` | Independent design critic (2026-10-02): reference research, scored critiques of every pass from the Playwright videos/captures; never edits product code |
 
 Never edit a path you do not own. Need a change elsewhere? Write it under `## Requests to other owners` in your final report.
 
