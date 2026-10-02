@@ -50,6 +50,10 @@ service LocalControl {
   // `moochy report <task>`: evidence bundle for a task this Gateway consumed (06 §9): receipt,
   // checkpoints, response bytes and only S_resp (never the request).
   rpc Report(ReportRequest) returns (ReportResponse);
+  // Owner and member calls relayed as-is on the node's session (like Donations): `op` names the
+  // NodeLink RPC; `request`/`response` are its link.proto messages' bytes. Ops: set_device_cap,
+  // create_box_token, list_boxes, revoke_box.
+  rpc LinkCall(LinkCallRequest) returns (LinkCallResponse);
 }
 
 message StatusRequest {}
@@ -223,4 +227,13 @@ message VerifyRequest {
 
 message VerifyResponse {
   string result_json = 1;          // {"verified","receipt_ref","donor","revoked","repo_id","model","cost_uusd","day","trust"}
+}
+
+message LinkCallRequest {
+  string op = 1;
+  bytes request = 2;
+}
+
+message LinkCallResponse {
+  bytes response = 1;
 }
