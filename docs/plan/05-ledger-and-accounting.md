@@ -3,6 +3,8 @@
 > What a "donation" is, how it is measured, reserved, and settled, how it survives crashes, and how a donor's cap is enforced by three independent mechanisms.
 
 > **Updated 2026-10-01:** aligned with `spec/CONTRACT.md` and ADR-33/34. Changes: adaptive group commit replaces the 10 ms window (ADR-34, C1); a closing schedule window is an eligibility condition, never a pledge status change (C3); `over_task_cap` → 400 `invalid_request_error`, `quota_exceeded` → 403 `permission_error`, never 429 (C4); OpenAI adapter is Phase 1 (D13); public views show model slugs (C11); message names follow the gRPC `NodeLink` (ADR-33).
+>
+> **Updated 2026-10-02 (main `5f9ccf80`):** D19 ($5 default limit per request wherever a donation is created).
 
 ---
 
@@ -91,7 +93,7 @@ The Worker computes `cost_µ$` and signs it. The Relay **recomputes** it from `u
 | Field | Meaning |
 |---|---|
 | `budget_per_period` | µ$ per period (monthly, anchored on the pledge's creation day) |
-| `per_task_cap` | Max µ$ a single attempt may reserve. Default **$5**, enough for large-context requests on top models; donors can lower it (the console shows "requests blocked by task cap" so they can see the effect) |
+| `per_task_cap` | Max µ$ a single attempt may reserve. Default **$5** (D19: the same default in `moochy donate`, the web form, and the dev API), enough for large-context requests on top models; donors can lower it (the console shows "requests blocked by task cap" so they can see the effect) |
 | `policy.models` | Allowed public model ids; wildcards per family (e.g. `anthropic/claude-sonnet-*`) |
 | `policy.max_effort` | `low` … `max` |
 | `policy.dialects` | Which API dialects |

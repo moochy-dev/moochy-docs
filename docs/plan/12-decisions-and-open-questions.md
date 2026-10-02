@@ -5,6 +5,8 @@
 > **Updated 2026-10-01:** the record now covers the decisions taken while writing `spec/CONTRACT.md` and in the 2026-10-01 traceability review, and agrees with the revised ADR-01 source boundary. Changes: ADR-35 to ADR-42 appended (unique handles, three crates, served-task boot floor, key log now, tlog + note without Tessera, `ps_` pseudonyms, window = eligibility, policy errors never 429); ADR-02, ADR-30, ADR-31, Q2, and the rejected-ideas table no longer rely on self-hosted relays; ADR-21 no longer mentions frame kinds (ADR-33).
 >
 > **Updated again 2026-10-01 (main `b65289e7`):** ADR-43 to ADR-48 (sandboxing, owner keys, receipt log and witnesses, vocabulary and visual direction, xAI, `/u/{handle}`); receipt log moved from deferred to adopted.
+>
+> **Updated 2026-10-02 (main `5f9ccf80`):** ADR-49 (local GPU donors, self-reported tier) and ADR-50 (D19, D20).
 
 ---
 
@@ -60,6 +62,8 @@
 | ADR-46 | **User-facing vocabulary and visual direction** (`docs/brand/VOICE.md`, CONTRACT §9): "Donate tokens" as the key phrase, donation instead of pledge; a strictly monochrome three-color system (Ink, Paper, Sky) with no gradients, glows, or scroll effects; a small mascot; subtle functional motion; a donate-button studio for READMEs | "Donate compute", "pledge"; the earlier maximal motion system | Product owner review: plain words people already use, and a calm product that does not read as AI-made | — |
 | ADR-47 | **xAI (Grok) is a supported donor provider** alongside Anthropic, OpenAI, OpenRouter, and DeepSeek, with its own adapter, `moochy keys add xai`, catalog entries, fake provider, and E2E scenarios | Reaching Grok only through OpenRouter or the generic OpenAI-compatible list | Product owner decision (CONTRACT §9) | — |
 | ADR-48 | **Profiles at `/u/{handle}`** (R1), never a bare `/{handle}`; `POST /auth/logout`; handle choice at `/auth/handle` | Profiles at the root | A handle can never collide with a page name, now or later | — |
+| ADR-49 | **Local GPU donors** (`moochy keys add local`): a donor's own OpenAI-compatible server (Ollama, LM Studio, vLLM, llama.cpp) on loopback or the LAN, vetted by address; own `local/…` slugs; price 0; usage **self-reported** (trust tier), counted toward token goals and a separate leaderboard, never toward money; receipts settle at 0; cloud-routed model ids refused | Research track only; reusing hosted slugs | Lets GPU owners donate without a paid key while keeping money totals backed by real bills | Self-reported counts are abused → require witnesses or exclude from leaderboards |
+| ADR-50 | **Defaults fixed by the integrator:** limit per request $5 everywhere a donation is created (`moochy donate`, the web form, the dev API; D19); inside `moochy run` the standard variables (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`) carry the per-run gateway token, and no provider key value is ever visible there (D20) | $1 CLI default; a Moochy-specific variable only | One default users can predict; agents work unchanged inside the sandbox | — |
 
 ---
 
@@ -91,7 +95,7 @@
 | Tailwind or another CSS framework | Rejected | Hand-written CSS within the CONTRACT §9 budgets; no build toolchain |
 | Cross-dialect translation | Deferred | ADR-19 |
 | Verified compute (TLS notarization, TEEs) | Research track, opt-in and free | [06 §15](06-security-and-trust.md) |
-| Local GPU donors | Research track (announced to donors as coming) | Needs token-denominated goals; the zero-commands donor rule (ADR-43) will apply |
+| Local GPU donors | **Adopted** (ADR-49) | `keys add local`, self-reported trust tier |
 | Email notifications | Deferred | No v1 need |
 
 ---
