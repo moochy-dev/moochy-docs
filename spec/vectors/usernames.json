@@ -435,7 +435,14 @@
     "signup",
     "search",
     "favicon",
-    "new"
+    "new",
+    "owner-key",
+    "email",
+    "hooks",
+    "decide",
+    "box",
+    "boxes",
+    "outbox"
   ],
   "skeletons": [
     {
