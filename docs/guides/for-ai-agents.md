@@ -48,7 +48,7 @@ They work with Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf,
 ## Using Moochy as a model or a tool
 
 - **MCP:** `moochy mcp --repo owner/name` (stdio) or `http://127.0.0.1:PORT/mcp` with a bearer token. Tools: `moochy_delegate` (hand a self-contained task to donated tokens) and `moochy_pool_status` (what is available). See [integrations](integrations.md#1-the-values-you-need).
-- **Provider-compatible API:** Anthropic Messages at `http://127.0.0.1:PORT` and OpenAI Chat Completions at `http://127.0.0.1:PORT/v1`, on the maintainer's machine only. `moochy env --repo owner/name` prints the values.
+- **Provider-compatible API:** Anthropic Messages at `http://127.0.0.1:PORT`, OpenAI Chat Completions and OpenAI Responses (for Codex) at `http://127.0.0.1:PORT/v1`, on the maintainer's machine only. `moochy env --repo owner/name` prints the values.
 - **Protocol** (for implementers): `spec/protocol.md` in the public `moochy-dev/moochy-cli` repository.
 
 ## For maintainers: a snippet for your agents
