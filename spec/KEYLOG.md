@@ -59,14 +59,14 @@ are raw. `owner_key_id(pub) = "ok_" + lowercase hex(SHA-256(pub)[0..16])`.
 
 | kind | name | body = lp(…) | sig |
 |---|---|---|---|
-| 1 | `KEY_ADDED` | `device_id, pseudonym, sign_pub(32), enc_pub(32), suite, roles, repo_scope` | PoP: `Ed25519(sign_key, lp("moochy/v1/key-pop", sign_pub, enc_pub, suite))` (`DeviceStartRequest.pop_sig`) |
+| 1 | `KEY_ADDED` | `device_id, pseudonym, sign_pub(32), enc_pub(32), suite, roles, repo_scope`; box device (9 fields, §2b): `…, repo_scope, box_token_id, u64(expires_at_ms)` | PoP: `Ed25519(sign_key, lp("moochy/v1/key-pop", sign_pub, enc_pub, suite))` (`DeviceStartRequest.pop_sig`) |
 | 2 | `KEY_REVOKED` | `device_id, pseudonym, reason` | — (relay-asserted; only removes trust) |
 | 3 | `REPO_CLAIMED` | `repo_id, provider, provider_repo_id, owner_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 4 / 5 | `DONOR_APPROVED` / `DONOR_REVOKED` | `repo_id, donor_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 6 / 7 | `MEMBER_ADDED` / `MEMBER_REMOVED` | `repo_id, member_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 8 | `CATALOG` | `u64(version), sha256(catalog_json)(32), catalog_sig(1..128, opaque)` | — |
 | 9 | `MODERATION` | `subject_pseudonym, action, reason` | — |
-| 10 | `OWNER_KEY_ADDED` | Ed25519 (4 fields): `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)`; passkey (9 fields, §4a) | `new_sig` (64), or `new_sig ‖ prev_sig` (128) when `prev` is set; passkey: §4a |
+| 10 | `OWNER_KEY_ADDED` | Ed25519 (4 fields): `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)`; Ed25519 authorized by a passkey (5 fields, §4b): `…, u64(issued_at_ms), authorizer`; passkey (9 fields, §4a) | `new_sig` (64), or `new_sig ‖ prev_sig` (128) when `prev` is set; 5 fields: `lp(new_sig, authorizer_sig)`; passkey: §4a |
 | 11 | `OWNER_KEY_REVOKED` | `pseudonym, owner_pub(32) or passkey cose_key(77), reason` | — (relay-asserted; only removes trust) |
 | 12 | `PAD` | empty | — (relay filler for the bundle budget, §1; no effect) |
 
@@ -99,6 +99,30 @@ Signing `lp("moochy/v1/keylog-sig", …)` instead is refused (`bad_signature`): 
 request from ever being replayable as a log signature, and the reverse. Because revoking a
 session's own device closes that session, the acknowledgement may never arrive; the
 `KEY_REVOKED` entry in the served log is the confirmation. Vectors: `spec/vectors/keylog/requests.json`.
+
+### 2b. Box devices (CONTRACT §17.1)
+
+An agent box (boat.dev, E2B, Codespaces, …) never holds the maintainer's device key: it enrolls
+with a single-purpose token and generates its own keys, and the relay logs a **box** `KEY_ADDED`,
+the 7 fields followed by `box_token_id` (`bt_` + ULID, the enrollment token's id) and
+`u64(expires_at_ms)`. Grammar: `roles` = `gateway` only (no donor role), `repo_scope` set (one
+repo), `expires_at_ms` > 0; anything else is refused. The PoP is the ordinary one (§2): the box
+signs its keys, the relay asserts the token, scope and expiry, which only narrow the device.
+
+- **State.** Accepted iff `logged_at_ms < expires_at_ms ≤ logged_at_ms + 30 days` (`box_expiry`,
+  enrollment tokens live 10 min – 30 days), plus the `KEY_ADDED` rules (§5). Its pseudonym is the
+  enrolling owner's or member's.
+- **Inactive once expired.** `gateway_allowed` / `sealable` refuse a box device at or after
+  `expires_at_ms` (`expired`), judged by the asking party's clock (the Worker's, the relay's);
+  the relay also logs the usual `KEY_REVOKED` when a box expires or is revoked. A box never
+  satisfies `sealable` (no worker role) and has no owner powers: owner keys are separate keys
+  (§4) and the relay refuses §2a requests from a box except revoking itself.
+- **Monitors.** A user's box devices are listed apart from their devices (`State::boxes`); a box
+  on my account raises `BoxEnrolled` (never `UnknownKey`: its keys are made in the box), and
+  `BoxOutsideRepo` (security) when its repo is one I neither own nor am an active member of at
+  that point of the log.
+
+Vectors: `spec/vectors/keylog/boxes.json`.
 
 ## 3. Labels
 
@@ -215,9 +239,22 @@ user raises `UnknownPasskey{email_proof: true}` for an email-proof passkey it di
 naming it as the takeover path of a compromised mailbox or relay; public monitors can count such
 registrations. With an active owner key, a new passkey needs that key's co-signature
 (`owner_key_exists` otherwise), and an Ed25519 `OWNER_KEY_ADDED` without `prev` is refused while a
-passkey is active (`owner_key_exists`): bind the CLI key from a passkey session instead (todo).
+passkey is active (`owner_key_exists`): bind the CLI key with a passkey's co-signature (§4b).
 
 **Revocation.** `OWNER_KEY_REVOKED` with the 77-byte `cose_key` (relay-asserted, as for Ed25519).
+
+### 4b. A CLI owner key authorized by a passkey
+
+An account whose owner keys are passkeys binds its first CLI (Ed25519) owner key with a 5-field
+`OWNER_KEY_ADDED`: `body = lp(pseudonym, owner_pub(32), "" (no prev), u64(issued_at_ms),
+authorizer)`, `sig = lp(new_sig(64), authorizer_sig)`, both over
+`m = lp("moochy/v1/keylog-sig", u32(10), body)`: `new_sig = Ed25519(new key, m)` (proof of
+possession, `bad_pop`), `authorizer_sig` = an assertion of the active passkey `authorizer` (§4a,
+its counter moves) or 64 bytes if the authorizer is an Ed25519 key. Accepted iff the user has no
+active CLI key (else `owner_key_exists`: rotate it with `prev` instead), `authorizer` is an
+unrevoked owner key of the same user (`unknown_owner_key` / `revoked` / `not_owner`), and both
+signatures verify. Effect: the key becomes the user's active CLI owner key (later rotations use
+`prev` as usual). The CLI signs `m`; the web adds the assertion (WIRING §9).
 
 ## 5. State machine (authority derived from a log prefix)
 
@@ -226,9 +263,9 @@ Node that finds one in the log raises an alert). Codes are shared strings.
 
 | kind | accepted iff | effect |
 |---|---|---|
-| `KEY_ADDED` | device id new (`dup_device`), `sign_pub` new among all keys (`dup_key`), PoP valid (`bad_pop`) | device active |
+| `KEY_ADDED` | device id new (`dup_device`), `sign_pub` new among all keys (`dup_key`), box expiry in `(logged_at, logged_at + 30 d]` (`box_expiry`, §2b), PoP valid (`bad_pop`) | device active (a box until its expiry) |
 | `KEY_REVOKED` | device logged for that pseudonym (`unknown_device`), not yet revoked (`revoked`) | device revoked |
-| `OWNER_KEY_ADDED` | `owner_pub` new among all keys (`dup_key`); no active key and no `prev`, or `prev` = the active key (`unknown_owner_key` / `owner_key_exists`); new-key signature (`bad_pop`); `prev` signature (`bad_sig`) | key active; `prev` revoked |
+| `OWNER_KEY_ADDED` | `owner_pub` new among all keys (`dup_key`); no active key and no `prev` (and no active passkey unless authorized, §4b), or `prev` = the active key (`unknown_owner_key` / `owner_key_exists`); new-key signature (`bad_pop`); `prev` signature (`bad_sig`); authorizer (§4b) | key active; `prev` revoked |
 | `OWNER_KEY_ADDED` (passkey, §4a) | `cose_key` and `credential_id` new (`dup_key`); PoP assertion (§4a codes, `prev` = 0); first key: no active owner key of any kind (`owner_key_exists`); else `authorizer` an unrevoked owner key of the same user (`unknown_owner_key`/`revoked`/`not_owner`) whose signature verifies (`bad_sig` / §4a codes) | passkey active, counter = PoP counter; authorizer's counter moves |
 | `OWNER_KEY_REVOKED` | key logged for that pseudonym (`unknown_owner_key`), not revoked (`revoked`) | key revoked (an Ed25519 revocation leaves the user with no active CLI key) |
 | `REPO_CLAIMED` | `signer` is a logged owner key (`unknown_owner_key`), unrevoked (`revoked`), of `owner_pseudonym` (`not_owner`), signature (`bad_sig`); repo id keeps its provider binding (`repo_binding`); `issued_at` > previous claim's (`replay`) | owner set; a **new** owner drops every approval and membership |
@@ -245,7 +282,8 @@ owner's Node rebuilds a relay-proposed `ApprovalRequest.body_to_sign` with its o
 and current time before signing, after showing the user what it means.
 
 Queries:
-- **sealable(worker_device, repo)**: device logged (`unknown_device`), unrevoked (`revoked`), role
+- **sealable(worker_device, repo)**: device logged (`unknown_device`), unrevoked (`revoked`), not an
+  expired box (`expired`, at the caller's clock), role
   `worker` (`role`), scope empty or `repo` (`scope`), repo claimed (`unclaimed`), active
   `DONOR_APPROVED` for the device's pseudonym (`not_approved`) → `enc_pub`, key index, approval index.
 - **gateway_allowed(gateway_device, repo)**: same device checks with role `gateway`, then the
@@ -291,7 +329,8 @@ publishes once the parties check inclusion.
 ## 9. Monitor rules (Node)
 
 With `me` = own pseudonym + device keys + owner keys the user created or acknowledged:
-`UnknownKey` (device key on my pseudonym I don't know), `UnknownOwnerKey`, `UnknownPasskey` (a
+`UnknownKey` (device key on my pseudonym I don't know), `BoxEnrolled` / `BoxOutsideRepo` (§2b),
+`UnknownOwnerKey`, `UnknownPasskey` (a
 passkey on my pseudonym whose `SHA-256(cose_key)` I don't know; `email_proof` says it was bound as
 the first owner key on the relay's email attestation, §4a), `PasskeyCounter` (an entry signed by one
 of my passkeys refused with `counter`: cloned authenticator or replay), `OwnerKeyRevoked`,
