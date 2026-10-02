@@ -252,6 +252,8 @@ Mandatory techniques: warm connections everywhere (provider HTTP/2 pools, the re
 |---|---|
 | D14 | Until the key log ships, a Worker accepts **relay-asserted** membership/approval only when started with `MOOCHY_INSECURE_DEV=1` (tests, design partners). With the key log, it requires the owner-signed log entries (plan 03 §7.2). The key log is in scope **now** (full plan), not deferred. |
 | D18 | Served-task set: in memory (±10 min window) plus a **boot-time floor**: the Worker refuses any task whose ULID timestamp is earlier than its own process start. No fsync in the hot path; replay across restarts is impossible. |
+| D19 | **Per-request limit default = $5** (`per_task_cap_uusd` 5,000,000; plan 05 §4.1, Q9) in `moochy donate`, the web donation form and the relay's dev API; mo-trace N9. |
+| D20 | **Run token under the standard variable names** (mo-trace N7): inside `moochy run`, `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`ANTHROPIC_AUTH_TOKEN` carry the per-run gateway token so agents work unchanged; no provider key VALUE may ever be visible inside (A153 checks values). |
 | C1 | Adaptive group commit (ADR-34) supersedes the "10 ms window" wording in plans 02/04/05/09. |
 | C2 | gRPC (ADR-33) supersedes every WebSocket/frame mention in plans 01/02/03/04/07/10. |
 | C3 | A closing schedule window is an **eligibility** condition (`window_open`), never a pledge status change. |
