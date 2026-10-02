@@ -17,6 +17,7 @@ Prefer the `.md` pages: they are the source of the HTML pages, with the same tex
 | Add a "Donate tokens" button to a repository's README | [`donate-button.md`](donate-button.md): follow the recipe exactly, top to bottom |
 | Use donated tokens from a coding tool or agent framework | [`integrations.md`](integrations.md) (MCP server and provider-compatible base URLs) |
 | Run inside the Moochy sandbox | [`run.md`](run.md) |
+| Set yourself up inside a cloud box (boat.dev, E2B, Daytona, Modal, Morph, Fly, Codespaces) | [`boxes.md`](boxes.md#1-use-donated-tokens-from-a-cloud-box): install, enroll with the token the maintainer gives you, then `moochy run` |
 | Explain Moochy to a maintainer or donor | [`maintainer.md`](maintainer.md), [`donor.md`](donor.md), [`faq.md`](faq.md) |
 
 ## Rules for agents
@@ -24,6 +25,7 @@ Prefer the `.md` pages: they are the source of the HTML pages, with the same tex
 - **Never handle secrets.** No Moochy task an agent does needs a provider API key, a Moochy token, or a passphrase. Do not ask for them, print them, or write them to files. The project token a maintainer's tools use comes from `moochy env` on their machine and stays there.
 - **Never sign for a person.** Claiming a project, accepting a donor, and adding a member are signed with the maintainer's owner key after they confirm. Tell the maintainer the command; do not run it for them.
 - **Do not create donations.** Donating is the donor's decision and spends their money.
+- **In a cloud box, enroll; never copy keys.** Use the enrollment token the maintainer gives you (`MOOCHY_ENROLL`), enroll when the box starts (never in a template or snapshot), and if Moochy says the box is a copy, delete its Moochy home folder and enroll again.
 - **Inside `moochy run`**, the standard variables (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`) already point to Moochy and hold a token for that run only. Use them as they are; there is nothing to configure.
 - **Tool calls from donated tokens** reach an agent only inside `moochy run`. If you see a `[moochy]` notice instead of a tool call, ask the maintainer to start you with `moochy run -- <your command>`.
 
