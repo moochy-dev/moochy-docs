@@ -32,6 +32,10 @@ service LocalControl {
   // signed entry over its session and returns the relay's verdict. Approve/Members/Claim are then
   // called with dry_run = true (preview only).
   rpc SubmitEntry(SubmitEntryRequest) returns (SignResponse);
+  // Donations (`moochy donate`, `moochy donations`): relayed as-is to NodeLink ListDonations /
+  // Donate / DonationAction on the node's authenticated session (the relay knows the user from
+  // the session, never from a field). `request`/`response` are the link.proto messages' bytes.
+  rpc Donations(DonationsRequest) returns (DonationsResponse);
   // Local audit journal (metadata only). `follow` keeps the stream open for new entries.
   rpc Journal(JournalRequest) returns (stream JournalEntry);
   // stdio MCP shim: first message McpOpen, then raw newline-delimited JSON-RPC bytes both ways.
@@ -199,4 +203,13 @@ message ReportRequest {
 
 message ReportResponse {
   bytes bundle = 1;                // JSON evidence bundle
+}
+
+message DonationsRequest {
+  string op = 1;                   // list | donate | action
+  bytes request = 2;               // ListDonationsRequest | DonateRequest | DonationActionRequest
+}
+
+message DonationsResponse {
+  bytes response = 1;              // ListDonationsResponse | Donation
 }
