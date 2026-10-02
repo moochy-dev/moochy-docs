@@ -24,6 +24,7 @@ export MOOCHY_TOKEN="$(moochy env --repo owner/repo --json | jq -r .token)"
 |---|---|---|
 | API, Anthropic Messages | `http://127.0.0.1:PORT` (SDKs append `/v1/messages`) | `x-api-key: TOKEN` or `Authorization: Bearer TOKEN` |
 | API, OpenAI Chat Completions | `http://127.0.0.1:PORT/v1` | `Authorization: Bearer TOKEN` |
+| API, OpenAI Responses (Codex) | `http://127.0.0.1:PORT/v1` (`POST /v1/responses`) | `Authorization: Bearer TOKEN` |
 | Models | `GET /v1/models` (both dialects) | same |
 | MCP, stdio | command `moochy mcp --repo owner/repo` | none (it talks to the running Moochy app over a private local socket) |
 | MCP, Streamable HTTP | `http://127.0.0.1:PORT/mcp` | `Authorization: Bearer TOKEN` |
@@ -32,7 +33,7 @@ export MOOCHY_TOKEN="$(moochy env --repo owner/repo --json | jq -r .token)"
 - The token is scoped to one repository and only works on this machine. Keep it out of git: use environment variables or the tool's secret storage, never a file tracked by git.
 - Both ways in listen on `127.0.0.1` only, refuse requests with a foreign `Host` header, and send no CORS headers, so web pages cannot reach them.
 - **Models** are public slugs such as `anthropic/claude-sonnet-5`, `deepseek/deepseek-chat`, `x-ai/grok-4`, or any OpenRouter model id; providers' own ids are accepted too. Use only ids listed by `GET /v1/models` or `moochy_pool_status`: they are what donors offer your project right now. The examples below use `anthropic/claude-sonnet-5`; use your project's models.
-- **Formats.** Anthropic donors serve the Anthropic format; OpenAI and xAI (Grok) donors serve the OpenAI format; OpenRouter and DeepSeek donors serve both. A Claude Code session therefore needs Anthropic, OpenRouter, or DeepSeek donors, and a Grok model is reached through the OpenAI-compatible endpoint. `moochy_delegate` picks the right format for you.
+- **Formats.** Anthropic donors serve the Anthropic format; OpenAI and xAI (Grok) donors serve the OpenAI format; OpenRouter and DeepSeek donors serve both. A Claude Code session therefore needs Anthropic, OpenRouter, or DeepSeek donors, and a Grok model is reached through the OpenAI-compatible endpoint. `moochy_delegate` picks the right format for you. Codex uses the OpenAI Responses format, which OpenAI, xAI, and OpenRouter donors serve; requests must be self-contained (`store` and `previous_response_id` are refused).
 - GUI applications often do not inherit your shell's `PATH`. If an MCP server fails to start, use the absolute path from `command -v moochy` as the command.
 
 ### MCP tools
@@ -77,7 +78,7 @@ In the tables below, **E2E** names the scenario that covers the way in a snippet
 | Windsurf | `windsurf` | stdio, HTTP | MCP only |
 | VS Code (Copilot agent mode) | `vscode` | stdio, HTTP | depends on the version |
 | Aider | `aider` | — | OpenAI-compatible |
-| Codex | `codex` | stdio, HTTP | MCP only for now (Codex needs the Responses API) |
+| Codex | `codex` | stdio, HTTP | OpenAI Responses (OpenAI, xAI, OpenRouter donors) |
 | GitHub Copilot CLI | `copilot-cli` | stdio, HTTP | OpenAI-compatible, Anthropic |
 | Gemini CLI | `gemini-cli` | stdio, HTTP | MCP only |
 | Amp | `amp` | stdio, HTTP | MCP only |
@@ -90,7 +91,7 @@ In the tables below, **E2E** names the scenario that covers the way in a snippet
 | Roo Code | `roo-code` | stdio, HTTP | Anthropic, OpenAI-compatible |
 | Trae | `trae` | stdio | OpenAI-compatible, Anthropic |
 
-"MCP only" means the agent cannot use a local base URL for its model; it still delegates work to donated tokens with `moochy_delegate`. `moochy connect` ids for the agents added in this release (from Codex down) arrive with the next app release; until then use the settings below.
+"MCP only" means the agent cannot use a local base URL for its model; it still delegates work to donated tokens with `moochy_delegate`.
 
 ### Claude Code
 
@@ -391,7 +392,7 @@ The `openai/` prefix tells Aider to use the OpenAI-compatible endpoint; the rest
 | Way in | E2E | Tool |
 |---|---|---|
 | MCP stdio / HTTP | E109 (pending) | manual |
-| API | — | **not yet**: Codex speaks only the OpenAI Responses API (below) |
+| API (OpenAI Responses) | E111 | manual |
 
 Recommended: `moochy run -- codex` in your repository; inside the sandbox Codex reaches Moochy's MCP server through `moochy mcp`.
 
@@ -413,11 +414,11 @@ bearer_token_env_var = "MOOCHY_TOKEN"
 
 Or from the command line: `codex mcp add moochy -- moochy mcp --repo owner/repo`, or `codex mcp add moochy --url http://127.0.0.1:PORT/mcp --bearer-token-env-var MOOCHY_TOKEN`.
 
-API: since Codex 0.95, custom providers accept only `wire_api = "responses"` (`POST /v1/responses`); `wire_api = "chat"` is a configuration error, and Codex has no Anthropic format. Moochy's gateway serves Anthropic Messages and OpenAI Chat Completions today, so Codex uses donated tokens through MCP only. When the gateway adds the Responses format, this will be the provider:
+API (donated tokens as Codex's model). Since Codex 0.95, custom providers speak only the OpenAI Responses API (`wire_api = "responses"`; `"chat"` is a configuration error), and Moochy serves it at `POST /v1/responses`. Same `~/.codex/config.toml`:
 
 ```toml
 model_provider = "moochy"
-model = "openai/gpt-5"
+model = "anthropic/claude-sonnet-5"
 
 [model_providers.moochy]
 name = "Moochy"
@@ -425,6 +426,10 @@ base_url = "http://127.0.0.1:PORT/v1"
 env_key = "MOOCHY_TOKEN"
 wire_api = "responses"
 ```
+
+- **Donors:** Responses requests go only to donors whose provider speaks that format natively: OpenAI, xAI, and OpenRouter. Pick a `model` those donors offer (`moochy connect codex` fills in your project's main model; check `GET /v1/models`).
+- **Every request is self-contained:** `store: true`, `previous_response_id`, background mode, and server-side conversations are refused, so nothing is kept at the provider. Codex sends full requests by default, so this needs no change.
+- Codex has no Anthropic format; Anthropic and DeepSeek donors serve Codex through MCP (`moochy_delegate`).
 
 ### GitHub Copilot CLI
 
