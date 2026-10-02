@@ -24,10 +24,11 @@ Alerts: `RelayUnavailable`, `RelayScrapeDown`, `LitestreamLag`, `LitestreamDown`
    Full disk → delete only `/var/lib/moochy/*.litestream-tmp*` or old journal files, never `relay.db*`. Then R7.
 3. **Certificates** (ACME autocert, cached in the state dir):
    ```sh
-   echo | openssl s_client -connect "$RELAY_DOMAIN:443" -servername "$RELAY_DOMAIN" 2>/dev/null | openssl x509 -noout -dates
-   echo | openssl s_client -connect "$RELAY_DOMAIN:8443" -alpn h2 -tls1_3 2>/dev/null | grep -E 'ALPN|Verify'
+   . /etc/moochy/relay.env
+   echo | openssl s_client -connect "$RELAY_WEB_DOMAIN:443" -servername "$RELAY_WEB_DOMAIN" 2>/dev/null | openssl x509 -noout -dates
+   echo | openssl s_client -connect "$RELAY_LINK_DOMAIN:8443" -servername "$RELAY_LINK_DOMAIN" -alpn h2 -tls1_3 2>/dev/null | grep -E 'ALPN|Verify'
    ```
-   Expired → check port 443 reachable from the internet (TLS-ALPN challenge) and the rate limits in the log.
+   Expired → check port 443 reachable from the internet (TLS-ALPN challenge) and the rate limits in the log. The ACME cache is `/var/lib/moochy/autocert` (0700); `acme-v02.api.letsencrypt.org` must be in `/etc/moochy/egress.hosts`.
 4. **Restart** (process wedged but VM healthy):
    ```sh
    deploy/relay/scripts/drain-restart.sh --restart-only        # drains first if the admin socket answers
@@ -121,3 +122,26 @@ Alerts: `FirewallNewFieldWidespread` (a harness changed; review the allowlist).
 3. **Raise `min_client_version`** to that release (`RELAY_MIN_CLIENT_VERSION` in `/etc/moochy/relay.env` → `--min-client-version`), `drain-restart.sh --restart-only`. Old Workers are refused at `hello`.
 4. **Notify donors** (email + dashboard banner): what was exposed, what they must update.
 5. For `FirewallNewFieldWidespread` alone (no bypass): a client harness started sending a new field; decide allowlist or keep refusing, and ship accordingly.
+
+## R9 — Email delivery failing
+
+Alerts: `EmailDeliveryFailing` (page: the oldest queued email is over 30 min old), `EmailGivingUp`, `EmailRetrying`, `EmailDisabled`. Security emails (new device, owner key added, account deletion) are the reason this pages.
+
+1. **Enabled?** `M 'email_enabled|email_outbox'`. `email_enabled 0` → the relay started without `resend-key` or `--email-from` (it says so at start-up: `journalctl -u moochy-relay | grep -i email`). Production must have `moochy-relay.service.d/email.conf` installed (README "Email"); only the product owner creates its credentials and the sender.
+2. **What does Resend answer?** `journalctl -u moochy-relay --since -1h -o cat | grep -E 'email (failed|retry)|resend: http'`:
+   - `http 401/403` → the key was revoked or rotated: the product owner issues a new key; `systemd-creds encrypt --name=resend-key - /etc/moochy/creds/resend-key.cred`, `drain-restart.sh --restart-only`.
+   - `http 422` on every email → the sender is not verified at Resend (or the placeholder sender is still set): product owner.
+   - `http 429` → our rate is too high: check for a burst (`M email_outbox_rows`), digests should have grouped it; the queue drains on its own with backoff.
+   - `http 5xx` / `network error` → Resend outage or egress: step 3.
+3. **Egress**: `journalctl -k | grep moochy-egress-drop | tail` and `sudo nft list set inet moochy_egress allow4`. Drops to a Resend address → `systemctl start moochy-egress-refresh` (resolution changed); `api.resend.com` missing from `/etc/moochy/egress.hosts` → add it.
+4. **Nothing lost**: the outbox is durable; queued rows retry with backoff for 24 h, then become `failed` (`EmailGivingUp`). Failed security emails: re-notify the affected users by hand after the fix (list ids only: `sqlite3 -readonly /var/lib/moochy/relay.db "SELECT id, user_id, kind FROM notify_outbox WHERE status='failed' AND category='security'"`); never paste addresses or bodies into tickets.
+5. Bounces and complaints are not failures: a signed Resend webhook marks the address suppressed (non-security email stops until the user confirms again). A spike of them: check `/hooks/resend` answers 2xx (`journalctl -u moochy-relay | grep hooks/resend`).
+
+## R10 — Boxes: cloned box refused
+
+Alert: `BoxCloneRefused` (CONTRACT §17.1: a second concurrent session with the same box device key, i.e. a cloned or forked VM).
+
+1. Identify the box device and its owner from the relay log (`grep -i clone`, device ids only); the owner was emailed automatically.
+2. Expected after a platform "fork VM" or a snapshot restore: the clone must enroll again with a new token; nothing to do on our side.
+3. Unexpected (owner did not clone): treat the box key as stolen: `$A suspend <device_id> --reason "<ticket>"`, ask the owner to revoke the box (`moochy box revoke`) and rotate the enrollment tokens of that repository.
+
