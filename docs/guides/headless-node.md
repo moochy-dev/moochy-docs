@@ -31,7 +31,14 @@ moochy --home /var/lib/moochy config set monthly_limit 25      # $25 a month fro
 moochy --home /var/lib/moochy config set slots_max 4
 ```
 
-Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`. Set a spending limit at your provider as well ([how, per provider](donor.md#4-set-a-spending-limit-at-your-provider-strongly-recommended)). Then press **Donate tokens** on the project's page on moochy.dev.
+Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`, or `local` for a model server on this machine or your network ([Donate from your own GPU](local-gpu.md)). Set a spending limit at your provider as well ([how, per provider](donor.md#4-set-a-spending-limit-at-your-provider-strongly-recommended)). Then donate:
+
+```sh
+moochy --home /var/lib/moochy donate --repo owner/name --cap '$25' --yes
+moochy --home /var/lib/moochy donations                 # what each project used this month
+```
+
+The donation starts once the project's owner accepts you. The limit per request is the default ($5); change it, the models, or the schedule on moochy.dev.
 
 ### 1.3 Run it as a service
 
@@ -96,7 +103,7 @@ A machine that only donates needs **outgoing** HTTPS (to moochy.dev and to your 
    ```
 
    When you confirm the code in the browser, limit the device to **one repository**.
-2. **Make it a member with its own monthly limit.** The repository owner runs `moochy members add --device d_… --repo owner/repo --cap '$5'` on their own machine. An agent running on its own can then never use up the project's donations.
+2. **Make it a member with its own monthly limit.** The repository owner runs `moochy members add --device d_… --repo owner/repo --cap '$5'` on their own machine; it is signed with their owner key, so it needs their passphrase (keep the owner key off CI machines). An agent running on its own can then never use up the project's donations.
 3. **Store the key file** (`./ci-node`, encrypted) and its passphrase in your CI secret store.
 4. **In the job**, restore the directory, start the app, and run the agent:
 

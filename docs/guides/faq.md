@@ -84,11 +84,13 @@ Treat model output as input you did not write. Tool calls from donated tokens on
 
 ### How do I know a donor really used the model they claim?
 
-Nobody can prove that with cryptography today. What Moochy does: the donor signs a receipt for every request; the maintainer's app checks it against what it sent and received (sizes, token counts, the model the provider reported) and files a signed dispute when something does not match; disputed receipts do not count in rankings. Donors are accepted by the project owner, and they pay their own provider, so there is little to gain by cheating.
+Nobody can prove that with cryptography today. What Moochy does: the donor signs a receipt for every request; the maintainer's app checks it against what it sent and received (sizes, token counts, the model the provider reported) and files a signed dispute when something does not match; disputed receipts do not count in rankings. Donors are accepted by the project owner, and they pay their own provider, so there is little to gain by cheating. Every settled receipt is also recorded in a public receipt log; `moochy verify <receipt_ref>` checks a public receipt of one of your requests against the donor's signature and the public key log.
+
+Donations from a local GPU are different: nobody bills anyone, so their token counts are self-reported, labelled as such, and never counted as money ([details](local-gpu.md#5-self-reported-usage)).
 
 ### What stops Moochy's servers from adding a fake donor or member?
 
-The repository owner's own device signs every accepted donor and member, and those signatures are published in a public, append-only **public key log**. Every app keeps a copy and checks it: a maintainer's app encrypts only for donors the owner accepted, and a donor's app serves only members the owner accepted. Each app also warns its user if a key appears on their account, or a donor or member appears for their repository, that they did not add. The log's checkpoints are published every hour to a public Git repository, so a rewritten history would be visible to everyone.
+The repository owner's **owner key** signs every accepted donor and member. It is separate from every device key, protected by its own passphrase, and used only by a command the owner types and confirms, never by the app running in the background. Those signatures are published in a public, append-only **public key log**. Every app keeps a copy and checks it: a maintainer's app encrypts only for donors the owner accepted, and a donor's app serves only members the owner accepted. Each app also warns its user if a key appears on their account, or a donor or member appears for their repository, that they did not add. The log's checkpoints are published every hour to a public Git repository, so a rewritten history would be visible to everyone.
 
 ### How do I check the app I run?
 
@@ -113,7 +115,7 @@ Anything that speaks MCP, and anything that lets you set an Anthropic- or OpenAI
 
 ### Which providers can donors use?
 
-Anthropic, OpenAI, OpenRouter, DeepSeek, and xAI (Grok). Only API keys are accepted, never chat-subscription logins.
+Anthropic, OpenAI, OpenRouter, DeepSeek, and xAI (Grok), with an API key; never chat-subscription logins. Donors can also donate from a model on their own GPU through Ollama, LM Studio, vLLM, or llama.cpp ([Donate from your own GPU](local-gpu.md)).
 
 ### Why does my agent get a 400 or 403 instead of a retry?
 
@@ -122,3 +124,9 @@ On purpose. When a request could cost more than the donors' limit per request (4
 ### What happens if moochy.dev is down?
 
 Requests fail with normal provider errors that tools retry. Donors' receipts wait safely on their own machines and are delivered afterwards, so nothing is lost or charged twice.
+
+## Security
+
+### How do I report a vulnerability?
+
+Email security@moochy.dev, privately; do not open a public issue. The policy, with its scope, response times, and safe harbour for good-faith research, is in [`cli/SECURITY.md`](../../cli/SECURITY.md). A summary of the attacks Moochy is designed against is in [How Moochy protects you](threat-model.md).

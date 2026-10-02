@@ -20,9 +20,9 @@ moochy run -- claude               # or: opencode, aider, goose, any command-lin
 |---|---|
 | **Your project** | Read and write the project's folder (the git worktree). Use `--worktree DIR` to pick another one |
 | **Secrets in the project** | Hidden: `.env` and `.env.*`, `*.pem`, `*.key`, `id_*`, `.npmrc`, `.netrc`, `.pypirc`, `credentials*`, cloud tool folders (`.aws`, `.gcloud`, `.azure`, `.kube`, `.docker`, `.ssh`), and every file ignored by git. The agent sees an empty file in their place |
-| **Git** | Commit, branch, and diff as usual. `.git/hooks` and `.git/config` are read-only, so the agent cannot plant a hook that runs outside the sandbox on your next commit |
+| **Git** | Read `git status`, `git log`, and `git diff` as usual. Every `.git` folder is **read-only** inside by default, so the agent cannot commit, rewrite history, or plant a hook or setting that your own git would run later. You review the changes and commit them yourself after the run. `--git-writable` lets the agent commit to the project's own repository; `hooks/`, `config`, and submodules stay read-only even then. If git metadata changes in a way the sandbox cannot block (a new `.git` folder created somewhere inside), `moochy run` tells you after the run so you can review it |
 | **The rest of your computer** | Not there: your real home folder, `~/.ssh`, `~/.aws`, your keychain, browser profiles, other repositories, and Moochy's own keys and settings do not exist inside. System folders (`/usr`, `/bin`, `/etc`, …) are read-only. `$HOME` and `/tmp` are empty, private, and deleted at the end |
-| **Network** | Nothing except Moochy. The agent reaches donated tokens through the usual base URLs; every other address fails |
+| **Network** | Nothing except Moochy, and the hosts you allow with `--allow-host` (below). The agent reaches donated tokens through the usual base URLs; every other address fails |
 | **Environment** | Clean: only `PATH`, `HOME`, `TMPDIR`, `USER`, `TERM`, and the Moochy settings for the agent. Your shell's tokens and variables are not passed in |
 | **Processes** | Cannot see or signal processes outside, cannot gain privileges, and has limits on memory, open files, and process count. Stopping `moochy run`, even with `kill -9`, stops everything inside |
 
@@ -32,9 +32,24 @@ moochy run -- claude               # or: opencode, aider, goose, any command-lin
 
 Agents installed under your home folder (for example `~/.local/bin/claude`, or tools from nvm or cargo) are made visible inside, read-only, so they start normally. Nothing else from your home folder is.
 
+## How the agent finds Moochy
+
+Agents work unchanged: inside the sandbox, the standard variables point to Moochy. `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`, and `OPENAI_API_BASE` name the local endpoints, and `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, and `OPENAI_API_KEY` (plus `MOOCHY_TOKEN`) carry a token made for this run only. That token is the agent's key to Moochy; it works only while the run lasts. No provider API key is ever visible inside the sandbox. `MOOCHY_MCP_URL` gives the MCP endpoint.
+
 ## Allowing other hosts
 
-By default the agent can reach nothing but Moochy, so installing packages from inside the run fails. Install dependencies before you start `moochy run`. An option to allow chosen hosts, such as a package registry (`--allow-host <domain>`), is planned and stays off unless you ask for it.
+By default the agent can reach nothing but Moochy, so installing packages from inside the run fails. Allow the hosts you need, one `--allow-host` each:
+
+```sh
+moochy run --allow-host registry.npmjs.org --allow-host pypi.org --allow-host files.pythonhosted.org -- claude
+```
+
+- Each entry is an exact host name: no wildcards and no IP addresses. An invalid entry stops the run before it starts.
+- Only HTTPS on port 443 goes through, by way of a small proxy that `moochy run` starts (`HTTPS_PROXY` points to it inside). Plain HTTP is refused.
+- The proxy connects only if every address the name resolves to is public, so an allowed name cannot be pointed at your local network, at Moochy itself, or at cloud metadata.
+- Each refusal is printed as one line, so you can see what the agent tried to reach.
+
+Allow as little as you can: every allowed host is somewhere the agent can send data.
 
 ## Linux
 
@@ -56,7 +71,7 @@ Then load it with `sudo apparmor_parser -r /etc/apparmor.d/moochy`. Do not turn 
 
 ## macOS
 
-The sandbox uses macOS's built-in Seatbelt, the same mechanism other coding-agent tools use. Everything is blocked unless allowed: the agent can read system folders and your project, write only to your project and a private scratch folder, and connect only to Moochy on your machine.
+The sandbox uses macOS's built-in Seatbelt, the same mechanism other coding-agent tools use. Everything is blocked unless allowed: the agent can read system folders and your project, write only to your project and a private scratch folder, and connect only to Moochy on your machine, plus the allowed-hosts proxy when you use `--allow-host`. Writes to any `.git` folder are refused, at any depth.
 
 ## Windows
 

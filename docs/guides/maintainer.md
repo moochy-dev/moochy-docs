@@ -21,15 +21,22 @@ Confirm the printed code in your browser (GitHub or GitLab sign-in). The first t
 
 ## 2. Register your repository
 
-1. On moochy.dev, open **Claim** and pick the repository. Moochy asks your code host, once, whether you are an **admin** of it. The sign-in token is used for that check and not stored.
-2. Confirm on your own machine, in the repository folder:
+1. Create your **owner key**, once per account:
+
+   ```sh
+   moochy owner init
+   ```
+
+   It is a separate key that signs only your decisions as an owner (claims, accepted donors, members). It is encrypted with its own passphrase, which you type in the terminal, and it is used only by the commands below, never by the app running in the background. Keep the passphrase somewhere safe. `moochy owner rotate` replaces a key you still have; if you lose the key or its passphrase, it can be revoked after you sign in again on moochy.dev, and you create a new one with `moochy owner init`. Your other devices warn you if an owner key appears on your account that you did not create.
+2. On moochy.dev, open **Claim** and pick the repository. Moochy asks your code host, once, whether you are an **admin** of it. The sign-in token is used for that check and not stored.
+3. Confirm on your own machine, in the repository folder:
 
    ```sh
    moochy claim --repo owner/repo
    ```
 
-   The app shows what it is about to sign and asks you to confirm. Your signature goes into the public key log. From then on, every donor or member accepted for this repository needs your signature.
-3. In **Project settings**, set the **monthly goal**, a short public note on what you use the tokens for (donors read it before donating), and the **default model**.
+   The app shows what it is about to sign, asks you to confirm, and asks for your owner key's passphrase. Your signature goes into the public key log. From then on, every donor or member accepted for this repository needs your signature.
+4. In **Project settings**, set the **monthly goal**, a short public note on what you use the tokens for (donors read it before donating), and the **default model**.
 
 Add a **Donate tokens** button to your README so donors find you: see [Add a "Donate tokens" button](donate-button.md).
 
@@ -39,11 +46,11 @@ New donations show **waiting for the maintainer**. Project settings list each do
 
 ```sh
 moochy pending                                  # donors and members waiting for your signature
-moochy accept ps_7Hc2QZ… --repo owner/repo      # or the donor's handle; `moochy approve` is the same command
-moochy accept ps_7Hc2QZ… --repo owner/repo --revoke   # remove a donor you accepted
+moochy accept ps_7hc2qz… --repo owner/repo      # or the donor's handle; `moochy approve` is the same command
+moochy accept ps_7hc2qz… --repo owner/repo --revoke   # remove a donor you accepted
 ```
 
-The app shows exactly what it will sign (the project, the donor, your device) and asks you to confirm; `--yes` skips the question in scripts.
+The app shows exactly what it will sign (the project, the donor, your owner key), asks you to confirm, and asks for the owner key's passphrase. In scripts and CI, `--yes` skips the question and the passphrase comes from `MOOCHY_OWNER_PASSPHRASE`; it is never read from standard input, so a tool piping into `moochy` cannot answer for you.
 
 **Approvals are signed by your owner key, on your own machine, after you confirm.** The website lists requests and lets you decline, but it never accepts a donor for you, and neither can the background app: the owner key is loaded only by the command you type. Before any member's app sends a single encrypted byte to a donor, it checks your signature for that donor in the public key log. A donor that was not accepted by you never receives your project's requests.
 
@@ -132,6 +139,7 @@ Errors come back in the provider's own format, so agents react sensibly:
 moochy status                  # donations available to your projects, requests in progress
 moochy pending                 # anything waiting for your signature
 moochy journal --follow        # requests you made: model, cost, status
+moochy verify <receipt_ref>    # check a public receipt of one of your requests: donor signature, link to the signed receipt, public key log
 ```
 
 Project settings show how much donors gave this month and how much was used, usage per member and per model, the cache hit rate, and models your members asked for that no donor offers.

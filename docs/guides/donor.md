@@ -13,7 +13,7 @@ It takes about 5 minutes.
 - **The background app locks itself down.** Once it has loaded its keys and opened its connections, it removes its own ability to start programs, limits itself to its own state folder, and can connect only to your provider and to Moochy (Linux: seccomp and Landlock; macOS: Seatbelt). If it cannot lock itself down, it refuses to donate, and `moochy doctor` tells you why.
 - **Each request is checked in a throwaway process** with no files, no network, and no keys, so a malformed request cannot reach anything that matters.
 - **Use a separate provider key with a spending limit at the provider** ([how](#4-set-a-spending-limit-at-your-provider-strongly-recommended)). Then even a bug anywhere in Moochy cannot cost you more than that limit.
-- **Local GPUs are coming.** Donating tokens from a model running on your own GPU is planned; today you donate through a provider API key.
+- **Your own GPU works too.** Instead of a provider key, you can donate tokens from a model running on your own hardware (Ollama, LM Studio, vLLM, llama.cpp): see [Donate from your own GPU](local-gpu.md).
 
 ## 1. Install
 
@@ -52,7 +52,7 @@ read -rs KEY                                       # paste the key, press Enter 
 printf '%s' "$KEY" | moochy keys add anthropic --key-stdin && unset KEY
 ```
 
-Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`. `moochy keys list` shows your keys; `moochy keys remove <provider>` deletes one.
+Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`, and `local` for your own GPU ([guide](local-gpu.md)). `moochy keys list` shows your keys; `moochy keys remove <provider>` deletes one. `moochy keys rotate` gives this device new keys of its own (not provider keys); the old ones stop working 24 hours later.
 
 The app checks the key with a free call to the provider's model list, and offers exactly the models the key can use.
 
@@ -108,7 +108,13 @@ To start it at login on a server, see [Run Moochy on a server or in CI](headless
 
 ## 7. Donate tokens
 
-Open a project on moochy.dev and press **Donate tokens**. A donation has:
+Open a project on moochy.dev and press **Donate tokens**, or from the terminal:
+
+```sh
+moochy donate --repo owner/name --cap '$20'     # up to $20 a month; asks you to confirm
+```
+
+Write the amount with a dollar sign, in single quotes so your shell keeps the `$`. From the terminal, the limit per request is the default ($5) and every model your key offers is allowed; change those on the website. A donation has:
 
 | Setting | Meaning |
 |---|---|
@@ -127,9 +133,10 @@ The donation shows **waiting for the maintainer** until the project's owner acce
 | You want to | Do | What happens |
 |---|---|---|
 | Stop serving from this device now | `moochy pause` (`moochy resume` to undo) | Immediate, works offline, no sign-in needed. This device takes no new requests |
-| Pause one donation | Dashboard → the donation → **Pause** | No new requests for that project until you resume |
+| See your donations | `moochy donations` (or the Dashboard) | What each project used this month, and each donation's id |
+| Pause one donation | `moochy donations pause <id>` (`resume` to undo), or Dashboard → the donation → **Pause** | No new requests for that project until you resume |
 | Give less | Lower the donation's monthly limit | Takes effect within milliseconds |
-| Stop donating to a project | Dashboard → **Stop donating** | The donation ends. No new requests; requests in progress finish and are recorded |
+| Stop donating to a project | `moochy donations stop <id>`, or Dashboard → **Stop donating** | The donation ends. No new requests; requests in progress finish and are recorded |
 | Remove this device | `moochy logout` | Its keys are revoked, then deleted from the device |
 | Remove another device | Devices page on moochy.dev | Its keys stop working immediately |
 
@@ -162,7 +169,7 @@ Every account has one handle on moochy.dev, and no two accounts share one:
 |---|---|
 | **Waiting for the maintainer** for a long time | The owner has not accepted you yet. The project page shows whether the owner is active |
 | Nothing is served | `moochy status`: device limit reached? outside your schedule? paused? key invalid? |
-| The app refuses to donate | `moochy doctor`: usually the lockdown could not be applied on this system; it says why |
+| The app refuses to donate | `moochy doctor`: usually the lockdown could not be applied on this system; it says why. (`moochy up --unsafe-no-lockdown` exists only for debugging the app; do not donate with it) |
 | Provider errors | `moochy doctor` checks the keychain, connection, clock, and provider keys |
 | Unexpected costs | `moochy pause`, then `moochy journal`, and compare with your provider's usage page. Save evidence with `moochy report <task>` |
 
