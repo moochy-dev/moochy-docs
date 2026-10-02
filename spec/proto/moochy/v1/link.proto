@@ -408,6 +408,7 @@ message Assign {
   int64 pledge_headroom_uusd = 11; // budget - spent - reserved at assignment (advisory; the Worker's local caps still rule)
   int64 per_task_cap_uusd = 12;
   uint64 catalog_version = 13;     // catalog version in effect at attempt start
+  string gateway_device = 14;      // the requesting Gateway device (verified by the Worker against the key log); lets the donor give each member its own provider pseudonym
 }
 
 // ---------------------------------------------------------- Device login
