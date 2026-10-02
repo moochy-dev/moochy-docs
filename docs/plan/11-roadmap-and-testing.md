@@ -3,6 +3,8 @@
 > Phases ordered so that every phase ships something usable end-to-end and removes the biggest remaining risk. Each phase has a scope, deliverables, **exit criteria that can be checked**, and the risks it retires. Replaces the draft's four-phase list.
 
 > **Updated 2026-10-01:** phases now follow the CONTRACT §8 E2E table, the integrator decisions D12–D14, and the source boundary of CONTRACT §0a. Changes: the E2E table (E01–E22) is the definition of "working" and is due now, so failover (E06), 429 reroute (E07), cancel (E08), chaos caps (E11), tamper/replay/injection/tool gating (E15–E18), throughput (E20), usernames (E21), and responsiveness budgets (E22) move into Phase 1; the OpenAI adapter is Phase 1; the key log is in scope now, with relay-asserted membership allowed only under `MOOCHY_INSECURE_DEV=1` until it ships (ADR-38); Phase 0 sets up the open `moochy-cli` (Apache-2.0, DCO) / closed `moochy-core` split, with no self-host deliverables (ADR-01); gRPC replaces frames (ADR-33); new §6 maps every scenario ID to its phase.
+>
+> **Updated again 2026-10-01 (main `b65289e7`):** sandbox and donor lockdown in Phase 1 scope (ADR-43), E93+ in the scenario map.
 
 ---
 
@@ -64,6 +66,7 @@ Phases 2 and 3 can run in parallel with two engineers.
 | Client | Three crates (`moochy-proto`, `moochy-worker`, `moochy`); `login`, `up`, `env`, `connect`, `keys add`, `donate`, `status`, `pause` (CLI commands reach the running Node over `LocalControl`); **API door** (`/v1/messages` and `/v1/chat/completions`, streaming); **MCP door** (`moochy_delegate`, `moochy_pool_status` over stdio and Streamable HTTP); Worker with **Anthropic, OpenRouter, DeepSeek, OpenAI, and xAI adapters** (OpenRouter and DeepSeek serving both dialects), public model slugs, **strict firewall**, local reservations, outbox, served-task set with boot-time floor; Gateway structural tool-call checks and tripwire (E18); every chunk flushed immediately |
 | Crypto | Full envelopes (fresh CK per body, **per-attempt response keys**, AAD binding); task signatures; donor-signed receipts and projections; `lp` labels with explicit integer widths; ZIP-215 vectors; username vectors (`spec/vectors/usernames.json`) |
 | Key log | In scope now (ADR-38), built in parallel by its own owner (`relay/internal/tlog`, `moochy-keylog`); its exit criteria are listed under Phase 3. Until it ships, Workers accept relay-asserted membership and approvals **only** when started with `MOOCHY_INSECURE_DEV=1` |
+| Sandbox | In scope now (ADR-43, CONTRACT §15, owner mo-sandbox): `moochy run` on Linux and macOS (fails closed elsewhere), run tokens so pooled tool calls reach only sandboxed sessions, donor `lockdown_self` and the per-request validator child; verified by E93 and later (E96 for the donor process) as CONTRACT §8 assigns them |
 
 **Exit criteria (all must pass):**
 
@@ -263,5 +266,7 @@ Scenario IDs are stable and owned by `spec/CONTRACT.md`; this table only says wh
 | E20 | 200 concurrent streamed tasks across 3 workers | Phase 1 | — |
 | E21 | Unique usernames: duplicate, case variant, reserved, confusable, tombstone, rename redirect | Phase 1 | — |
 | E22 | Responsiveness budgets of CONTRACT §13 at p50 and p99 | Phase 1, and every release | Phase 4 web budgets |
+
+| E93+ | Sandbox and donor lockdown (CONTRACT §15.3): worktree-only agent, no network but the gateway, poisoned `curl … \| sh` without effect outside, donor process cannot `exec` or connect elsewhere (E96), validator child has no files or sockets | Phase 1 | ADR-43 |
 
 New scenarios get the next free ID in CONTRACT §8 first, then a row here.

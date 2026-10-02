@@ -8,6 +8,7 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 |---|---|
 | [Donate tokens](donor.md) | Install the app, add a provider key, set your limits, donate, pause, stop donating, see what your key was used for |
 | [Use donated tokens in your project](maintainer.md) | Register a project, accept donors, add members, connect your tools |
+| [Run your agent safely with `moochy run`](run.md) | The sandbox your coding agent runs in: what it can reach, Linux and macOS notes |
 | [Add a "Donate tokens" button](donate-button.md) | Put the button in your GitHub README |
 | [Connect your tools](integrations.md) | Exact settings for OpenCode, Claude Code, Cursor, Cline, Continue, Zed, Goose, Windsurf, VS Code, Claude Desktop, Aider, agent frameworks, and SDKs |
 | [Run Moochy on a server or in CI](headless-node.md) | An always-on donation from a machine you control; agents in CI |
