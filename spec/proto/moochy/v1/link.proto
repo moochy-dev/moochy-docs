@@ -152,7 +152,7 @@ message PoolWorker {
   uint64 key_log_index = 3;
   uint64 approval_log_index = 4;
   string donor_pseudonym = 5;
-  repeated string dialects = 6;    // "anthropic.messages" | "openai.chat"
+  repeated string dialects = 6;    // "anthropic.messages" | "openai.chat" | "openai.responses" (CONTRACT §18.2: openai, xai, openrouter only)
   repeated string models = 7;      // public model ids (slugs)
   uint32 hint = 8;                 // 0-100, coarse
   bytes sign_pub = 9;              // Ed25519 key of the worker device (verifies receipts, progress checkpoints)
