@@ -5,6 +5,8 @@
 > **Updated 2026-10-01:** pages, budgets, and live updates now match `spec/CONTRACT.md` (§0a, §8, §9, §11, §13, §14) and ADR-01/34. Changes: hand-written CSS with custom properties and a native-first motion system replace Tailwind, with byte budgets (CSS ≤ 48 KB raw / ≤ 12 KB gzip, motion JS ≤ 12 KB gzip, at most one self-hosted variable font) and the fixed palette (C10); unique handles with signup choice, rename, 90-day tombstone redirects, and profiles at `/{handle}` (§12, CONTRACT §11, E21); public model slugs with native ids as secondary text (C11); pseudonyms `ps_…` (D10); SSE coalescing 250 ms for audit feed, pool, and station, goal bars ≤ 1 per 30 s, donor rankings ≤ 1 per 60 s (C12); TTFB ≤ 30 ms p50 / 80 ms p99; `mo-web` owns `relay/internal/web/**` behind the `Source` interface (§13); open-source client and closed web/relay, no self-hosting, footer "Open-source client (Apache-2.0) · 100% free" (ADR-01, CONTRACT §0a).
 >
 > **Updated again 2026-10-01 (main `b65289e7`):** monochrome Ink/Paper/Sky visual direction and subtle motion replace the earlier palette and motion system (CONTRACT §9), VOICE.md wording, app-shell information architecture, Donate tokens button studio and `button.svg`, provider logos, profiles at `/u/{handle}` (R1), web owner renamed mo-design.
+>
+> **Updated 2026-10-02 (docs site):** public docs routes (`/docs`, `.md` pages, `/llms.txt`) and the projects check API in the route map.
 
 ---
 
@@ -35,6 +37,8 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 | GET | `/` | P | Landing: what Moochy is, **"open source and free" statement**, live global counters, featured repos, "works with any MCP client or OpenAI/Anthropic-compatible tool" |
 | GET | `/connect` | P | Integration guide: per-client snippets (OpenCode, Claude Code, Cursor, Cline, Zed, Goose, agent frameworks, SDKs) for the MCP door and the API door; supported donor providers (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI, …) |
 | GET | `/open` | P | **Open-source client and costs**: links to the client source (`moochy-cli`), its license (Apache-2.0), and the public protocol spec; why the closed relay does not need to be trusted; what running moochy.dev costs each month and who sponsors it (static page, updated monthly) |
+| GET | `/docs`, `/docs/{slug}`, `/docs/{slug}.md`, `/llms.txt`, `/llms-full.txt` | P | Public documentation for people and AI agents (CONTRACT §9): `docs/guides/**` rendered by `relay/internal/docsite` (owner mo-docs; mounted by mo-relay per its `WIRING.md`), raw Markdown for agents, the donate-button recipe first in `/llms.txt` |
+| GET | `/api/v1/projects/{provider}/{owner}/{repo}` | P | Machine check for agents: `{claimed, donate_url, button_url, docs}`; never donors or amounts (CONTRACT §9; owner mo-relay) |
 | GET | `/explore` | P | Repos seeking compute: goal %, donors, models wanted; filters |
 | GET | `/p/{owner}/{repo}` | P | Public repo page (§3) |
 | GET | `/p/{owner}/{repo}/events` | P | SSE: presence + goal + audit-feed fragments (E19) |

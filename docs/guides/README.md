@@ -10,7 +10,8 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | [Use donated tokens in your project](maintainer.md) | Register a project, accept donors, add members, connect your tools |
 | [Donate from your own GPU](local-gpu.md) | Ollama, LM Studio, vLLM, or llama.cpp instead of an API key |
 | [Run your agent safely with `moochy run`](run.md) | The sandbox your coding agent runs in: what it can reach, Linux and macOS notes |
-| [Add a "Donate tokens" button](donate-button.md) | Put the button in your GitHub README |
+| [Add a "Donate tokens" button](donate-button.md) | The exact recipe, for people and AI agents: find the project, check it, pick the snippet, put it in the README |
+| [For AI agents](for-ai-agents.md) | How agents read these docs (`/llms.txt`, `.md` pages), rules for agents, a snippet for your `AGENTS.md` |
 | [Connect your tools](integrations.md) | Exact settings for OpenCode, Claude Code, Cursor, Cline, Continue, Zed, Goose, Windsurf, VS Code, Claude Desktop, Aider, agent frameworks, and SDKs |
 | [Run Moochy on a server or in CI](headless-node.md) | An always-on donation from a machine you control; agents in CI |
 | [How Moochy protects you](threat-model.md) | The attacks Moochy is designed against, and where each defence lives |

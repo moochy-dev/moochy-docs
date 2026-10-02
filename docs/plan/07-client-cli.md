@@ -7,6 +7,8 @@
 > **Updated again 2026-10-01 (main `b65289e7`):** §2 command table as on main (`run`, `pending`, `accept`/`approve`, `config set monthly_limit`, `--cap`/`--cap-uusd`, `allow_unsandboxed_tools`, `keys add … xai`, planned commands marked), `files` read by the stdio shim (§5.2), `moochy-sandbox` crate and the mo-node / mo-donor ownership split (§12), new §15 Sandboxing.
 >
 > **Updated 2026-10-02 (main `5f9ccf80`):** §2 command table follows `moochy --help` on main (owner init/rotate, donate, donations, verify, keys rotate, keys add local, run --allow-host/--git-writable, up --unsafe-no-lockdown, login --log-key; only service install, audit, keys revoke remain planned), D19 and D20, local adapter on main (§6.2), sandbox git and allow-host rules (§15.1).
+>
+> **Updated 2026-10-02 (docs site):** `moochy button` listed as planned (CONTRACT §9).
 
 ---
 
@@ -54,7 +56,7 @@ Global flag: `moochy --home <dir> <command>` puts all config and state under `<d
 | `moochy accept <donor> --repo owner/name [--revoke] [--yes]` (alias `moochy approve`) | **Repo owners**: sign `DONOR_APPROVED` (or `DONOR_REVOKED`) for a donor named by handle or `ps_` pseudonym. Shows what will be signed and asks for confirmation (`--yes` for scripts). The website never approves |
 | `moochy members add\|remove <user> --repo owner/name [--device] [--cap '$N' \| --cap-uusd N] [--yes]` | **Repo owners**: sign `MEMBER_ADDED` / `MEMBER_REMOVED` for a person or (with `--device`) a CI device, with a monthly cap. `--cap` takes dollars with a `$`; without `$` the value is read as µ$ (see the note below) |
 | `moochy claim --repo owner/name [--yes]` | **Repo owners**: sign `REPO_CLAIMED` with the owner key after the web admin check |
-| Planned | `service install` / `uninstall` (until then: systemd/launchd units from the client release tooling), `audit --provider`, `keys revoke <device>` (until then: `logout` on the device, or the web Devices page) |
+| Planned | `service install` / `uninstall` (until then: systemd/launchd units from the client release tooling), `audit --provider`, `keys revoke <device>` (until then: `logout` on the device, or the web Devices page), `button [--repo owner/repo] [--style …] [--format markdown\|html\|rst]` (prints the README snippet from the git remote, offline; CONTRACT §9) |
 
 **Owner signatures.** `accept`, `members` and `claim` show the entry, ask for confirmation, then decrypt the owner key in the foreground CLI (passphrase from the terminal or `MOOCHY_OWNER_PASSPHRASE`), sign, and drop the key; the background Node only relays the signed entry and never sees the owner passphrase (CONTRACT §15.4, `spec/KEYLOG.md` §4).
 
