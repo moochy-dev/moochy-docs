@@ -11,6 +11,7 @@ Plan 10 §6 targets with their exact measurement. Recording rules and alerts: `d
 | Receipt durability | 100% of donor-signed receipts settled within 24 h | `receipts_unsettled_oldest_age_s` ≤ 86 400; `pessimistic_settlements_total` reviewed weekly | continuous | `ReceiptsUnsettled` |
 | Ledger drift | 0 µ$ | `audit_drift_uusd` from the nightly audit (read-only connection); `audit_last_success_timestamp_s` fresh | every run | `LedgerDrift` (page), `AuditNotRunning` |
 | Cache-read share of input tokens (cost lever, 01 §5.3) | ≥ 80% | `moochy:cache_read:ratio_rate1h` from `input_tokens_total{kind}`; affinity `moochy:affinity_hit:ratio_rate1h` | 7 days | `CacheReadRatioLow` (< 50% for 6 h) |
+| Email delivery (CONTRACT §16) | queued → sent within 30 min; 0 security emails given up | `email_outbox_oldest_queued_age_s`, `email_outbox_rows{status="failed"}` (from the DB) | continuous | `EmailDeliveryFailing` (page), `EmailGivingUp` |
 | Checkpoint freshness | ≤ 2 min when the log grew | `checkpoint_age_s` while `changes(key_log_size[30m]) > 0` | continuous | `CheckpointStale` (> 10 min, ticket), `CheckpointStalePage` (40 min) |
 
 ## Responsiveness budgets (CONTRACT §13)
