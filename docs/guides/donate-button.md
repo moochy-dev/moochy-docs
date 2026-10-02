@@ -56,7 +56,7 @@ The answer is public and contains no donor or amount. For `github` and `tinyhttp
 
 With the Moochy app installed, `moochy button` does steps 1 to 3 at once: it reads the git remote (offline) and prints the snippet. Options: `--repo <path>`, `--provider github|gitlab`, `--style mascot|text|compact`, `--theme light|dark|auto`, `--size s|m|l`, `--label TEXT`, `--format markdown|html|rst`.
 
-**Project addresses.** A project's pages live at `https://moochy.dev/p/<provider>/<path>`: `/p/github/tinyhttp/arrow`, `/p/gitlab/group/subgroup/project`. Add `/button.svg` for the image and `/donate` for the donation page. For GitHub, the short form without the provider (`/p/tinyhttp/arrow/button.svg`) also works and always will, so existing buttons keep working; `moochy button` prints it for GitHub projects.
+**Project addresses.** A project's pages live at `https://moochy.dev/p/<provider>/<path>`: `/p/github/tinyhttp/arrow`, `/p/gitlab/group/subgroup/project`. Add `/button.svg` for the image and `/donate` for the donation page; on GitLab these come after GitLab's `/-/` separator (`/p/gitlab/group/subgroup/project/-/button.svg`, `/-/donate`), so nested group names stay unambiguous. For GitHub, the short form without the provider (`/p/tinyhttp/arrow/button.svg`) also works and always will, so existing buttons keep working; `moochy button` prints it for GitHub projects.
 
 ### 3. Pick the snippet
 
@@ -96,7 +96,7 @@ Replace `BUTTON_URL` and `DONATE_URL` with the values from step 2. The default b
 For example, a GitLab project in a subgroup:
 
 ```markdown
-[![Donate tokens](https://moochy.dev/p/gitlab/group/subgroup/project/button.svg)](https://moochy.dev/p/gitlab/group/subgroup/project/donate)
+[![Donate tokens](https://moochy.dev/p/gitlab/group/subgroup/project/-/button.svg)](https://moochy.dev/p/gitlab/group/subgroup/project/-/donate)
 ```
 
 Keep the alt text "Donate tokens" (or the label you chose): screen readers announce it, and it shows when the image cannot load. Set `height` to match the size: 28 for `s`, 36 for `m`, 44 for `l`.
