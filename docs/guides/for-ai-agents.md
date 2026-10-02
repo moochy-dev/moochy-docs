@@ -44,7 +44,7 @@ Paste this into your repository's `AGENTS.md`, `CLAUDE.md`, or similar file:
 
 This project uses Moochy (https://moochy.dev) for donated LLM tokens.
 - Docs for agents: https://moochy.dev/llms.txt (raw Markdown pages end in .md).
-- The README "Donate tokens" button links to https://moochy.dev/p/OWNER/NAME/donate.
+- The README "Donate tokens" button links to the project's Moochy page (https://moochy.dev/p/…/donate).
   Keep it; to add or change it, follow https://moochy.dev/docs/donate-button.md exactly.
 - Never put API keys or tokens in files or commits; never run `moochy claim`, `moochy accept`,
   `moochy members`, or `moochy donate` for me: tell me the command instead.
