@@ -35,7 +35,7 @@ Gateway and Worker rows are measured by E22 and by opt-in Node telemetry (`gatew
 | VM loss / disk corruption | ≈ 1 s DB, 0 spend (`receipt.replay_since`) | < 30 min | monthly restore drill (`moochy_restore_drill_restore_seconds`), Phase 6 DR drill |
 | Region outage | ≈ 1 s | < 1 h | DR drill into another region |
 
-Worker health: `ack_latency_ms` / `start_latency_ms` (Assign → Ack / Started, Scheduler clock); `WorkerAckSlow` tickets at p95 > 250 ms (ack deadline 500 ms). Availability: the probe calls `grpc.health.v1.Health/Check` for `moochy.v1.NodeLink`, which the relay reports `NOT_SERVING` while draining.
+Worker health: `ack_latency_ms` / `start_latency_ms` (Assign → Ack / Started, Scheduler clock); `WorkerAckSlow` tickets at p95 > 250 ms (ack deadline 500 ms). Availability: the probe calls `grpc.health.v1.Health/Check` (server-wide status, service `""`), which the relay reports `NOT_SERVING` from the moment it drains; validated with blackbox_exporter 0.28 against a real relay (TLS 1.3, `SERVING`).
 
 Replication health: `litestream_lag_s` is the time since Litestream last confirmed that every database synced (its heartbeat, every 60 s); alert at 150 s.
 
