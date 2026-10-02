@@ -407,7 +407,7 @@ Re-run on main a14f9dc: 60 pass, 0 fail, 7 skip before the new tests; final run 
 
 ## 14i. Round 9 — link on :443, Responses dialect, skills, connect --write, gzip (2026-10-02, A247–A252)
 
-Re-run on main 8f3ab4dd3: 64 pass, 0 fail, 7 skip before the new tests (A229, A241 now pass). Flipped above: A229, A233, A240, A241, A243, A244, A245, A246; partial: A227 (IPv6), A231 (reset-all).
+Re-run on main 8f3ab4dd3: 64 pass, 0 fail, 7 skip before the new tests (A229, A241 now pass); final run on main 5e0499935 with A247–A250: 66 pass, 2 fail (A248, A250), 7 skip. Flipped above: A229, A233, A240, A241, A243, A244, A245, A246; partial: A227 (IPv6), A231 (reset-all).
 
 | ID | Sev | Finding | File:line | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|
