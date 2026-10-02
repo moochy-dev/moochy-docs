@@ -47,6 +47,8 @@ service NodeLink {
   rpc ListDonations(ListDonationsRequest) returns (ListDonationsResponse);
   rpc Donate(DonateRequest) returns (Donation);
   rpc DonationAction(DonationActionRequest) returns (Donation);
+  // Owner sets a member device's monthly cap for one repo (`moochy members add --device --cap`).
+  rpc SetDeviceCap(SetDeviceCapRequest) returns (SetDeviceCapResponse);
 }
 
 enum Role {
@@ -487,4 +489,15 @@ message Donation {
   string visibility = 11;
   string schedule = 12;
   int64 created_at_ms = 13;
+}
+
+message SetDeviceCapRequest {
+  string repo_slug = 1;
+  string device = 2;               // device id or name of a member's device
+  int64 cap_uusd_month = 3;        // 0 removes the device cap (the member cap still applies)
+}
+
+message SetDeviceCapResponse {
+  string device_id = 1;
+  int64 cap_uusd_month = 2;
 }
