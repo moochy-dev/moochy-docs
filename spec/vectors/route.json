@@ -1,5 +1,5 @@
 {
-  "_schema": "Route header (plan 03 §7.1). parse[]: exact route-header bytes (text) → outcome ok | json (parser-differential) | malformed (unknown field, wrong type/enum/length). facts[]: provider body (body_text, exact bytes) → deterministic facts: est_input_tokens = ceil(text_bytes / 3) + images × catalog.max_image_tokens + pages × catalog.max_page_tokens, text_bytes = body length − Σ length of inline image data (Anthropic image source.data; OpenAI image_url.url starting 'data:'), pages = count of '/Type <ws>* /Page' (not /Pages) in each base64 PDF (min 1), cache_ttl = longest cache_control ttl (present without ttl = 5m), effort = output_config.effort | reasoning_effort (null = catalog default), flags = sorted subset of documents/fast/images. check[]: Worker comparison of route_text against facts of facts[0] and the catalog entry; mismatch = first failing field in order model, dialect, effort, max_tokens, est_input_tokens, cache_ttl, stream, flags (null = accepted).",
+  "_schema": "Route header (plan 03 §7.1). parse[]: exact route-header bytes (text) → outcome ok | json (parser-differential) | malformed (unknown field, wrong type/enum/length). facts[]: provider body (body_text, exact bytes) → deterministic facts: est_input_tokens = ceil(text_bytes / 3) + images × catalog.max_image_tokens + pages × catalog.max_page_tokens, text_bytes = body length − Σ length of inline image data (Anthropic image source.data; OpenAI image_url.url and Responses input_image.image_url starting 'data:'), pages = count of '/Type <ws>* /Page' (not /Pages) in each base64 PDF (min 1), cache_ttl = longest cache_control ttl (present without ttl = 5m), effort = output_config.effort | reasoning_effort | reasoning.effort (openai.responses) (null = catalog default), max_tokens = the body's cap (anthropic max_tokens; openai.chat max_completion_tokens|max_tokens; openai.responses max_output_tokens, may be null) and max_tokens_effective = max_tokens or, when null (openai.responses only), the catalog max_output, flags = sorted subset of documents/fast/images. check[]: Worker comparison of route_text against facts of facts[0] and the catalog entry; mismatch = first failing field in order model, dialect, effort, max_tokens, est_input_tokens, cache_ttl, stream, flags (null = accepted).",
   "catalog_entry": {
     "aliases": [
       "claude-sonnet-5-5"
@@ -89,6 +89,7 @@
         ],
         "images": 1,
         "max_tokens": 1024,
+        "max_tokens_effective": 1024,
         "model": "claude-sonnet-5-5",
         "pages": 0,
         "stream": true,
@@ -108,6 +109,7 @@
         "flags": [],
         "images": 0,
         "max_tokens": 2048,
+        "max_tokens_effective": 2048,
         "model": "anthropic/claude-sonnet-5.5",
         "pages": 0,
         "stream": false,
@@ -130,6 +132,7 @@
         ],
         "images": 0,
         "max_tokens": 1,
+        "max_tokens_effective": 1,
         "model": "claude-sonnet-5-5",
         "pages": 3,
         "stream": false,
@@ -151,6 +154,7 @@
         ],
         "images": 1,
         "max_tokens": 10,
+        "max_tokens_effective": 10,
         "model": "claude-sonnet-5-5",
         "pages": 0,
         "stream": false,
@@ -172,6 +176,7 @@
         ],
         "images": 2,
         "max_tokens": 50,
+        "max_tokens_effective": 50,
         "model": "deepseek/deepseek-chat",
         "pages": 0,
         "stream": false,
@@ -191,6 +196,7 @@
         "flags": [],
         "images": 0,
         "max_tokens": 64,
+        "max_tokens_effective": 64,
         "model": "deepseek/deepseek-chat",
         "pages": 0,
         "stream": true,
@@ -210,6 +216,7 @@
         "flags": [],
         "images": 0,
         "max_tokens": 50,
+        "max_tokens_effective": 50,
         "model": "m",
         "pages": 0,
         "stream": false,
@@ -222,6 +229,60 @@
       "body_text": "{\"model\":\"m\",\"max_completion_tokens\":50,\"max_tokens\":51,\"messages\":[]}",
       "dialect": "openai.chat",
       "name": "error: openai both max fields differ",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"gpt-5.5\",\"stream\":true,\"store\":false,\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"},{\"type\":\"input_image\",\"image_url\":\"data:image/png;base64,AAAA\"}]}]}",
+      "dialect": "openai.responses",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": "high",
+        "est_input_tokens": 1683,
+        "fast": false,
+        "flags": [
+          "images"
+        ],
+        "images": 1,
+        "max_tokens": null,
+        "max_tokens_effective": 64000,
+        "model": "gpt-5.5",
+        "pages": 0,
+        "stream": true,
+        "text_bytes": 247
+      },
+      "name": "responses: Codex shape, no max_output_tokens (catalog max_output), reasoning.effort, inline image",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"openai/gpt-5.5\",\"max_output_tokens\":2048,\"input\":\"hello\"}",
+      "dialect": "openai.responses",
+      "facts": {
+        "cache_ttl": "none",
+        "effort": null,
+        "est_input_tokens": 23,
+        "fast": false,
+        "flags": [],
+        "images": 0,
+        "max_tokens": 2048,
+        "max_tokens_effective": 2048,
+        "model": "openai/gpt-5.5",
+        "pages": 0,
+        "stream": false,
+        "text_bytes": 67
+      },
+      "name": "responses: explicit max_output_tokens, string input, default effort",
+      "outcome": "ok"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"max_output_tokens\":-1,\"input\":\"x\"}",
+      "dialect": "openai.responses",
+      "name": "error: responses max_output_tokens negative",
+      "outcome": "malformed"
+    },
+    {
+      "body_text": "{\"model\":\"m\",\"reasoning\":{\"effort\":3},\"input\":\"x\"}",
+      "dialect": "openai.responses",
+      "name": "error: responses reasoning.effort not a string",
       "outcome": "malformed"
     },
     {

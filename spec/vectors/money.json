@@ -1,5 +1,5 @@
 {
-  "_schema": "Money (plan 05 §3, §5.1), all integer µ$, checked arithmetic. entries: [0] curated Anthropic entry, [1] OpenRouter-imported entry (prices µ$ per million tokens). cost[]: cost_uusd = ceil(Σ usage_i × price_i × (fast ? fast_multiplier : 1) / 1e6); OpenRouter entries use usage.provider_cost_uusd (required, ≥ 0); others MUST NOT carry it. reserve[]: ceil((est × in × m + max_tokens × out) × fast / 1e6) with m = 5/4 (5m), 2 (1h), 1 (none), computed exactly. decimal[]: OpenRouter usage.cost JSON number text → µ$ rounded up, no floating point; outcome ok | malformed | overflow.",
+  "_schema": "Money (plan 05 §3, §5.1), all integer µ$, checked arithmetic. entries: [0] curated Anthropic entry, [1] OpenRouter-imported entry (prices µ$ per million tokens). cost[]: cost_uusd = ceil(Σ usage_i × price_i × (fast ? fast_multiplier : 1) / 1e6); OpenRouter entries use usage.provider_cost_uusd (required, ≥ 0); others MUST NOT carry it. reserve[]: ceil((est × in × m + max_tokens × out) × fast / 1e6) with m = 5/4 (5m), 2 (1h), 1 (none), computed exactly. responses[] (CONTRACT §18.6, openai.responses): raw `usage` (null = absent) → receipt_usage: input = input_tokens − cached_tokens, cache_read = cached_tokens, output = max(output_tokens, total_tokens − input_tokens) (the total term is 0 when total < input), no cache writes; estimated when input_tokens or output_tokens is absent or cached_tokens > input_tokens (then input = input_tokens); cost per cost[] rules under entries[2] with `provider` replaced (openrouter: provider cost required; xai: optional, authoritative when present; others: refused). decimal[]: OpenRouter usage.cost JSON number text → µ$ rounded up, no floating point; outcome ok | malformed | overflow.",
   "cost": [
     {
       "cost_uusd": 34200,
@@ -363,6 +363,25 @@
       "provider": "openrouter",
       "provider_model_id": "deepseek/deepseek-chat",
       "source": "openrouter_import"
+    },
+    {
+      "cache_read": 125000,
+      "cache_write_1h": 0,
+      "cache_write_5m": 0,
+      "default_effort": "medium",
+      "dialects": [
+        "openai.chat",
+        "openai.responses"
+      ],
+      "in": 1250000,
+      "max_image_tokens": 1500,
+      "max_output": 128000,
+      "max_page_tokens": 0,
+      "model": "openai/gpt-5.5",
+      "out": 10000000,
+      "provider": "openai",
+      "provider_model_id": "gpt-5.5",
+      "source": "curated"
     }
   ],
   "reserve": [
@@ -435,6 +454,310 @@
       "name": "overflow",
       "outcome": "overflow",
       "reserve_uusd": null
+    }
+  ],
+  "responses": [
+    {
+      "cost_uusd": 18500,
+      "name": "cached input + reasoning in output_tokens",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 8000,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 2000,
+        "output": 1500
+      },
+      "usage": {
+        "input_tokens": 10000,
+        "input_tokens_details": {
+          "cached_tokens": 8000
+        },
+        "output_tokens": 1500,
+        "provider_cost_uusd": null,
+        "total_tokens": 11500
+      }
+    },
+    {
+      "cost_uusd": 2103,
+      "name": "no cache details",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 1234,
+        "output": 56
+      },
+      "usage": {
+        "input_tokens": 1234,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 56,
+        "provider_cost_uusd": null,
+        "total_tokens": 1290
+      }
+    },
+    {
+      "cost_uusd": 3125,
+      "name": "reasoning outside output_tokens: total − input wins",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 100,
+        "output": 300
+      },
+      "usage": {
+        "input_tokens": 100,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 10,
+        "provider_cost_uusd": null,
+        "total_tokens": 400
+      }
+    },
+    {
+      "cost_uusd": 695,
+      "name": "total below input is ignored (never wraps)",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 500,
+        "output": 7
+      },
+      "usage": {
+        "input_tokens": 500,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 7,
+        "provider_cost_uusd": null,
+        "total_tokens": 3
+      }
+    },
+    {
+      "cost_uusd": 2,
+      "name": "one input token rounds up to 2 µ$",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 1,
+        "output": 0
+      },
+      "usage": {
+        "input_tokens": 1,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 0,
+        "provider_cost_uusd": null,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": 18,
+      "name": "cached above input: input counted whole, estimated",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 9,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": true,
+        "input": 5,
+        "output": 1
+      },
+      "usage": {
+        "input_tokens": 5,
+        "input_tokens_details": {
+          "cached_tokens": 9
+        },
+        "output_tokens": 1,
+        "provider_cost_uusd": null,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": 13,
+      "name": "output_tokens missing: estimated",
+      "outcome": "ok",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": true,
+        "input": 10,
+        "output": 0
+      },
+      "usage": {
+        "input_tokens": 10,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": null,
+        "provider_cost_uusd": null,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": null,
+      "name": "overflow is an error",
+      "outcome": "overflow",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 18446744073709551615,
+        "output": 18446744073709551615
+      },
+      "usage": {
+        "input_tokens": 18446744073709551615,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 18446744073709551615,
+        "provider_cost_uusd": null,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": null,
+      "name": "openai with a provider cost is refused",
+      "outcome": "malformed",
+      "provider": "openai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 10,
+        "output": 10,
+        "provider_cost_uusd": 1
+      },
+      "usage": {
+        "input_tokens": 10,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 10,
+        "provider_cost_uusd": 1,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": 43,
+      "name": "xai reported cost (cost_in_usd_ticks / 10^4, rounded up) is authoritative",
+      "outcome": "ok",
+      "provider": "xai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 10,
+        "output": 10,
+        "provider_cost_uusd": 43
+      },
+      "usage": {
+        "input_tokens": 10,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 10,
+        "provider_cost_uusd": 43,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": 113,
+      "name": "xai without reported cost: catalog prices",
+      "outcome": "ok",
+      "provider": "xai",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 10,
+        "output": 10
+      },
+      "usage": {
+        "input_tokens": 10,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 10,
+        "provider_cost_uusd": null,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": 42,
+      "name": "openrouter reported cost is authoritative",
+      "outcome": "ok",
+      "provider": "openrouter",
+      "receipt_usage": {
+        "cache_read": 4,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 6,
+        "output": 10,
+        "provider_cost_uusd": 42
+      },
+      "usage": {
+        "input_tokens": 10,
+        "input_tokens_details": {
+          "cached_tokens": 4
+        },
+        "output_tokens": 10,
+        "provider_cost_uusd": 42,
+        "total_tokens": null
+      }
+    },
+    {
+      "cost_uusd": null,
+      "name": "openrouter without reported cost is refused",
+      "outcome": "malformed",
+      "provider": "openrouter",
+      "receipt_usage": {
+        "cache_read": 0,
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "estimated": false,
+        "input": 10,
+        "output": 10
+      },
+      "usage": {
+        "input_tokens": 10,
+        "input_tokens_details": {
+          "cached_tokens": null
+        },
+        "output_tokens": 10,
+        "provider_cost_uusd": null,
+        "total_tokens": null
+      }
     }
   ]
 }
