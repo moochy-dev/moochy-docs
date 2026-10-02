@@ -25,6 +25,14 @@ CONTRACT §15.4.
   current note at connect and every new note is pushed as `RelayMsg.log_checkpoint`. Over HTTP the
   same paths are served under `/log/` (receipts: `/log/receipts/`), `checkpoint` with
   `Cache-Control: no-cache`, tiles `public, max-age=31536000, immutable`.
+- **Projections** (for `moochy verify <receipt_ref>`, E63): `GetLogTile{path: "projection/<receipt_ref>"}`
+  (ref = 1–64 chars of `[A-Za-z0-9_-]`) returns JSON `{"projection_b64","sig_b64","worker_device",
+  "key_log_index"}` — base64url without padding of the exact signed projection bytes and
+  `projection_sig`, the worker device named by the signed receipt, and the index of that device's
+  `KEY_ADDED` (omitted when the device is not logged). `NOT_FOUND` for an unknown or malformed ref.
+  Nothing in it is trusted: the Node verifies `Ed25519(sign_pub, lp("moochy/v1/projection",
+  projection))` with the `sign_pub` of the `KEY_ADDED` at `key_log_index` in its **own** mirror, and
+  checks the projection names the requested `receipt_ref`.
 - **Size bound.** A record is ≤ 480 bytes (the largest real record, a `KEY_ADDED` with every field
   at its maximum, is 397), so a full entry bundle is ≤ 256 × 482 = 123,392 bytes and fits one
   128 KiB gRPC message. `GetLogTile` answers are ≤ that bound.
@@ -67,9 +75,26 @@ pseudonym = `ps_` + 16 lowercase Crockford base32 chars (`0-9a-hjkmnp-tv-z`); `r
 hex; `issued_at_ms` > 0; catalog `version` > 0; `owner_pub ≠ prev`.
 No usernames, emails, device names or repo slugs ever enter the log (06 §10.3).
 
+### 2a. Device-signed requests (authenticate a request, never logged as signatures)
+
+A device asks the relay over its authenticated session; the relay checks the signature against
+the session's device key before acting. These signatures are **not** key-log signatures: the
+resulting log entry keeps its own format (§2).
+
+| Request | `SignedLogEntry` | Signature(s) |
+|---|---|---|
+| Revoke itself or another device of its own user (`moochy logout`, `moochy keys revoke`) | `kind: "KEY_REVOKED"`, `body` = the KEY_REVOKED body, one sig | `Ed25519(device, lp("moochy/v1/key-revoke", body))`. The logged `KEY_REVOKED` stays relay-asserted (empty sig). |
+| Rotate to a successor device (`moochy keys rotate`) | `kind: "KEY_ADDED"`, `body` = the successor's KEY_ADDED body, two sigs | `[PoP by the successor key (§2), Ed25519(current device, lp("moochy/v1/key-rotate", body))]` |
+
+Signing `lp("moochy/v1/keylog-sig", …)` instead is refused (`bad_signature`): the labels keep a
+request from ever being replayable as a log signature, and the reverse. Because revoking a
+session's own device closes that session, the acknowledgement may never arrive; the
+`KEY_REVOKED` entry in the served log is the confirmation. Vectors: `spec/vectors/keylog/requests.json`.
+
 ## 3. Labels
 
-`moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop`, `moochy/v1/receipt-log`.
+`moochy/v1/keylog`, `moochy/v1/keylog-sig`, `moochy/v1/key-pop`, `moochy/v1/receipt-log`; device
+requests (§2a): `moochy/v1/key-revoke`, `moochy/v1/key-rotate`.
 
 ## 4. Owner keys (CONTRACT §15.4)
 
