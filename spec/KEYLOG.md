@@ -66,7 +66,7 @@ are raw. `owner_key_id(pub) = "ok_" + lowercase hex(SHA-256(pub)[0..16])`.
 | 6 / 7 | `MEMBER_ADDED` / `MEMBER_REMOVED` | `repo_id, member_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 8 | `CATALOG` | `u64(version), sha256(catalog_json)(32), catalog_sig(1..128, opaque)` | — |
 | 9 | `MODERATION` | `subject_pseudonym, action, reason` | — |
-| 10 | `OWNER_KEY_ADDED` | Ed25519 (4 fields): `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)`; Ed25519 authorized by a passkey (5 fields, §4b): `…, u64(issued_at_ms), authorizer`; passkey (9 fields, §4a) | `new_sig` (64), or `new_sig ‖ prev_sig` (128) when `prev` is set; 5 fields: `lp(new_sig, authorizer_sig)`; passkey: §4a |
+| 10 | `OWNER_KEY_ADDED` | Ed25519 (4 fields): `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)`; Ed25519 authorized by a passkey (5 fields, §4b): `…, u64(issued_at_ms), authorizer`; passkey (9 fields, §4a) | `new_sig` (64, a first key only before the §4c cutover), `lp(new_sig, email_proof)` (104, first key with the email proof, §4c), or `new_sig ‖ prev_sig` (128) when `prev` is set; 5 fields: `lp(new_sig, authorizer_sig)`; passkey: §4a |
 | 11 | `OWNER_KEY_REVOKED` | `pseudonym, owner_pub(32) or passkey cose_key(77), reason` | — (relay-asserted; only removes trust) |
 | 12 | `PAD` | empty | — (relay filler for the bundle budget, §1; no effect) |
 
@@ -149,8 +149,9 @@ Ed25519 key distinct from all of their device keys:
 - **Binding.** The first owner key of a user is bound by an `OWNER_KEY_ADDED` without `prev`,
   signed by the new key (proof of possession), submitted over the user's authenticated link
   session (`SignedLogEntry{kind: "OWNER_KEY_ADDED", sigs: [new_sig]}`); the relay binds it to the
-  session's pseudonym. Every Node of that user alerts (`unknown_owner_key`) on an owner key it did
-  not create or acknowledge, exactly like a rogue device key.
+  session's pseudonym **only with a proof** (§4c): the confirmed-email proof, or the co-signature
+  of an active passkey (§4b). Every Node of that user alerts (`unknown_owner_key`) on an owner key
+  it did not create or acknowledge, exactly like a rogue device key.
 - **Rotation** (`moochy owner rotate`): `OWNER_KEY_ADDED` with `prev` = the current owner key and
   both signatures (`sigs: [new_sig, prev_sig]`). The previous key is revoked by the same entry.
 - **Revocation / loss.** `OWNER_KEY_REVOKED` is relay-asserted (lost key after a web
@@ -263,6 +264,39 @@ unrevoked owner key of the same user (`unknown_owner_key` / `revoked` / `not_own
 signatures verify. Effect: the key becomes the user's active CLI owner key (later rotations use
 `prev` as usual). The CLI signs `m`; the web adds the assertion (WIRING §9).
 
+### 4c. A first CLI owner key needs a proof (A224)
+
+Before this rule an account's first Ed25519 owner key was bound on the session's word alone: a
+compromised background process (or relay) could bind its own key, then claim and approve. Now a
+first CLI key (no active CLI key, no `prev`) is accepted only with one of:
+
+- **The confirmed-email proof**, carried next to the signature: the body is the ordinary 4-field
+  one (the CLI signs it once, unchanged), and `sig = lp(new_sig(64), email_proof(32))` (104 bytes),
+  `email_proof = SHA-256(lp("moochy/v1/email-proof", SHA-256(token), owner_key_id(owner_pub),
+  pseudonym))` as for passkeys (§4a): `token` is the single-use secret of a link mailed to the
+  account's confirmed address and opened by the user for **this** key (the mail names `ok_…`). The
+  relay never issues it within 72 h of a change of the confirmed address (the old address is told
+  of the change), nor while the account has any active owner key: then `owner_key_exists` (rotate
+  with `prev`, or §4b with a passkey). Relay-attested like the passkey proof: third parties cannot
+  check the token, its presence is what monitors and the user's Nodes read.
+- **An authorizer** (§4b): an active owner key of the same user co-signs (a passkey).
+
+A first CLI key with neither is refused with `owner_key_proof`.
+
+**Cutover, existing logs.** The rule applies to an entry when the **running maximum of
+`logged_at_ms` over the accepted entries**, the entry included, is ≥ `2026-10-05T00:00:00Z`
+(`1791158400000`, the same constant in Go `OwnerKeyProofFromMs` and Rust
+`OWNER_KEY_PROOF_FROM_MS`). Proofless first keys logged before it stay valid, and so do the
+approvals they signed: no verified history changes, mirrors and the relay rebuild the same state.
+The running maximum (not the entry's own time) means a relay cannot back-date one entry under the
+cutover once anything later was accepted; a relay that stamps every entry before the cutover forever
+shows a frozen log clock, visible against the hourly Git anchor commits. Monitors flag every first
+CLI key without proof on my account, mine included (`UnprovenOwnerKey{known}`: a reminder when I
+created it, an intrusion otherwise), and owner keys expose how they were bound
+(`OwnerKeyInfo.Proof` / `OwnerKeyProof`: `none`, `email`, `authorizer`, `rotation`). Tests and dev
+logs may move the cutover (`Config.OwnerKeyProofFromMs`, `State::with_owner_key_proof_from`; 0 =
+always); Nodes verify production logs with the constant. Vectors: `owner-proof.json`.
+
 ## 5. State machine (authority derived from a log prefix)
 
 Entries apply in log order; a rejected entry confers nothing (the relay refuses to append it; a
@@ -272,7 +306,7 @@ Node that finds one in the log raises an alert). Codes are shared strings.
 |---|---|---|
 | `KEY_ADDED` | device id new (`dup_device`), `sign_pub` new among all keys (`dup_key`), box expiry in `(logged_at, logged_at + 30 d]` (`box_expiry`, §2b), PoP valid (`bad_pop`) | device active (a box until its expiry) |
 | `KEY_REVOKED` | device logged for that pseudonym (`unknown_device`), not yet revoked (`revoked`) | device revoked |
-| `OWNER_KEY_ADDED` | `owner_pub` new among all keys (`dup_key`); no active key and no `prev` (and no active passkey unless authorized, §4b), or `prev` = the active key (`unknown_owner_key` / `owner_key_exists`); new-key signature (`bad_pop`); `prev` signature (`bad_sig`); authorizer (§4b) | key active; `prev` revoked |
+| `OWNER_KEY_ADDED` | `owner_pub` new among all keys (`dup_key`); no active key and no `prev` (and no active passkey unless authorized, §4b), or `prev` = the active key (`unknown_owner_key` / `owner_key_exists`); a first key carries the email proof or an authorizer past the cutover (`owner_key_proof`, §4c; the email proof and the authorizer only for a first key: `owner_key_exists`); new-key signature (`bad_pop`); `prev` signature (`bad_sig`); authorizer (§4b) | key active; `prev` revoked |
 | `OWNER_KEY_ADDED` (passkey, §4a) | `cose_key` and `credential_id` new (`dup_key`); PoP assertion (§4a codes, `prev` = 0); first key: no active owner key of any kind (`owner_key_exists`); else `authorizer` an unrevoked owner key of the same user (`unknown_owner_key`/`revoked`/`not_owner`) whose signature verifies (`bad_sig` / §4a codes) | passkey active, counter = PoP counter; authorizer's counter moves |
 | `OWNER_KEY_REVOKED` | key logged for that pseudonym (`unknown_owner_key`), not revoked (`revoked`) | key revoked (an Ed25519 revocation leaves the user with no active CLI key) |
 | `REPO_CLAIMED` | `signer` is a logged owner key (`unknown_owner_key`), unrevoked (`revoked`), of `owner_pseudonym` (`not_owner`), signature (`bad_sig`); repo id keeps its provider binding (`repo_binding`); `issued_at` > previous claim's (`replay`) | owner set; a **new** owner drops every approval and membership |
@@ -337,7 +371,7 @@ publishes once the parties check inclusion.
 
 With `me` = own pseudonym + device keys + owner keys the user created or acknowledged:
 `UnknownKey` (device key on my pseudonym I don't know), `BoxEnrolled` / `BoxOutsideRepo` (§2b),
-`UnknownOwnerKey`, `UnknownPasskey` (a
+`UnprovenOwnerKey` (a first CLI key of mine bound without any proof, §4c), `UnknownOwnerKey`, `UnknownPasskey` (a
 passkey on my pseudonym whose `SHA-256(cose_key)` I don't know; `email_proof` says it was bound as
 the first owner key on the relay's email attestation, §4a), `PasskeyCounter` (an entry signed by one
 of my passkeys refused with `counter`: cloned authenticator or replay), `OwnerKeyRevoked`,
