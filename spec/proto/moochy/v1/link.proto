@@ -133,6 +133,12 @@ message PoolWorker {
   repeated string models = 7;      // public model ids (slugs)
   uint32 hint = 8;                 // 0-100, coarse
   bytes sign_pub = 9;              // Ed25519 key of the worker device (verifies receipts, progress checkpoints)
+  repeated ServedModel served = 10; // which provider serves each model on this worker (project provider exclusion, §15.4)
+}
+
+message ServedModel {
+  string model = 1;                // public model id
+  string provider = 2;             // anthropic | openai | openrouter | deepseek | xai | local
 }
 
 message WorkerOffer {
@@ -147,6 +153,7 @@ message ModelOffer {
   string dialect = 1;
   string model = 2;
   uint32 rl_headroom = 3;          // 0-100
+  string provider = 4;             // the donor's provider serving this model (anthropic | openai | openrouter | deepseek | xai | local)
 }
 
 message KnownTasks {
