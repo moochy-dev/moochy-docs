@@ -27,7 +27,7 @@ Confirm the code from any browser where you are signed in to moochy.dev. The com
 
 ```sh
 printf '%s' "$ANTHROPIC_KEY" | moochy --home /var/lib/moochy keys add anthropic --key-stdin   # key from your secret store
-moochy --home /var/lib/moochy config set monthly_limit 25      # $25 a month from this machine
+moochy --home /var/lib/moochy safety --monthly-limit '$25' --accept-safety   # the safety step: $25 a month from this machine
 moochy --home /var/lib/moochy config set slots_max 4
 ```
 
@@ -42,7 +42,7 @@ The donation starts once the project's owner accepts you. The limit per request 
 
 ### 1.3 Run it as a service
 
-On a server, run the app as a systemd service with its own user:
+`moochy service install` sets up a user service (`--system` for a system unit, `--print` to see it first). To write the unit yourself, with its own user:
 
 ```ini
 # /etc/systemd/system/moochy.service

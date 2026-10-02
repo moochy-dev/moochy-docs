@@ -7,6 +7,8 @@
 > **Updated again 2026-10-01 (main `b65289e7`):** approvals signed with a separate owner key (`moochy pending` / `moochy accept`), receipt transparency log replaces the "not in v1" note (§10.2), T8 now contained by the `moochy run` sandbox, new §18 Sandboxing (CONTRACT §15).
 >
 > **Updated 2026-10-02 (main `5f9ccf80`):** owner keys are on main (`moochy owner init`); sandbox row updated for read-only `.git` and `--allow-host`.
+>
+> **Updated 2026-10-02 (CONTRACT §16–§17):** new §19 for email decisions, passkeys, and cloud boxes.
 
 ---
 
@@ -428,4 +430,16 @@ E17 injects into the victim's own stream on purpose (D8): a chunk sent on a diff
 | Donor | No C code on hostile input (`ruzstd`); dedicated provider key with a provider-side spend limit | Memory-safety bugs in C decoders; any residual bug costing more than the provider limit |
 
 Known limits: a donor can still return wrong or low-quality answers (a quality problem handled by receipts, disputes, and owner approval), and text can still try to persuade the human. Same-user malware outside the sandbox is out of scope (T14). Verification: E93+ and E96 (CONTRACT §15.3), plus mo-sec escape tests.
+
+## 19. Email, decisions, and cloud boxes (CONTRACT §16–§17)
+
+| Risk | Counter-measure | Proof |
+|---|---|---|
+| A mail scanner or link prefetch "clicks" Accept or Refuse | Email buttons only open `/decide/{request}` with a single-use 7-day token that preselects the request; the decision needs a signed-in owner session (fresh ≤ 2 h) and a POST with CSRF | E104 |
+| The relay (or a stolen session) accepts a donor through the web | Acceptance is a WebAuthn assertion (user verification required) by a passkey registered as an owner key, over the hash of the exact `DONOR_APPROVED` entry; nodes verify origin, rpId, challenge, UV flag and a non-decreasing sign counter; the first passkey needs the confirmed email (A224) | E103 |
+| Email leaks content or tracks people | Templates carry no prompts, outputs, keys, tokens, or internal ids beyond `r_` references; no tracking pixels or remote images; one-click unsubscribe; security mail cannot be turned off | E101 |
+| Forged delivery webhooks stop or restart mail | Svix signature (HMAC-SHA256, 5-minute tolerance, constant-time compare); unsigned or stale webhooks refused | E101 |
+| A box keeps a maintainer's identity forever, or a fork duplicates it | Boxes enroll with a revocable, capped, expiring token and get their own repo-scoped device keys with no owner powers; one live session per device key; machine-id/boot binding; clones re-enroll and the owner is alerted | E105, E106 |
+| A container without user namespaces runs pooled tool calls unsandboxed | `--box-is-sandbox` is explicit, warned, marked "platform-sandboxed", and receives pooled tool calls only where the project allows platform sandboxes | E107 |
+| A donor's remote GPU host is spoofed or reached in clear text | Remote `local` hosts only over TLS with certificate verification, an exact host allowlist, and an auth header from the keystore; unvetted or plain-HTTP remote hosts refused | E108 |
 

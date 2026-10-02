@@ -9,6 +9,8 @@
 > **Updated 2026-10-02 (main `5f9ccf80`):** §2 command table follows `moochy --help` on main (owner init/rotate, donate, donations, verify, keys rotate, keys add local, run --allow-host/--git-writable, up --unsafe-no-lockdown, login --log-key; only service install, audit, keys revoke remain planned), D19 and D20, local adapter on main (§6.2), sandbox git and allow-host rules (§15.1).
 >
 > **Updated 2026-10-02 (docs site):** `moochy button` listed as planned (CONTRACT §9).
+>
+> **Updated 2026-10-02 (CONTRACT §16–§17):** `box` commands, enrollment, and `--box-is-sandbox` listed as planned (§2); new §15.4 Cloud boxes.
 
 ---
 
@@ -56,7 +58,7 @@ Global flag: `moochy --home <dir> <command>` puts all config and state under `<d
 | `moochy accept <donor> --repo owner/name [--revoke] [--yes]` (alias `moochy approve`) | **Repo owners**: sign `DONOR_APPROVED` (or `DONOR_REVOKED`) for a donor named by handle or `ps_` pseudonym. Shows what will be signed and asks for confirmation (`--yes` for scripts). The website never approves |
 | `moochy members add\|remove <user> --repo owner/name [--device] [--cap '$N' \| --cap-uusd N] [--yes]` | **Repo owners**: sign `MEMBER_ADDED` / `MEMBER_REMOVED` for a person or (with `--device`) a CI device, with a monthly cap. `--cap` takes dollars with a `$`; without `$` the value is read as µ$ (see the note below) |
 | `moochy claim --repo owner/name [--yes]` | **Repo owners**: sign `REPO_CLAIMED` with the owner key after the web admin check |
-| Planned | `service install` / `uninstall` (until then: systemd/launchd units from the client release tooling), `audit --provider`, `keys revoke <device>` (until then: `logout` on the device, or the web Devices page), `button [--repo owner/repo] [--style …] [--format markdown\|html\|rst]` (prints the README snippet from the git remote, offline; CONTRACT §9) |
+| Planned | `box token create --repo owner/repo [--ttl 24h] [--cap '$N'] [--max-boxes N]` / `box list` / `box revoke <id>` (enrollment tokens and box devices, CONTRACT §17.1; also Repositories → Boxes on the web), `MOOCHY_ENROLL=<token> moochy up --headless` (enroll a box), `run --box-is-sandbox` (§17.2), `keys add local` over TLS for vetted remote GPU hosts (§17.3) |
 
 **Owner signatures.** `accept`, `members` and `claim` show the entry, ask for confirmation, then decrypt the owner key in the foreground CLI (passphrase from the terminal or `MOOCHY_OWNER_PASSPHRASE`), sign, and drop the key; the background Node only relays the signed entry and never sees the owner passphrase (CONTRACT §15.4, `spec/KEYLOG.md` §4).
 
@@ -431,4 +433,14 @@ The principle (CONTRACT §15.0): a donor's machine only ever opens a sealed requ
 ### 15.3 Verification
 
 E2E scenarios E93 and later (CONTRACT §15.3): a sandboxed agent edits its worktree but cannot read `~/.ssh` or the keystore, reach any host but the gateway, escape its PID namespace or exceed its limits; a poisoned `curl … | sh` executed inside has no effect outside; the donor process cannot `exec`, open files outside its state dir, or connect anywhere but the provider and the relay (E96); the validator child cannot open files or sockets. mo-sec adds attack tests for known escape techniques.
+
+### 15.4 Cloud boxes (CONTRACT §17)
+
+Agents increasingly run in hosted boxes: persistent VMs (boat.dev), sandboxes (E2B, Daytona, Modal, Morph, Fly Machines), and Codespaces/devcontainers. Donors may rent GPU boxes (RunPod, Vast.ai, Lambda).
+
+- **Enrollment instead of key copies.** A box never receives a copy of the maintainer's device key. The owner (or a member, within their own caps) creates an enrollment token: hashed at rest, shown once, with a TTL, a monthly cap, and a maximum number of boxes. `MOOCHY_ENROLL=<token> moochy up --headless` creates an **ephemeral gateway device** in the box: its own keys, `KEY_ADDED` with a `box` flag and an expiry, scoped to one repo, with its own cap, no owner powers, no donor role. Boxes are listed, capped, and revoked like devices, and the owner gets an email on each enrollment.
+- **One box, one identity.** The relay allows one live session per device key, so a forked or cloned VM is refused (the owner is alerted) and must enroll again. The node also binds its identity to the machine-id and boot fingerprint and refuses to start when they change.
+- **Sandboxing inside a box.** In a full VM `moochy run` works as on any Linux host (AppArmor note on Ubuntu). Where user namespaces or Landlock are missing (some containers, gVisor), `moochy doctor` names what is missing; `moochy run --box-is-sandbox` declares the single-purpose VM or container itself to be the sandbox: clean environment, gateway token, secret masks, a loud warning, and a "platform-sandboxed" session that receives pooled tool calls only if the project allows platform sandboxes (a repo setting, on by default for box devices only).
+- **Donors on boxes.** A headless donor runs on a cloud VM like on any server (lockdown applies; in containers `doctor` says what the runtime blocks). A donor's GPU server on RunPod, Vast.ai, or Lambda can serve as a `local` provider over **TLS** when explicitly vetted: exact host allowlist, auth header from the keystore, certificate verification, same firewall, limits, and self-reported trust tier as other local hosts.
+- **Templates.** Setup for boat.dev, E2B, Daytona, Modal, Codespaces/devcontainers (a devcontainer feature plus cloud-init or setup scripts), and the GPU platforms, documented in `docs/guides/boxes.md` and listed in `/llms.txt` so an agent inside a box can set itself up. Verification: E105–E108.
 
