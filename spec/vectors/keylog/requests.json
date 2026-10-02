@@ -1,6 +1,15 @@
 {
   "description": "Device-signed requests the relay authenticates before acting (spec/KEYLOG.md §2a). They are NOT log signatures: the logged KEY_REVOKED stays relay-asserted (empty sig). revoke: Ed25519(device, lp(\"moochy/v1/key-revoke\", KEY_REVOKED body)). rotate: sigs = [PoP by the successor key, Ed25519(current device, lp(\"moochy/v1/key-rotate\", successor KEY_ADDED body))].",
   "device_pub_hex": "7646c5a4049ccf4c671ec248a50d78791f5656de365acbc8b717b18fe46571db",
+  "lookup": {
+    "handle": "octocat",
+    "issued_at_ms": 1790000000000,
+    "message_hex": "000000106d6f6f6368792f76312f6c6f6f6b7570000000076f63746f63617400000012666572726f75732d6c6162732f7175696c6c0000001370735f30776e657230303030303030303030300000000d31373930303030303030303030",
+    "owner_pseudonym": "ps_0wner00000000000",
+    "owner_pub_hex": "a64a6c77d649db6b99d10340cf777444862805767f48581cb3c7b561d61ba842",
+    "repo_slug": "ferrous-labs/quill",
+    "sig_hex": "24f3859b9b1bc75f483e04aa3790fffa0fddca3c501ad37bdada88e4d78c5c4173947f1474a6c3e26255466b28d0120710211c781b8b22daec3377b7d5336803"
+  },
   "revoke": {
     "body_hex": "0000001c645f3031485a583030303030303030303030303030303030303030310000001370735f30776e65723030303030303030303030000000066c6f676f7574",
     "message_hex": "000000146d6f6f6368792f76312f6b65792d7265766f6b65000000410000001c645f3031485a583030303030303030303030303030303030303030310000001370735f30776e65723030303030303030303030000000066c6f676f7574",

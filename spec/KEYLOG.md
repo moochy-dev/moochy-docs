@@ -130,6 +130,13 @@ Vectors: `spec/vectors/keylog/boxes.json`.
 requests (§2a): `moochy/v1/key-revoke`, `moochy/v1/key-rotate`; passkeys (§4a):
 `moochy/v1/email-proof`.
 
+Owner-key requests (authenticate a request, never a log signature): `moochy/v1/lookup`. For
+`POST /api/lookup` (A218: the owner's independent handle → pseudonym check) the owner CLI signs
+`lp("moochy/v1/lookup", handle, repo_slug, owner_pseudonym, decimal(issued_at_ms))` with its
+Ed25519 owner key; `decimal` = canonical ASCII decimal (no sign, no leading zero). The relay
+checks it against the user's active owner key; it is never accepted as a log signature and the
+reverse (distinct label).
+
 ## 4. Owner keys (CONTRACT §15.4)
 
 Approvals need the human. Every user who owns a repo has exactly one **active owner key**, an
