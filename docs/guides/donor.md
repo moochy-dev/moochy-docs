@@ -78,14 +78,17 @@ This is the most important safety step, and it does not depend on Moochy at all.
 | **DeepSeek** | DeepSeek uses a prepaid balance. Use a separate account, or top up only what you want to donate: the balance is your hard limit |
 | **xAI** | In the xAI Console, use a separate **team** for Moochy and create the key there. Buy prepaid credits only for what you want to donate (the balance is a hard stop), and set a monthly spending limit in the team's billing settings if your account offers one |
 
-## 5. Set this device's monthly limit (required)
+## 5. The safety step: this device's monthly limit (required)
 
-The app checks its own limit before every request, before calling your provider, whatever happens elsewhere. There is no default: you choose it.
+Right after you add a key, the app asks two things before this device donates anything: a **monthly limit for this machine** (in dollars, across all your donations), and a checkbox confirming that you set a spending limit at your provider, or accept the risk. The app checks its own limit before every request, before calling your provider, whatever happens elsewhere. Until you finish this step, the device does not donate.
+
+To do it (or change the limit) later, or without a terminal prompt:
 
 ```sh
-moochy config set monthly_limit 25      # $25 a month from this device, across all your donations
-moochy config set slots_max 4           # requests served at the same time (1–64)
-moochy config show                      # check your settings
+moochy safety                                        # asks again
+moochy safety --monthly-limit '$25' --accept-safety  # scripts and servers
+moochy config set slots_max 4                        # requests served at the same time (1–64)
+moochy config show                                   # check your settings
 ```
 
 If you use several devices, each has its own limit, and they add up.
@@ -102,9 +105,10 @@ The most you can spend is the **smallest** of three separate limits:
 moochy up                      # start in the background
 moochy status                  # connection, slots in use, donations
 moochy doctor                  # keychain, connection, clock, provider keys, lockdown
+moochy service install         # start it at login (systemd user unit or launchd agent); --print shows the unit first
 ```
 
-To start it at login on a server, see [Run Moochy on a server or in CI](headless-node.md#13-run-it-as-a-service).
+On a server, see [Run Moochy on a server or in CI](headless-node.md#13-run-it-as-a-service).
 
 ## 7. Donate tokens
 
@@ -138,9 +142,20 @@ The donation shows **waiting for the maintainer** until the project's owner acce
 | Give less | Lower the donation's monthly limit | Takes effect within milliseconds |
 | Stop donating to a project | `moochy donations stop <id>`, or Dashboard → **Stop donating** | The donation ends. No new requests; requests in progress finish and are recorded |
 | Remove this device | `moochy logout` | Its keys are revoked, then deleted from the device |
-| Remove another device | Devices page on moochy.dev | Its keys stop working immediately |
+| Remove another device | `moochy keys revoke <device id>`, or the Devices page on moochy.dev | Its keys stop working immediately |
 
 Stopping is immediate because nothing was ever transferred. Your money stays in your provider account until a request is actually served.
+
+### Emails you get
+
+You confirm an email address when you first sign in; Moochy uses it only for these notifications.
+
+| Kind | Examples | Can you turn it off? |
+|---|---|---|
+| Account and security | Confirm your email; sign-in from a new device; a device or an owner key was added or revoked; account deletion | No |
+| Donations | Accepted, refused (with the maintainer's reason), expired after 30 days without an answer, or stopped by the maintainer; 80% and 100% of a monthly limit; a device offline for more than a day while a donation is active; a disputed receipt; your provider key is failing; monthly summary | Yes, per kind in Settings, or with the one-click unsubscribe link in each email |
+
+Emails never contain prompts, responses, keys, or tokens, and have no tracking pixels.
 
 ## 9. See what your key was used for
 
@@ -171,6 +186,6 @@ Every account has one handle on moochy.dev, and no two accounts share one:
 | Nothing is served | `moochy status`: device limit reached? outside your schedule? paused? key invalid? |
 | The app refuses to donate | `moochy doctor`: usually the lockdown could not be applied on this system; it says why. (`moochy up --unsafe-no-lockdown` exists only for debugging the app; do not donate with it) |
 | Provider errors | `moochy doctor` checks the keychain, connection, clock, and provider keys |
-| Unexpected costs | `moochy pause`, then `moochy journal`, and compare with your provider's usage page. Save evidence with `moochy report <task>` |
+| Unexpected costs | `moochy pause`, then `moochy journal`. Export your usage from the provider's usage page as a CSV and run `moochy audit --provider --from-file usage.csv`: it compares what this device served over 90 days with what your provider billed. Save evidence with `moochy report <task>` |
 
 Exit codes: 0 ok, 2 wrong usage, 3 sign-in or acceptance refused, 4 network, 10 internal error.

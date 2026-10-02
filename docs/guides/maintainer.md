@@ -40,21 +40,44 @@ Confirm the printed code in your browser (GitHub or GitLab sign-in). The first t
 
 Add a **Donate tokens** button to your README so donors find you: see [Add a "Donate tokens" button](donate-button.md).
 
-## 3. Accept donors
+## 3. Accept or refuse donations
 
-New donations show **waiting for the maintainer**. Project settings list each donor with useful signals: account age, other projects they donate to, past disputes. Then, on your own machine:
+New donations show **waiting for the maintainer**. Each request shows the donor's handle or pseudonym, the models, the monthly limit, and the limit per request, with useful signals: account age, other projects they donate to, past disputes. You decide in one of three places; every decision is recorded.
+
+**From the terminal**, on your own machine:
 
 ```sh
-moochy pending                                  # donors and members waiting for your signature
-moochy accept ps_7hc2qz… --repo owner/repo      # or the donor's handle; `moochy approve` is the same command
-moochy accept ps_7hc2qz… --repo owner/repo --revoke   # remove a donor you accepted
+moochy pending                                       # donors and members waiting for you
+moochy accept ps_7hc2qz… --repo owner/repo           # or the donor's handle; `moochy approve` is the same command
+moochy accept ps_7hc2qz… --repo owner/repo --revoke  # remove a donor you accepted
 ```
 
 The app shows exactly what it will sign (the project, the donor, your owner key), asks you to confirm, and asks for the owner key's passphrase. In scripts and CI, `--yes` skips the question and the passphrase comes from `MOOCHY_OWNER_PASSPHRASE`; it is never read from standard input, so a tool piping into `moochy` cannot answer for you.
 
-**Approvals are signed by your owner key, on your own machine, after you confirm.** The website lists requests and lets you decline, but it never accepts a donor for you, and neither can the background app: the owner key is loaded only by the command you type. Before any member's app sends a single encrypted byte to a donor, it checks your signature for that donor in the public key log. A donor that was not accepted by you never receives your project's requests.
+**From an email.** When a donor is waiting, Moochy emails you the request with **Accept**, **Refuse**, and **Review** buttons. A button never decides anything by itself (mail scanners open links): it opens the request on moochy.dev, where you must be signed in (within the last 2 hours) and press the button again. The link works once and for 7 days.
 
-Your own app warns you if the public key log ever shows a donor, member, or claim for your repository that you did not sign.
+**From the website**, Repositories → the project → the request: the same page.
+
+- **Refuse** is one click on that page, with an optional short reason the donor sees. A refusal grants nothing, so it needs no signature.
+- **Accept** on the website or from an email needs a **passkey**: Touch ID, Windows Hello, or a security key registered as one of your owner keys. Your device signs the exact acceptance, and every member's app checks that signature in the public key log, as with the terminal. Moochy's servers cannot forge or replay it. To register your first passkey, you confirm with a link sent to your confirmed email address (or sign with an owner key you already have).
+- A request nobody answers **expires after 30 days**, and the donor is told.
+
+**Approvals are always signed by you, never by Moochy.** Whether from the terminal (owner key) or the website (passkey), the signature is made on your own device after you confirm. The background app cannot accept anyone, and a donor you did not accept never receives your project's requests.
+
+**Every decision is traced.** Activity → Decisions shows each request and what happened to it (requested, accepted, refused, expired, stopped, lowered, resumed, revoked), who decided, when, and how (terminal, website, email link, passkey). The donor sees the same history for their donation. Both are in your data export, and acceptances are verifiable in the public key log.
+
+Your own app warns you if the public key log ever shows a donor, member, or claim for your repository that you did not sign. If you get an email confirming a decision you did not make, treat it as a security problem: revoke the key or passkey it names.
+
+### Emails you get
+
+You confirm an email address when you first sign in; Moochy uses it only for these notifications.
+
+| Kind | Examples | Can you turn it off? |
+|---|---|---|
+| Account and security | Confirm your email; sign-in from a new device; a device, an owner key, or a passkey was added or revoked; account deletion | No |
+| Maintainer | A donor is waiting for you; a member request; a donation stopped or lowered; your project's donations are running low; claim confirmed; monthly summary | Yes, per kind in Settings, or with the one-click unsubscribe link in each email |
+
+Bursts are grouped (at most one email of a kind per hour). Emails never contain prompts, responses, keys, or tokens, and have no tracking pixels.
 
 ## 4. Members
 
