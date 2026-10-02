@@ -336,7 +336,7 @@ These are the hostile sealed-data-plane peer mo-e2e could not build (safety-stop
 
 | ID | Sev | Finding | File:line | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|
-| A206 | Med-High | `moochy run` never adds the Moochy home to `spec.protected` and only refuses a worktree that is `/` or an ancestor of `$HOME`. A node whose `--home` is inside the project worktree exposes `config.json` (relay/ca_file/log_key), `keystore.enc`, `node.sock` and `run.key` RW to the sandboxed agent | `cli/crates/node/src/run.rs:152` | mo-node | A206 (fails) | **VULN** |
+| A206 | Med-High | `moochy run` never adds the Moochy home to `spec.protected` and only refuses a worktree that is `/` or an ancestor of `$HOME`. A node whose `--home` is inside the project worktree exposes `config.json` (relay/ca_file/log_key), `keystore.enc`, `node.sock` and `run.key` RW to the sandboxed agent | `cli/crates/node/src/run.rs:152` | mo-node | A206 (fails) | **implemented** (FIXED by mo-node: `moochy run` refuses a worktree that overlaps the Moochy home — A206 passes) |
 | A207 | Low-Med | The stdio shim's `denied_name` list is narrower than §15.4: `credentials.json`, `*.tfstate`, `service-account*.json`, `.vault-token` are shared with a donor (the in-sandbox mask already covers them; the shim does not) | `cli/crates/node/src/files.rs:33` | mo-node | A207 (fails) | **VULN** |
 | A208 | Med | Stream-resume / orphaned-task takeover: `e.tasks` is keyed by task id alone, so after the victim's Submit stream ends another gateway-role device can store its own `submit` under that id and receive the task's response ciphertext + `Accepted{R}` (no plaintext leak — HPKE — but targeted DoS + metadata). Resume makes the tail follow the attacker | `relay/internal/edge/link.go:564`, `exec.go:93`, `sched/core.go:728` | mo-relay | U:relay | gap |
 | A209 | Med | Resume tails (`stream_resume_kib>0`): up to 4 MiB/task kept 30 s, uncounted in `e.buffered`/global/per-device budgets → memory bounded by submit rate, not by `max_tasks_per_gateway` | `relay/internal/edge/link.go:480`, `cmd/relay/support.go:66` | mo-relay | U:relay | gap (off by default) |
@@ -353,18 +353,18 @@ These are the hostile sealed-data-plane peer mo-e2e could not build (safety-stop
 
 | Rank | ID | Gap | Owner | Severity |
 |---|---|---|---|---|
-| 1 | A206 | **VULN (reproduced)** `moochy run` leaves the Moochy home RW/readable in the sandbox when the worktree contains it (keystore, config.json, node.sock, run.key) | mo-node | Med-High |
+| 1 | A207 | **VULN (reproduced)** shim `denied_name` narrower than §15.4 (`credentials.json`, `*.tfstate`, `.vault-token`, `service-account*.json` shared with a donor) | mo-node | Low-Med |
 | 2 | A136 | Forged `DONOR_APPROVED` refused by the Gateway (needs a relay chaos hook to test end to end) | node, keylog, relay | High |
 | 3 | A77 | Provider terms on key sharing/resale: unresolved, possibly existential | int | High |
 | 4 | A208 | Orphaned-task Submit takeover: `e.tasks` keyed by task id alone → another gateway device captures a task's response/metadata (targeted DoS, no plaintext) | mo-relay | Med |
 | 5 | A210r | `ApprovalRequests` uncapped → >200 pending requests exceed 128 KiB and kill the owner's Session on every connect (Sybil / large org) | mo-relay | Med |
-| 6 | A207 | **VULN (reproduced)** shim `denied_name` narrower than §15.4 (`credentials.json`, `*.tfstate`, `.vault-token`, `service-account*.json` shared with a donor) | mo-node | Low-Med |
+| 6 | A209 | Resume tails uncounted in the relay memory budgets (off by default: `stream_resume_kib>0`) | mo-relay | Med |
 | 7 | A182 / A189 | MCP error text + untrusted-frame: sanitize/frame donor-controlled strings | mo-node | Med |
 | 8 | A183 | Owner approvals need a human confirmation + separate owner key | mo-node | Med |
 | 9 | A174 | `worker_approved` `None => true` is fail-open when the key log is inactive; gate on `insecure_dev` | mo-node | Med |
-| 10 | A209 | Resume tails uncounted in the memory budgets (off by default: `stream_resume_kib>0`) | mo-relay | Med |
+| 10 | A213r | Pledge validate-after-mutation + dropped dialect restriction on edit | mo-relay | Low |
 
-Recently FIXED (verified by a passing test this round): A180 (Critical, mo-relay), A173/A175 (mo-node), A161–A163 §15.4 (mo-node), A171/A172 (mo-node), A150–A155/A191/A194 (mo-sandbox).
+Recently FIXED (verified by a passing test): A180 (mo-relay), A173/A175/A171/A172/A206 (mo-node), A161–A163 §15.4 (mo-node), A150–A155/A191/A194 (mo-sandbox). A211/E96 now PASS (raw-gateway bomb refused).
 
 Also open: A211r–A215, A135 (non-default relay gate), A21 (zstd window/FCS decoder config), A19 (gRPC reflection off), A121 (`TCP_NODELAY` tiny-packet rate limit), A113 (confusable repo slugs).
 
