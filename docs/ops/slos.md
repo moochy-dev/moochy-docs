@@ -10,6 +10,7 @@ Plan 10 §6 targets with their exact measurement. Recording rules and alerts: `d
 | Scheduler apply | p99 ≤ 50 µs | `moochy:scheduler_apply_us:p99_5m` | 7 days | `SchedulerApplySlow` (> 200 µs, 10 min) |
 | Receipt durability | 100% of donor-signed receipts settled within 24 h | `receipts_unsettled_oldest_age_s` ≤ 86 400; `pessimistic_settlements_total` reviewed weekly | continuous | `ReceiptsUnsettled` |
 | Ledger drift | 0 µ$ | `audit_drift_uusd` from the nightly audit (read-only connection); `audit_last_success_timestamp_s` fresh | every run | `LedgerDrift` (page), `AuditNotRunning` |
+| Cache-read share of input tokens (cost lever, 01 §5.3) | ≥ 80% | `moochy:cache_read:ratio_rate1h` from `input_tokens_total{kind}`; affinity `moochy:affinity_hit:ratio_rate1h` | 7 days | `CacheReadRatioLow` (< 50% for 6 h) |
 | Checkpoint freshness | ≤ 2 min when the log grew | `checkpoint_age_s` while `changes(key_log_size[30m]) > 0` | continuous | `CheckpointStale` (> 10 min, ticket), `CheckpointStalePage` (40 min) |
 
 ## Responsiveness budgets (CONTRACT §13)
@@ -33,6 +34,8 @@ Gateway and Worker rows are measured by E22 and by opt-in Node telemetry (`gatew
 | Process crash | 0 | < 10 s (`Restart=always`, `RestartSec=1`) | E12 |
 | VM loss / disk corruption | ≈ 1 s DB, 0 spend (`receipt.replay_since`) | < 30 min | monthly restore drill (`moochy_restore_drill_restore_seconds`), Phase 6 DR drill |
 | Region outage | ≈ 1 s | < 1 h | DR drill into another region |
+
+Worker health: `ack_latency_ms` / `start_latency_ms` (Assign → Ack / Started, Scheduler clock); `WorkerAckSlow` tickets at p95 > 250 ms (ack deadline 500 ms). Availability: the probe calls `grpc.health.v1.Health/Check` for `moochy.v1.NodeLink`, which the relay reports `NOT_SERVING` while draining.
 
 Replication health: `litestream_lag_s` is the time since Litestream last confirmed that every database synced (its heartbeat, every 60 s); alert at 150 s.
 
