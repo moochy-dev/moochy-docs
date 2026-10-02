@@ -492,10 +492,16 @@ message DevicePollResponse {
   int64 cap_uusd_month = 8;
 }
 
-message ListDonationsRequest {}
+message ListDonationsRequest {
+  // `moochy decisions` (CONTRACT §16.6): the donations TO the projects this user owns (pending
+  // requests and history, donor names per their visibility), instead of the user's own.
+  bool as_owner = 1;
+  string repo_slug = 2;            // as_owner only: one project ("" = all of them)
+}
 
 message ListDonationsResponse {
   repeated Donation donations = 1;
+  bool as_owner = 2;               // echoes the request: a relay without owner listing leaves it false and the CLI refuses the answer
 }
 
 message DonateRequest {
@@ -511,9 +517,10 @@ message DonateRequest {
 
 message DonationActionRequest {
   string pledge_id = 1;
-  string action = 2;               // pause | resume | reclaim | update
+  string action = 2;               // pause | resume | reclaim | update; owner of the project: refuse (a pending request)
   int64 amount_uusd = 3;           // reclaim: > 0 lowers the monthly limit, 0 ends the donation
   DonateRequest update = 4;        // action = update
+  string reason = 5;               // action = refuse: optional, <= 280 chars, shown to the donor
 }
 
 message Donation {
@@ -530,6 +537,18 @@ message Donation {
   string visibility = 11;
   string schedule = 12;
   int64 created_at_ms = 13;
+  // as_owner listings only:
+  string donor = 14;               // handle, pseudonym or "" (the donor's visibility)
+  repeated DonationEvent events = 15;  // the decisions trail, oldest first (CONTRACT §16.6)
+  int64 expires_at_ms = 16;        // pending: when the request expires unanswered
+}
+
+message DonationEvent {
+  string event = 1;                // requested | accepted | refused | expired | stopped | lowered | resumed | revoked
+  string via = 2;                  // cli | web | email | passkey | system
+  int64 at_ms = 3;
+  string reason = 4;
+  int64 log_index = 5;             // key-log index of the signed entry, 0 = none
 }
 
 message SetDeviceCapRequest {
