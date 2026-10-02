@@ -110,6 +110,10 @@ message Auth {
   repeated Role roles = 2;
   bytes sig = 3;                   // see header comment
   string client_version = 4;
+  // §17.1 clone detection (integrator decision): 16 random bytes generated at every process start.
+  // Two live sessions of one device key with different instance values inside the session lease
+  // are a clone: the relay refuses the newer one and alerts the owner (BoxCloneRefused).
+  bytes instance = 5;
 }
 
 message Welcome {
