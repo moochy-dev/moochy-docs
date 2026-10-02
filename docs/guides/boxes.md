@@ -6,7 +6,7 @@ Coding agents increasingly run in hosted boxes: persistent VMs such as boat.dev,
 2. [Donate from a cloud machine](#2-donate-from-a-cloud-machine): an always-on donation with an API key.
 3. [Donate your own GPU server](#3-donate-your-own-gpu-server): a model you run on a rented GPU.
 
-**Availability.** Box enrollment (`moochy box …`, `MOOCHY_ENROLL`), `moochy run --box-is-sandbox`, and remote GPU hosts over TLS are being built; this page describes how they work. Check with `moochy --help`. Until `box` is listed, give each box its own device instead: [an agent in CI or a container](headless-node.md#2-an-agent-in-ci-or-a-container). Donating from a cloud machine (section 2) and a GPU server with the app on the same machine (section 3, first option) work today.
+**Availability.** Everything on this page works with the current app, except reaching a GPU server on another machine over TLS (section 3, option B), which is being built. Check with `moochy --help`.
 
 **AI agents inside a box:** this page is also at `https://moochy.dev/docs/boxes.md`. Follow section 1 for your platform. You need an enrollment token from the maintainer; never ask for their keys or passphrases.
 
@@ -40,14 +40,16 @@ A box never gets a copy of your device's keys. Instead:
 
    - `--ttl`: how long the token can be used to enroll new boxes.
    - `--cap`: the monthly limit for each box it enrolls, within your own limit as a member.
-   - `--max-boxes`: how many boxes it may enroll in total.
+   - `--max-boxes`: how many boxes it may enroll in total (default 1).
 2. **The box enrolls itself** with that token: `MOOCHY_ENROLL=<token> moochy up --headless`. The app creates the box's own keys inside the box. The box becomes a separate device: limited to that one project, with its own monthly limit and an expiry, and no power to accept donors, add members, or donate.
 3. **You get an email** each time a box enrolls.
 4. **You list and remove boxes** like devices:
 
    ```sh
-   moochy box list
-   moochy box revoke <id>        # its keys stop working immediately
+   moochy box list                       # boxes enrolled for your projects
+   moochy box revoke d_…                 # one box: its keys stop working immediately
+   moochy box token list                 # your enrollment tokens
+   moochy box token revoke bt_…          # a token and every box it enrolled
    ```
 
 **One box, one identity.** Many platforms can fork, branch, or snapshot a running box. A copy carries the original box's keys, and Moochy refuses it: only one copy of a device can be connected at a time, and the app refuses to start when it notices it was moved to another machine. You get an alert. To use the copy, delete its Moochy home folder and enroll it again (with the same token, if it still has boxes left, or a new one).
