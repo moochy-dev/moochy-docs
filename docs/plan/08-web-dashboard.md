@@ -7,6 +7,8 @@
 > **Updated again 2026-10-01 (main `b65289e7`):** monochrome Ink/Paper/Sky visual direction and subtle motion replace the earlier palette and motion system (CONTRACT §9), VOICE.md wording, app-shell information architecture, Donate tokens button studio and `button.svg`, provider logos, profiles at `/u/{handle}` (R1), web owner renamed mo-design.
 >
 > **Updated 2026-10-02 (docs site):** public docs routes (`/docs`, `.md` pages, `/llms.txt`) and the projects check API in the route map.
+>
+> **Updated 2026-10-02 (CONTRACT §16–§17):** routes for decisions from email (`/decide`), boxes, email settings, and the Resend webhook; Activity → Decisions shows the decision history.
 
 ---
 
@@ -39,6 +41,10 @@ Auth column: P = public, U = signed-in user, O = repo owner/admin, D = device fl
 | GET | `/open` | P | **Open-source client and costs**: links to the client source (`moochy-cli`), its license (Apache-2.0), and the public protocol spec; why the closed relay does not need to be trusted; what running moochy.dev costs each month and who sponsors it (static page, updated monthly) |
 | GET | `/docs`, `/docs/{slug}`, `/docs/{slug}.md`, `/llms.txt`, `/llms-full.txt` | P | Public documentation for people and AI agents (CONTRACT §9): `docs/guides/**` rendered by `relay/internal/docsite` (owner mo-docs; mounted by mo-relay per its `WIRING.md`), raw Markdown for agents, the donate-button recipe first in `/llms.txt` |
 | GET | `/api/v1/projects/{provider}/{owner}/{repo}` | P | Machine check for agents: `{claimed, donate_url, button_url, docs}`; never donors or amounts (CONTRACT §9; owner mo-relay) |
+| GET · POST | `/decide/{request}` | U (owner, fresh ≤ 2 h) | Accept (passkey) or refuse (optional reason) a donation request opened from an email button; the link token only preselects (CONTRACT §16.6) |
+| GET · POST | `/repos/{owner}/{repo}/boxes` | O | Enrollment tokens and box devices: create (TTL, cap, max boxes), list, revoke (CONTRACT §17.1) |
+| POST | `/hooks/resend` | Svix signature | Resend delivery webhooks: bounces and complaints (CONTRACT §16.3; owner mo-notify) |
+| GET · POST | `/settings/email` | U | Confirm or change the account email (fresh session), notification preferences per kind; one-click unsubscribe target (RFC 8058) |
 | GET | `/explore` | P | Repos seeking compute: goal %, donors, models wanted; filters |
 | GET | `/p/{owner}/{repo}` | P | Public repo page (§3) |
 | GET | `/p/{owner}/{repo}/events` | P | SSE: presence + goal + audit-feed fragments (E19) |

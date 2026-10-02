@@ -7,6 +7,8 @@
 > **Updated again 2026-10-01 (main `b65289e7`):** sandbox and donor lockdown in Phase 1 scope (ADR-43), E93+ in the scenario map.
 >
 > **Updated 2026-10-02 (main `5f9ccf80`):** local GPU donors on main (ADR-49).
+>
+> **Updated 2026-10-02 (CONTRACT §16–§17):** email and decisions (§16) and cloud boxes (§17) in Phase 1 scope; E99–E108 in the scenario map.
 
 ---
 
@@ -70,6 +72,8 @@ Phases 2 and 3 can run in parallel with two engineers.
 | Key log | In scope now (ADR-38), built in parallel by its own owner (`relay/internal/tlog`, `moochy-keylog`); its exit criteria are listed under Phase 3. Until it ships, Workers accept relay-asserted membership and approvals **only** when started with `MOOCHY_INSECURE_DEV=1` |
 | Sandbox | In scope now (ADR-43, CONTRACT §15, owner mo-sandbox): `moochy run` on Linux and macOS (fails closed elsewhere), run tokens so pooled tool calls reach only sandboxed sessions, donor `lockdown_self` and the per-request validator child; verified by E93 and later (E96 for the donor process) as CONTRACT §8 assigns them |
 | Local GPU donors | On main (ADR-49): `keys add local` for Ollama, LM Studio, vLLM, llama.cpp; self-reported usage tier and its separate leaderboard need relay catalog and web support |
+| Email and decisions | CONTRACT §16 (owner mo-notify, `relay/internal/notify`): confirmed email, notification kinds, Resend outbox and webhooks, accept/refuse from email with passkeys, decision history (ADR-51, ADR-52) |
+| Cloud boxes | CONTRACT §17: enrollment tokens and ephemeral box devices, clone detection, `--box-is-sandbox`, vetted TLS GPU hosts, platform templates and the `boxes` guide (ADR-53) |
 
 **Exit criteria (all must pass):**
 
@@ -271,5 +275,8 @@ Scenario IDs are stable and owned by `spec/CONTRACT.md`; this table only says wh
 | E22 | Responsiveness budgets of CONTRACT §13 at p50 and p99 | Phase 1, and every release | Phase 4 web budgets |
 
 | E93+ | Sandbox and donor lockdown (CONTRACT §15.3): worktree-only agent, no network but the gateway, poisoned `curl … \| sh` without effect outside, donor process cannot `exec` or connect elsewhere (E96), validator child has no files or sockets | Phase 1 | ADR-43 |
+| E99–E101 | Email (CONTRACT §16.5): confirmation link once (replay, expiry, wrong user, tampering refused); one email per accepted donation through the fake Resend with idempotency and retry; unsubscribe stops a category but never security mail; signed bounce webhook stops sending, unsigned or stale refused; no prompt, key, or token in any body | Phase 1 | ADR-51 |
+| E102–E104 | Decisions (CONTRACT §16.6): email → /decide → refuse records one event and emails the donor, no key-log entry; accept with a passkey (virtual authenticator) yields a verifiable `DONOR_APPROVED` and the donor starts serving, forged/replayed/wrong-challenge assertions refused by nodes; history matches events; link prefetch changes nothing | Phase 1 | ADR-52 |
+| E105–E108 | Boxes (CONTRACT §17.5): enroll with a token, serve within the cap, expire; a cloned box (same key, second session, changed machine-id) refused and the owner alerted; `--box-is-sandbox` without user namespaces runs with clean env and warning, tool calls only if the repo allows platform sandboxes; a vetted TLS GPU host serves, an unvetted or plain-HTTP remote host is refused | Phase 1 | ADR-53 |
 
 New scenarios get the next free ID in CONTRACT §8 first, then a row here.
