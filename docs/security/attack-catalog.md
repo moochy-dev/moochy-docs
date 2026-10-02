@@ -391,7 +391,7 @@ New review: `relay/internal/docsite`, the projects routes, `static/motion.js` + 
 
 ## 14h. Round 8 — boxes, lookup, passkeys, /decide, provider-qualified routes (2026-10-02, A240–A246)
 
-Re-run on main a14f9dc: 60 pass, 0 fail, 7 skip before the new tests. Flipped above: A216, A220, A226, A228, A230, A232, A235; partial: A218, A224, A233, A234; A229 fails on main and passes on `agent/mo-design`.
+Re-run on main a14f9dc: 60 pass, 0 fail, 7 skip before the new tests; final run on main 7212ebe9 with A229/A241–A243: 62 pass, 2 fail (A229, A241), 7 skip. Flipped above: A216, A220, A226, A228, A230, A232, A235; partial: A218, A224, A233, A234; A229 fails on main and passes on `agent/mo-design`.
 
 | ID | Sev | Finding | File:line | Owner | Verif. | Status |
 |---|---|---|---|---|---|---|
