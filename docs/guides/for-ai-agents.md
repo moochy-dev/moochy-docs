@@ -10,12 +10,28 @@ This page is for coding agents (and the people who instruct them). Everything he
 
 Prefer the `.md` pages: they are the source of the HTML pages, with the same text.
 
+## Install the Moochy skills
+
+Three skills give your agent the exact steps, so it does not have to read the whole docs each time:
+
+```sh
+npx skills add moochy-dev/moochy-cli
+```
+
+| Skill | For |
+|---|---|
+| `moochy-donate-button` | Add, fix, or check the "Donate tokens" button in a README |
+| `moochy-use-donated-tokens` | Use a project's donated tokens: `moochy connect`, `moochy run`, `moochy_delegate` |
+| `moochy-donate` | Help a donor install the app, keep keys local, set limits, donate, pause, stop |
+
+They work with Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf, Cline, Amp, Antigravity, OpenClaw, Droid, Goose, Kilo Code, Kiro CLI, Hermes Agent, OpenCode, Roo Code, Trae, Zed, and Continue; per-agent notes and the skills themselves are on [Agent skills](https://moochy.dev/docs/skills) (source: [`skills/`](../../skills/README.md)). Each `SKILL.md` is also raw Markdown at `https://moochy.dev/docs/skills/<name>.md`.
+
 ## Common tasks
 
 | Task | Read |
 |---|---|
-| Add a "Donate tokens" button to a repository's README | [`donate-button.md`](donate-button.md): follow the recipe exactly, top to bottom |
-| Use donated tokens from a coding tool or agent framework | [`integrations.md`](integrations.md) (MCP server and provider-compatible base URLs) |
+| Add a "Donate tokens" button to a repository's README | [`donate-button.md`](donate-button.md) (or the `moochy-donate-button` skill): follow the recipe exactly, top to bottom |
+| Use donated tokens from a coding tool or agent framework | [`integrations.md`](integrations.md) (MCP server and provider-compatible base URLs, one section per agent) or the `moochy-use-donated-tokens` skill |
 | Run inside the Moochy sandbox | [`run.md`](run.md) |
 | Set yourself up inside a cloud box (boat.dev, E2B, Daytona, Modal, Morph, Fly, Codespaces) | [`boxes.md`](boxes.md#1-use-donated-tokens-from-a-cloud-box): install, enroll with the token the maintainer gives you, then `moochy run` |
 | Explain Moochy to a maintainer or donor | [`maintainer.md`](maintainer.md), [`donor.md`](donor.md), [`faq.md`](faq.md) |
