@@ -57,6 +57,15 @@ service NodeLink {
   rpc ListBoxes(ListBoxesRequest) returns (ListBoxesResponse);
   // `bt_…`: the token can enroll no more boxes and every box it enrolled is revoked; `d_…`: one box.
   rpc RevokeBox(RevokeBoxRequest) returns (RevokeBoxResponse);
+
+  // A218 (integrator 2026-10-02): the owner CLI checks what it is about to sign against the relay
+  // itself, not through the background Node's labels. Same rules as the web's /api/lookup.
+  // Unauthenticated, strictly rate-limited per IP. Repo only (handle empty): the claimed repo's
+  // canonical slug and id (public). With a handle: answered only when `sig` is an active Ed25519
+  // owner key of `owner` (never a passkey) over lp("moochy/v1/lookup", handle, repo_slug, owner,
+  // decimal(issued_at_ms)), issued within 5 minutes, for a person with a donation or membership on
+  // that repo, which `owner` must hold. Every refusal is NOT_FOUND, alike (no oracle).
+  rpc Lookup(LookupRequest) returns (LookupResponse);
 }
 
 enum Role {
@@ -587,4 +596,22 @@ message RevokeBoxRequest {
 message RevokeBoxResponse {
   repeated string revoked_devices = 1;
   bool token_revoked = 2;
+}
+
+// ---------------------------------------------------------- Lookup (A218)
+
+message LookupRequest {
+  string repo_slug = 1;            // "owner/name" (GitHub) or "github/…" / "gitlab/…/name"
+  string handle = 2;               // "" = repo lookup only
+  string owner = 3;                // the owner's pseudonym (handle lookups)
+  string owner_key_id = 4;         // an active Ed25519 owner key of `owner` (KEYLOG §4)
+  int64 issued_at_ms = 5;
+  bytes sig = 6;                   // 64 bytes
+}
+
+message LookupResponse {
+  string repo_slug = 1;            // canonical
+  string repo_id = 2;
+  string handle = 3;               // canonical; handle lookups only
+  string pseudonym = 4;            // handle lookups only
 }
