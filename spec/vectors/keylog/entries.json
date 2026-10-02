@@ -251,6 +251,7 @@
   },
   "monitor": {
     "alerts": [
+      "UnprovenOwnerKey:3:true",
       "Rejected:7:replay",
       "Rejected:8:bad_pop",
       "Rejected:9:unknown_owner_key",
@@ -261,6 +262,7 @@
       "Rejected:18:unknown_owner_key",
       "Rejected:19:owner_key_exists",
       "OwnerKeyRevoked:20",
+      "UnprovenOwnerKey:21:false",
       "UnknownOwnerKey:21",
       "NotSignedByMe:22",
       "Rejected:23:dup_key",
