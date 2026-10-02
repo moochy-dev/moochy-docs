@@ -49,6 +49,14 @@ service NodeLink {
   rpc DonationAction(DonationActionRequest) returns (Donation);
   // Owner sets a member device's monthly cap for one repo (`moochy members add --device --cap`).
   rpc SetDeviceCap(SetDeviceCapRequest) returns (SetDeviceCapResponse);
+  // Cloud boxes (CONTRACT §17.1), authenticated like SetDeviceCap. The repo owner, or a member
+  // within their own cap, creates an enrollment token; a box enrolls with it (DeviceStartRequest
+  // .enroll_token) as an ephemeral gateway device. Box devices themselves get PERMISSION_DENIED.
+  rpc CreateBoxToken(CreateBoxTokenRequest) returns (BoxToken);
+  // Tokens and box devices of the repos this user may manage (owner: every box; member: their own).
+  rpc ListBoxes(ListBoxesRequest) returns (ListBoxesResponse);
+  // `bt_…`: the token can enroll no more boxes and every box it enrolled is revoked; `d_…`: one box.
+  rpc RevokeBox(RevokeBoxRequest) returns (RevokeBoxResponse);
 }
 
 enum Role {
@@ -122,6 +130,7 @@ message PoolSync {
   repeated string excluded_providers = 8;  // repo setting (§15.4): the Gateway never seals to a worker serving through these providers
   bool allow_unsandboxed_tools = 9;        // repo setting (§15.4): release pooled tool calls to clients outside `moochy run` (default false)
   repeated string pinned_donors = 10;      // repo setting: donor pseudonyms the project prefers; the Gateway tries them first (empty = no preference)
+  bool allow_platform_sandboxes = 11;      // repo setting (§17.2) resolved for THIS device: release pooled tool calls to `moochy run --box-is-sandbox` sessions (default true for box devices, false otherwise)
 }
 
 message PoolWorker {
@@ -332,6 +341,7 @@ message SubmitOpen {
   repeated Wrap wraps = 3;         // <= 8
   uint64 body_len = 4;
   uint32 body_chunks = 5;
+  bool platform_sandboxed = 6;     // §17.2: the request comes from a `moochy run --box-is-sandbox` session (the box, not moochy, is the sandbox)
 }
 
 message Wraps {
@@ -431,6 +441,11 @@ message DeviceStartRequest {
   string suite = 5;                // envelope suite id
   bytes sig = 6;                   // Ed25519(sign key, lp("moochy/v1/device-start", sign_pub, enc_pub, roles_csv, name, suite))
   bytes pop_sig = 7;               // key-log proof of possession (label moochy/v1/key-pop, spec/KEYLOG.md); goes into KEY_ADDED
+  // §17.1 box enrollment: a token from CreateBoxToken. The relay checks it (hash, not expired or
+  // revoked, fewer than max_boxes uses), requires roles == [GATEWAY], logs KEY_ADDED with the box
+  // flag, the expiry and repo_scope, and approves without a browser: user_code is empty and the
+  // first DevicePoll answers APPROVED. A bad token: PERMISSION_DENIED (no detail on which check).
+  string enroll_token = 8;
 }
 
 message DeviceStartResponse {
@@ -457,6 +472,11 @@ message DevicePollResponse {
   string device_id = 2;
   string user_pseudonym = 3;
   string username = 4;
+  // Enrolled boxes only (§17.1): the ephemeral device's scope, expiry and own cap.
+  bool box = 5;
+  string repo_slug = 6;
+  int64 expires_at_ms = 7;
+  int64 cap_uusd_month = 8;
 }
 
 message ListDonationsRequest {}
@@ -508,4 +528,59 @@ message SetDeviceCapRequest {
 message SetDeviceCapResponse {
   string device_id = 1;
   int64 cap_uusd_month = 2;
+}
+
+// ---------------------------------------------------------- Cloud boxes (§17.1)
+
+message CreateBoxTokenRequest {
+  string request_id = 1;           // idempotency key (ULID)
+  string repo_slug = 2;            // "owner/name"
+  int64 ttl_ms = 3;                // 10 min .. 30 days; the token AND every box it enrolls expire at created + ttl
+  int64 cap_uusd_month = 4;        // each box's own monthly cap (> 0; a member's boxes also count against the member's cap)
+  uint32 max_boxes = 5;            // enrollments this token allows, 1..100
+}
+
+message BoxToken {
+  string token_id = 1;             // "bt_" + ULID
+  string token = 2;                // the secret ("mbx_" + 43 base64url chars): CreateBoxToken only, never stored in clear
+  string repo_slug = 3;
+  int64 created_at_ms = 4;
+  int64 expires_at_ms = 5;
+  int64 cap_uusd_month = 6;
+  uint32 max_boxes = 7;
+  uint32 used = 8;                 // enrollments so far
+  bool revoked = 9;
+  string created_by = 10;          // username of the owner or member who created it
+}
+
+message BoxDevice {
+  string device_id = 1;
+  string name = 2;
+  string token_id = 3;
+  string repo_slug = 4;
+  int64 enrolled_at_ms = 5;
+  int64 expires_at_ms = 6;
+  int64 cap_uusd_month = 7;
+  int64 spent_uusd_month = 8;
+  bool online = 9;
+  bool revoked = 10;
+  uint32 clone_refusals = 11;      // second concurrent sessions refused for this device key (§17.1)
+}
+
+message ListBoxesRequest {
+  string repo_slug = 1;            // "" = every repo this user may manage
+}
+
+message ListBoxesResponse {
+  repeated BoxToken tokens = 1;    // token field always empty
+  repeated BoxDevice boxes = 2;
+}
+
+message RevokeBoxRequest {
+  string id = 1;                   // "bt_…" or "d_…"
+}
+
+message RevokeBoxResponse {
+  repeated string revoked_devices = 1;
+  bool token_revoked = 2;
 }
