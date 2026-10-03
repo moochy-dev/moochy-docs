@@ -442,7 +442,9 @@
     "decide",
     "box",
     "boxes",
-    "outbox"
+    "outbox",
+    "org",
+    "orgs"
   ],
   "skeletons": [
     {
