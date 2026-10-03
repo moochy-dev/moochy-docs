@@ -75,7 +75,7 @@ The sandbox uses macOS's built-in Seatbelt, the same mechanism other coding-agen
 
 ## Windows
 
-Not available yet. `moochy run` refuses to start rather than run your agent without a sandbox.
+Moochy runs on macOS and Linux only.
 
 ## If the sandbox cannot start
 
