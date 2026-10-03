@@ -2,6 +2,8 @@
 
 A summary of the attacks Moochy is designed against, and where each defence lives. Every defence listed here runs in the open-source Moochy app (Apache-2.0), so you can read it and check it. Moochy's servers (the relay) are closed source, and the design does not ask you to trust them: the relay only sees encrypted bytes and signed records.
 
+> **Your API keys stay on your machine.** Moochy never stores your API keys online. They stay in your machine's keychain, used only by the Moochy app on that machine, and are never sent to Moochy's servers, not even encrypted. `moochy keys add` puts the key in your machine's keychain (on a server without one, in a file on that server encrypted with your passphrase, see [Run a headless node](headless-node.md)). The Moochy app on that machine reads it only to call your provider. Requests and answers travel encrypted between the apps on each side, so Moochy's servers see neither your keys nor the prompts.
+
 To report a weakness, see [`cli/SECURITY.md`](../../cli/SECURITY.md).
 
 ---

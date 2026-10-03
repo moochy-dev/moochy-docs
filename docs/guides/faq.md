@@ -1,5 +1,13 @@
 # FAQ
 
+## Your API keys
+
+### Does Moochy store my API keys?
+
+No. Moochy never stores your API keys online. They stay in your machine's keychain, used only by the Moochy app on that machine, and are never sent to Moochy's servers, not even encrypted.
+
+`moochy keys add` puts the key in your machine's keychain (on a server without one, in a file on that server encrypted with your passphrase, see [Run a headless node](headless-node.md)). The Moochy app on that machine reads it only to call your provider. Requests and answers travel encrypted between the apps on each side, so Moochy's servers see neither your keys nor the prompts.
+
 ## Open source and free
 
 ### Is Moochy free?
