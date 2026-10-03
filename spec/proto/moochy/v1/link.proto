@@ -577,6 +577,7 @@ message Donation {
   string person = 18;              // CONTRACT §24: set (repo_slug and org empty) for a person sponsorship
   repeated RepoSpend per_repo = 19;  // org/person donations: this month's spend per served repo (§19.5, §24.5)
   string person_id = 20;           // CONTRACT §24: the sponsored profile ("m_…"), so the donor's node binds the pledge to exactly one person
+  repeated int64 per_day_uusd = 21;  // spend of this donation, last 30 UTC days, oldest first, zero-filled (§20 TUI)
 }
 
 message RepoSpend {
@@ -616,6 +617,7 @@ message OwnedTarget {
   int64 paused_since_ms = 7;       // §19.2a, 0 = not paused
   repeated CoveredRepo covered = 8;  // orgs and people only
   repeated string funded_by = 9;   // projects only: orgs whose donations also serve it
+  repeated int64 per_day_uusd = 10;  // use, last 30 UTC days, oldest first, zero-filled (§20 TUI)
 }
 
 message ListOwnedResponse {
