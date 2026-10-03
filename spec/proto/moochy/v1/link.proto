@@ -513,6 +513,9 @@ message DonateRequest {
   string max_effort = 6;
   string visibility = 7;           // public | pseudonymous | anonymous
   string schedule = 8;             // always | nights | weekends | nights_weekends
+  // CONTRACT §19: donate to an organisation ("github/acme", "gitlab/group[/sub…]") instead of a
+  // project; exactly one of repo_slug and org is set (INVALID_ARGUMENT otherwise).
+  string org = 9;
 }
 
 message DonationActionRequest {
@@ -541,6 +544,7 @@ message Donation {
   string donor = 14;               // handle, pseudonym or "" (the donor's visibility)
   repeated DonationEvent events = 15;  // the decisions trail, oldest first (CONTRACT §16.6)
   int64 expires_at_ms = 16;        // pending: when the request expires unanswered
+  string org = 17;                 // CONTRACT §19: set (and repo_slug empty) for a donation to an organisation
 }
 
 message DonationEvent {
