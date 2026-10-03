@@ -281,6 +281,11 @@ message ApprovalRequest {
   int64 created_at_ms = 8;
   bytes body_to_sign = 9;
   string summary = 10;             // human-readable, for display only (never signed as-is)
+  // CONTRACT §19: ORG_CLAIMED / ORG_REPO_ADDED / ORG_REPO_REMOVED and DONOR_APPROVED/REVOKED of an
+  // org. Display labels only, like repo_slug: the CLI checks the decoded body_to_sign and the
+  // server's Lookup, never these strings (A218).
+  string org_id = 11;              // "o_…"
+  string org_path = 12;            // "github/acme", "gitlab/group[/sub…]"
 }
 
 message LogTileRequest {
