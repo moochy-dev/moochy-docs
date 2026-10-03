@@ -57,7 +57,7 @@ service LocalControl {
   rpc Report(ReportRequest) returns (ReportResponse);
   // Owner and member calls relayed as-is on the node's session (like Donations): `op` names the
   // NodeLink RPC; `request`/`response` are its link.proto messages' bytes. Ops: set_device_cap,
-  // create_box_token, list_boxes, revoke_box.
+  // create_box_token, list_boxes, revoke_box, list_devices, list_owned (§20).
   rpc LinkCall(LinkCallRequest) returns (LinkCallResponse);
   // CONTRACT §20 (`moochy tui`): live dashboard events until the client hangs up. Bounded and
   // rate-limited per watcher: at most 20 events per second plus one `snapshot` per 250 ms; what
@@ -225,6 +225,8 @@ message JournalEntry {
   uint32 ms = 8;                   // duration
   bytes request = 9;               // only with `journal_full_text` (opt-in), bounded
   bytes response = 10;             // only with `journal_full_text` (opt-in), bounded
+  uint64 tokens_in = 11;           // CONTRACT §20: from the usage the node saw (0 = unknown)
+  uint64 tokens_out = 12;
 }
 
 message McpOpen {
