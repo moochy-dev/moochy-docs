@@ -40,6 +40,8 @@ Confirm the printed code in your browser (GitHub or GitLab sign-in). The first t
 
 Add a **Donate tokens** button to your README so donors find you: see [Add a "Donate tokens" button](donate-button.md).
 
+**Own a GitHub organisation or a GitLab group?** Claim it too, and one donation to the organisation funds every project you choose in it, with donors accepted once: see [Donations for your organisation](organisations.md).
+
 ## 3. Accept or refuse donations
 
 New donations show **waiting for the maintainer**. Each request shows the donor's handle or pseudonym, the models, the monthly limit, and the limit per request, with useful signals: account age, other projects they donate to, past disputes. You decide in one of three places; every decision is recorded.
