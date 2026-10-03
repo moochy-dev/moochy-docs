@@ -1,9 +1,10 @@
 # Key log formats (normative, CONTRACT R8)
 
 Implemented by `relay/internal/tlog` (Go, relay) and `cli/crates/keylog` (Rust, Node); golden
-vectors in `spec/vectors/keylog/*.json` (written by the Go tests `TestVectors` and
-`TestWebAuthnVectors`, verified by the Rust tests `tests/vectors.rs`, `tests/monitor.rs` and
-`tests/webauthn.rs`). Rationale: plan 06 §10, 09 §3.5, D14, D16,
+vectors in `spec/vectors/keylog/*.json` (written by the Go tests `TestVectors`,
+`TestWebAuthnVectors`, `TestBoxVectors`, `TestOwnerKeyProofVectors` and `TestOrgVectors`, verified by the
+Rust tests `tests/vectors.rs`, `tests/monitor.rs`, `tests/webauthn.rs`, `tests/boxes.rs`,
+`tests/owner_proof.rs` and `tests/orgs.rs`). Rationale: plan 06 §10, 09 §3.5, D14, D16,
 CONTRACT §15.4.
 
 ## 1. Tree, checkpoints, tiles, transport
@@ -36,7 +37,7 @@ CONTRACT §15.4.
   checks the projection names the requested `receipt_ref`.
 - **Size bound.** A record is ≤ 480 bytes (the largest plain record, a `KEY_ADDED` with every
   field at its maximum, is 397), except records carrying a WebAuthn assertion (§4a: kinds 3–7
-  signed by a passkey, passkey `OWNER_KEY_ADDED`), ≤ 2048 bytes. An entry bundle is always
+  and 13–15 signed by a passkey, passkey `OWNER_KEY_ADDED`), ≤ 2048 bytes. An entry bundle is always
   ≤ 256 × 482 = 123,392 bytes and fits one 128 KiB gRPC message: before appending a record of
   `L` bytes at bundle slot `c` (0–255) when the bundle already holds `S` bytes (`Σ 2 + len`), the
   relay first appends `PAD` entries (kind 12, empty body and sig) while `S + 2 + L > 482 × (c + 1)`.
@@ -62,25 +63,29 @@ are raw. `owner_key_id(pub) = "ok_" + lowercase hex(SHA-256(pub)[0..16])`.
 | 1 | `KEY_ADDED` | `device_id, pseudonym, sign_pub(32), enc_pub(32), suite, roles, repo_scope`; box device (9 fields, §2b): `…, repo_scope, box_token_id, u64(expires_at_ms)` | PoP: `Ed25519(sign_key, lp("moochy/v1/key-pop", sign_pub, enc_pub, suite))` (`DeviceStartRequest.pop_sig`) |
 | 2 | `KEY_REVOKED` | `device_id, pseudonym, reason` | — (relay-asserted; only removes trust) |
 | 3 | `REPO_CLAIMED` | `repo_id, provider, provider_repo_id, owner_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
-| 4 / 5 | `DONOR_APPROVED` / `DONOR_REVOKED` | `repo_id, donor_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
+| 4 / 5 | `DONOR_APPROVED` / `DONOR_REVOKED` | `repo_id` or `org_id` (§2c), `donor_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 6 / 7 | `MEMBER_ADDED` / `MEMBER_REMOVED` | `repo_id, member_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 8 | `CATALOG` | `u64(version), sha256(catalog_json)(32), catalog_sig(1..128, opaque)` | — |
 | 9 | `MODERATION` | `subject_pseudonym, action, reason` | — |
 | 10 | `OWNER_KEY_ADDED` | Ed25519 (4 fields): `pseudonym, owner_pub(32), prev_owner_pub (empty or 32), u64(issued_at_ms)`; Ed25519 authorized by a passkey (5 fields, §4b): `…, u64(issued_at_ms), authorizer`; passkey (9 fields, §4a) | `new_sig` (64, a first key only before the §4c cutover), `lp(new_sig, email_proof)` (104, first key with the email proof, §4c), or `new_sig ‖ prev_sig` (128) when `prev` is set; 5 fields: `lp(new_sig, authorizer_sig)`; passkey: §4a |
 | 11 | `OWNER_KEY_REVOKED` | `pseudonym, owner_pub(32) or passkey cose_key(77), reason` | — (relay-asserted; only removes trust) |
 | 12 | `PAD` | empty | — (relay filler for the bundle budget, §1; no effect) |
+| 13 | `ORG_CLAIMED` | `org_id, provider, provider_org_id, owner_pseudonym, signer = owner_key_id, u64(issued_at_ms)` (§2c) | owner key |
+| 14 / 15 | `ORG_REPO_ADDED` / `ORG_REPO_REMOVED` | `org_id, repo_id, signer = owner_key_id, u64(issued_at_ms)` (§2c) | owner key |
 
-Owner signature (kinds 3–7) and both signatures of kind 10, for an Ed25519 owner key:
-`Ed25519(key, lp("moochy/v1/keylog-sig", u32(kind), body))`; for a passkey owner key, kinds 3–7
-carry a WebAuthn assertion over the same message instead (§4a). The state decides which form a
+Owner signature (kinds 3–7 and 13–15, "owner-signed kinds") and both signatures of kind 10, for an
+Ed25519 owner key: `Ed25519(key, lp("moochy/v1/keylog-sig", u32(kind), body))`; for a passkey owner
+key, the owner-signed kinds carry a WebAuthn assertion over the same message instead (§4a). The state decides which form a
 signature has from the `signer`'s key type, never from its length.
 
 Field grammar (identical in both languages; anything else is refused):
-`device_id` = `d_` + ULID, `repo_id` = `r_` + ULID (26 Crockford chars, uppercase, first ≤ `7`);
+`device_id` = `d_` + ULID, `repo_id` = `r_` + ULID, `org_id` = `o_` + ULID (26 Crockford chars,
+uppercase, first ≤ `7`); the target of `DONOR_*` is a `repo_id` or an `org_id`, of `MEMBER_*` a
+`repo_id` only;
 pseudonym = `ps_` + 16 lowercase Crockford base32 chars (`0-9a-hjkmnp-tv-z`); `roles` ∈
 {`gateway`, `worker`, `gateway,worker`}; `repo_scope` = `""` or a `repo_id`; `suite`, `reason`,
 `action` = `[a-z0-9._-]` (suite ≤ 64, others ≤ 32); `provider` ∈ {`github`, `gitlab`};
-`provider_repo_id` = canonical decimal (1–20 digits, no leading 0); `signer` = `ok_` + 32 lowercase
+`provider_repo_id`, `provider_org_id` = canonical decimal (1–20 digits, no leading 0); `signer` = `ok_` + 32 lowercase
 hex; `issued_at_ms` > 0; catalog `version` > 0; `owner_pub ≠ prev`.
 No usernames, emails, device names or repo slugs ever enter the log (06 §10.3).
 
@@ -123,6 +128,31 @@ signs its keys, the relay asserts the token, scope and expiry, which only narrow
   that point of the log.
 
 Vectors: `spec/vectors/keylog/boxes.json`.
+
+### 2c. Organisations (CONTRACT §19)
+
+An org owner's approvals serve every repo the org **covers**, and coverage is verifiable from the
+log alone:
+
+- **`ORG_CLAIMED`** binds `org_id` (`o_` + ULID; a GitHub organisation or a GitLab group, the
+  numeric provider id in `provider_org_id`) to `owner_pseudonym`, signed by that user's owner key.
+  Same rules as `REPO_CLAIMED` (§5): the org keeps its provider binding (`repo_binding`),
+  `issued_at` grows (`replay`), and a claim by a **new** owner drops every org approval and every
+  covered repo (they must be re-signed). The relay appends it only after the provider confirms the
+  user owns the org (§19.2); the log cannot check that, Nodes alert on it (§9).
+- **`ORG_REPO_ADDED(org, repo)`** is signed by an owner key of the org's current owner, and is
+  accepted only when `repo` is claimed by **that same** pseudonym (`not_owner` otherwise: a repo
+  claimed by another account is never covered, whatever its path). **`ORG_REPO_REMOVED`** needs only
+  the org owner's signature. Replay is per (org, repo).
+- **`DONOR_APPROVED` / `DONOR_REVOKED` with an `org_id`** use the unchanged repo rules against the
+  org's claim: the org owner approves a donor once per org.
+- **Sealing** (§5 `sealable`): the donor's approval for the repo, else for an org O with
+  `ORG_CLAIMED(O)` and `REPO_CLAIMED(repo)` active under the **same** owner and
+  `ORG_REPO_ADDED(O, repo)` active. A later change of either owner ends the coverage without any new
+  entry. An org id is never a repo: queries naming one answer `unclaimed`.
+
+Vectors: `spec/vectors/keylog/orgs.json` (siphoning through a foreign-claimed repo, a forged
+`ORG_REPO_ADDED`, replays, an org takeover, a repo changing owner, two orgs covering one repo).
 
 ## 3. Labels
 
@@ -310,23 +340,30 @@ Node that finds one in the log raises an alert). Codes are shared strings.
 | `OWNER_KEY_ADDED` (passkey, §4a) | `cose_key` and `credential_id` new (`dup_key`); PoP assertion (§4a codes, `prev` = 0); first key: no active owner key of any kind (`owner_key_exists`); else `authorizer` an unrevoked owner key of the same user (`unknown_owner_key`/`revoked`/`not_owner`) whose signature verifies (`bad_sig` / §4a codes) | passkey active, counter = PoP counter; authorizer's counter moves |
 | `OWNER_KEY_REVOKED` | key logged for that pseudonym (`unknown_owner_key`), not revoked (`revoked`) | key revoked (an Ed25519 revocation leaves the user with no active CLI key) |
 | `REPO_CLAIMED` | `signer` is a logged owner key (`unknown_owner_key`), unrevoked (`revoked`), of `owner_pseudonym` (`not_owner`), signature (`bad_sig`); repo id keeps its provider binding (`repo_binding`); `issued_at` > previous claim's (`replay`) | owner set; a **new** owner drops every approval and membership |
-| `DONOR_*`, `MEMBER_*` | repo claimed (`unclaimed`); `signer` is an unrevoked owner key of the **current** owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); `issued_at` > previous for (repo, donor\|member, subject) (`replay`) | grant on/off, remembers the entry index |
+| `DONOR_*`, `MEMBER_*` | repo (or org, `DONOR_*` only) claimed (`unclaimed`); `signer` is an unrevoked owner key of the **current** owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); `issued_at` > previous for (repo, donor\|member, subject) (`replay`) | grant on/off, remembers the entry index |
+| `ORG_CLAIMED` | as `REPO_CLAIMED`, for the org id (codes included) | owner set; a **new** owner drops every org approval and covered repo |
+| `ORG_REPO_ADDED` / `_REMOVED` | org claimed (`unclaimed`); `signer` is an unrevoked owner key of the org's current owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); ADDED only: repo claimed (`unclaimed`) by the org's owner (`not_owner`); `issued_at` > previous for (org, repo) (`replay`) | coverage on/off |
 | `CATALOG` | version > previous (`catalog_version`) | version → sha256 |
 | `MODERATION` | well-formed | informational |
 | `PAD` | empty body and sig | none |
 
-For a passkey `signer`, "signature" in kinds 3–7 means the §4a verification with the credential's
+For a passkey `signer`, "signature" in the owner-signed kinds means the §4a verification with the credential's
 last counter; the counter moves only when the entry is accepted.
 
-Relay append also enforces `|issued_at − relay clock| ≤ 10 min` for kinds 3–7 and 10 (`skew`). The
+Relay append also enforces `|issued_at − relay clock| ≤ 10 min` for kinds 3–7, 10 and 13–15 (`skew`),
+and takes org kinds 13–15 only after its own provider check (§19.2–19.3): a Node's
+`SignedLogEntry` of those kinds is refused with `ungated` unless the relay's gate admitted it. The
 owner's Node rebuilds a relay-proposed `ApprovalRequest.body_to_sign` with its own owner key id
 and current time before signing, after showing the user what it means.
 
 Queries:
 - **sealable(worker_device, repo)**: device logged (`unknown_device`), unrevoked (`revoked`), not an
   expired box (`expired`, at the caller's clock), role
-  `worker` (`role`), scope empty or `repo` (`scope`), repo claimed (`unclaimed`), active
-  `DONOR_APPROVED` for the device's pseudonym (`not_approved`) → `enc_pub`, key index, approval index.
+  `worker` (`role`), scope empty or `repo` (`scope`), repo claimed (`unclaimed`; an org id is
+  `unclaimed`), active `DONOR_APPROVED` for the device's pseudonym on the repo, or on an org that
+  covers it (§2c) (`not_approved`) → `enc_pub`, key index, approval index: the repo's own approval
+  when active, else the **smallest** index among the covering orgs' active approvals (deterministic,
+  so the relay's `PoolWorker.approval_log_index` and the Gateway's mirror agree).
 - **gateway_allowed(gateway_device, repo)**: same device checks with role `gateway`, then the
   pseudonym is the repo owner or has an active `MEMBER_ADDED` (`not_member`). The Worker then checks
   the task signature with the returned `sign_pub` (03 §7.2).
@@ -376,7 +413,9 @@ passkey on my pseudonym whose `SHA-256(cose_key)` I don't know; `email_proof` sa
 the first owner key on the relay's email attestation, §4a), `PasskeyCounter` (an entry signed by one
 of my passkeys refused with `counter`: cloned authenticator or replay), `OwnerKeyRevoked`,
 `KeyHijack` (my key under another pseudonym), `NotSignedByMe` (claim/approval/membership on a repo I
-own, or a claim naming me, signed by an owner key I do not know), `RepoClaimedByOther`,
+own, an org claim, covered-repo change or approval on an org I own, or a repo/org claim naming me,
+signed by an owner key I do not know; `repo_id` is then the `o_` id for org entries),
+`RepoClaimedByOther` (a repo or org I owned claimed by another account),
 `Rejected`/`Invalid` (an entry no valid signer made). Forks: a checkpoint whose root does not match
 the mirrored history, or a Git-anchor checkpoint that is not a prefix of it (`Fork`); an anchor
 ahead of what the relay serves (`Rollback`); an older checkpoint than one already served (`Stale`).
