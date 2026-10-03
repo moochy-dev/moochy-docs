@@ -111,7 +111,7 @@ Keep the alt text "Donate tokens" (or the label you chose): screen readers annou
 
 ### 5. Check
 
-Open the image address in a browser or run `curl -s -o /dev/null -w '%{http_code}\n' "<image address>"`: `200` means the button renders. `400` means an option is wrong (the image then reads "invalid button options"); `404` means the project is not registered.
+Open the image address in a browser or run `curl -s -o /dev/null -w '%{http_code}\n' "<image address>"`: `200` means the image renders. `400` means an option is wrong (the image then reads "invalid button options"). A project that is not registered gets a "project not found" badge, also with `200` so README image proxies such as GitHub's still show it: check registration with the projects API (step 1).
 
 ---
 
@@ -211,7 +211,7 @@ All optional; the same rules as the button (any other key, a key given twice, or
 | `goal` | `1` | off | Draw the monthly goal as a line (with `metric=dollars`, when a goal is set) |
 | `total` | `1` | off | Show the period's total as a headline number |
 
-A project that is not on Moochy, or not public, gets one neutral "not on moochy" image (HTTP `404`) instead of a chart.
+A project that is not on Moochy, or not public, gets one neutral "not on moochy" image instead of a chart (HTTP `200`, so README image proxies such as GitHub's still show it).
 
 ### Snippets
 
