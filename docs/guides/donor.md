@@ -132,6 +132,8 @@ Write the amount with a dollar sign, in single quotes so your shell keeps the `$
 
 The donation shows **waiting for the maintainer** until the project's owner accepts you, with a signature made on their own machine. Then your device starts serving.
 
+**To a whole organisation:** `moochy donate --org github/acme --cap '$20'` (or `--org gitlab/group/subgroup`) funds every project the organisation's owner chose, under one monthly limit. See [Donate to an organisation](donate-to-an-organisation.md).
+
 ## 8. Pause or stop donating
 
 | You want to | Do | What happens |

@@ -117,6 +117,10 @@ Anything that speaks MCP, and anything that lets you set an Anthropic- or OpenAI
 
 Anthropic, OpenAI, OpenRouter, DeepSeek, and xAI (Grok), with an API key; never chat-subscription logins. Donors can also donate from a model on their own GPU through Ollama, LM Studio, vLLM, or llama.cpp ([Donate from your own GPU](local-gpu.md)).
 
+### Can I donate to a whole organisation?
+
+Yes: to a GitHub organisation or a GitLab group whose owner claimed it on Moochy. One monthly limit then covers every project the owner added, and the owner accepts you once ([Donate to an organisation](donate-to-an-organisation.md)). Only projects registered by the organisation's owner themselves can use it, so someone else's repository under the organisation's name never does ([for owners](organisations.md)).
+
 ### Why does my agent get a 400 or 403 instead of a retry?
 
 On purpose. When a request could cost more than the donors' limit per request (400), or your monthly limit is used (403), retrying will not help, and agents retry 429 in a loop. Temporary problems, such as a busy or rate-limited donor, are retried on another donor automatically, and come back as 429 or 529 only if every donor failed.

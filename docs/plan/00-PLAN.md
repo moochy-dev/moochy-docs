@@ -76,7 +76,7 @@ Decisions taken after the review passes, while the implementation contract was w
 | 05 | [Ledger and accounting](05-ledger-and-accounting.md) | µ$, model ids and catalog, cost function, per-attempt reservations, caps, durability, reconciliation |
 | 06 | [Security and trust](06-security-and-trust.md) | Threat model, keys, owner-signed approvals (owner keys), firewall, output-injection defense, key log and receipt log, privacy, terms, sandboxing (§18) |
 | 07 | [Client (`moochy`)](07-client-cli.md) | Node, MCP door, API door, integration matrix, Worker, adapters (Anthropic, OpenAI, OpenRouter, DeepSeek, xAI, …), setup flows, `moochy run` sandbox and donor lockdown (§15), crate owners (mo-node / mo-donor split) |
-| 08 | [Web and dashboards](08-web-dashboard.md) | Routes, public pages, Dashboard (`/station`), Project settings (`/console`), SSE fan-out, public receipts, Donate tokens button studio, monochrome visual direction |
+| 08 | [Web and dashboards](08-web-dashboard.md) | Routes, public pages, Dashboard (`/station`), Project settings (`/console`), SSE fan-out, public receipts, Donate tokens button studio, organisation pages, mint visual direction |
 | 09 | [Data model](09-data-model.md) | Tables, uniqueness constraints (handles, tombstones), write and read paths, migrations, backups, sizes |
 | 10 | [Operations](10-operations.md) | Deploys, observability, SLOs, runbooks, costs, staying free |
 | 11 | [Roadmap and testing](11-roadmap-and-testing.md) | Phases with checkable exit criteria mapped to the CONTRACT §8 E2E scenarios, verification strategy, launch checklist |

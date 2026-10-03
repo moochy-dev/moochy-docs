@@ -45,6 +45,7 @@ To report a weakness, see [`cli/SECURITY.md`](../../cli/SECURITY.md).
 
 - Accepting a donor, adding a member, and claiming a repository are signed with the owner's **owner key**: a key separate from every device key, encrypted with its own passphrase, used only by a command the owner types and confirms. The background app never reads it.
 - These signatures go into a public, append-only key log. Every app keeps a copy, checks it, and warns its user about any key, approval, or claim they did not make. Checkpoints are published hourly to a public Git repository, so a rewritten history is visible to anyone.
+- Organisations follow the same rules: the claim, each project an organisation funds, and each donor accepted for it are owner-key signatures in the log. An organisation's donations serve only projects registered by the organisation's own owner and checked to belong to it at the code host, so a look-alike or someone else's repository cannot draw on them ([Donations for your organisation](organisations.md)). A claim moves to another account only when the code host says the previous holder is no longer an owner, and the move drops every donor and project the previous holder signed.
 
 ### Money records cannot be faked or hidden
 
