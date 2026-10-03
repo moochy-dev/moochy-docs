@@ -92,6 +92,11 @@ message StatusResponse {
   // Recent key-log monitor alerts, oldest first (≤ 16), each `{"message","fields"}` JSON as
   // logged; relay/peer-derived strings inside: clean before printing.
   repeated string alerts = 20;
+  // CONTRACT §15.2/§20: "enforced" (detail = the mechanisms in force, e.g. "seccomp + landlock fs
+  // + landlock net (ABI 6)" or "seatbelt"), "failed" (detail = why the donor does not serve),
+  // "unsafe" (--unsafe-no-lockdown) or "" (not reported).
+  string lockdown = 21;
+  string lockdown_detail = 22;
 }
 
 message ProviderKeyInfo {
@@ -227,6 +232,11 @@ message JournalEntry {
   bytes response = 10;             // only with `journal_full_text` (opt-in), bounded
   uint64 tokens_in = 11;           // CONTRACT §20: from the usage the node saw (0 = unknown)
   uint64 tokens_out = 12;
+  // CONTRACT §20: the public receipt of this request (`moochy verify` reference, "" = none) and
+  // what this node concluded: "verified" | "failed: <code>" | "" (not checked).
+  string receipt_ref = 13;
+  string receipt_check = 14;
+  string pledge_id = 15;           // worker: the donation that paid ("" = unknown)
 }
 
 message McpOpen {
