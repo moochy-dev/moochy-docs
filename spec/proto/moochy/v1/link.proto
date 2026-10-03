@@ -297,6 +297,8 @@ message ApprovalRequest {
   // server's Lookup, never these strings (A218).
   string org_id = 11;              // "o_…"
   string org_path = 12;            // "github/acme", "gitlab/group[/sub…]"
+  string person_id = 13;           // CONTRACT §24: "m_…"
+  string person_path = 14;         // "github/{login}", "gitlab/{username}"
 }
 
 message LogTileRequest {
@@ -532,6 +534,9 @@ message DonateRequest {
   // CONTRACT §19: donate to an organisation ("github/acme", "gitlab/group[/sub…]") instead of a
   // project; exactly one of repo_slug and org is set (INVALID_ARGUMENT otherwise).
   string org = 9;
+  // CONTRACT §24: sponsor a person ("github/{login}", "gitlab/{username}"); exactly one of
+  // repo_slug, org and person is set.
+  string person = 10;
 }
 
 message DonationActionRequest {
@@ -561,6 +566,7 @@ message Donation {
   repeated DonationEvent events = 15;  // the decisions trail, oldest first (CONTRACT §16.6)
   int64 expires_at_ms = 16;        // pending: when the request expires unanswered
   string org = 17;                 // CONTRACT §19: set (and repo_slug empty) for a donation to an organisation
+  string person = 18;              // CONTRACT §24: set (repo_slug and org empty) for a person sponsorship
 }
 
 message DonationEvent {
