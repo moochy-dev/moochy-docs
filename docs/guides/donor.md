@@ -21,7 +21,7 @@ It takes about 5 minutes.
 
 ## 1. Install
 
-The Moochy app is open source (Apache-2.0). Each release of the public `moochy-dev/moochy-cli` repository publishes signed archives for macOS, Linux, and Windows, shell and PowerShell installers, a Homebrew formula, and the npm package `moochy`:
+The Moochy app is open source (Apache-2.0). Each release of the public `moochy-dev/moochy-cli` repository publishes signed archives for macOS and Linux, a shell installer, a Homebrew formula, and the npm package `moochy`. Windows is not supported yet ([moochy-cli#7](https://github.com/moochy-dev/moochy-cli/issues/7)).
 
 ```sh
 brew install moochy-dev/tap/moochy
