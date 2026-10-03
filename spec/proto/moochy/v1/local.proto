@@ -59,6 +59,11 @@ service LocalControl {
   // NodeLink RPC; `request`/`response` are its link.proto messages' bytes. Ops: set_device_cap,
   // create_box_token, list_boxes, revoke_box.
   rpc LinkCall(LinkCallRequest) returns (LinkCallResponse);
+  // CONTRACT §20 (`moochy tui`): live dashboard events until the client hangs up. Bounded and
+  // rate-limited per watcher: at most 20 events per second plus one `snapshot` per 250 ms; what
+  // does not fit (burst, slow reader, lagged journal) is coalesced into one `snapshot` event, the
+  // signal to re-read Status / Pending / Donations / Journal. Metadata only, never content.
+  rpc Watch(WatchRequest) returns (stream WatchEvent);
 }
 
 message StatusRequest {}
@@ -81,6 +86,17 @@ message StatusResponse {
   uint32 provider_keys = 15;
   uint32 warm_adapters = 16;
   uint64 catalog_version = 17;
+  // CONTRACT §20: provider keys present on this device (names only: never values or URLs).
+  repeated ProviderKeyInfo keys = 18;
+  bool locked = 19;                // the background process locked itself down (§15.2)
+  // Recent key-log monitor alerts, oldest first (≤ 16), each `{"message","fields"}` JSON as
+  // logged; relay/peer-derived strings inside: clean before printing.
+  repeated string alerts = 20;
+}
+
+message ProviderKeyInfo {
+  string provider = 1;             // anthropic | openrouter | deepseek | openai | xai | local
+  repeated string models = 2;      // `local`: the public slugs it serves (`local/<slug>`)
 }
 
 message PoolSummary {
@@ -114,12 +130,14 @@ message ApproveRequest {
   bool dry_run = 3;
   bool revoke = 4;                 // DONOR_REVOKED instead of DONOR_APPROVED
   string org = 5;                  // CONTRACT §19.4: "github/acme", "gitlab/group[/sub…]"; set = the org's approval (repo empty)
+  string person = 6;               // CONTRACT §24.4: "github/{login}", "gitlab/{username}"; set = the person's approval (repo, org empty)
 }
 
 message ClaimRequest {
   string repo = 1;
   bool dry_run = 2;
   string org = 3;                  // CONTRACT §19.2: set = ORG_CLAIMED of this org (repo empty)
+  string person = 4;               // CONTRACT §24: set = PERSON_CLAIMED of this person (repo, org empty)
 }
 
 // CONTRACT §19.3: which of the owner's projects an organisation's donations fund.
@@ -128,6 +146,7 @@ message OrgRepoRequest {
   string repo = 2;                 // a project in the link's canonical form
   bool remove = 3;                 // ORG_REPO_REMOVED instead of ORG_REPO_ADDED
   bool dry_run = 4;
+  string person = 5;               // CONTRACT §24.3: set (and org empty) = PERSON_REPO_ADDED / PERSON_REPO_REMOVED
 }
 
 // What the owner signs (or would sign), decoded from the exact body bytes.
@@ -148,6 +167,9 @@ message SignResponse {
   // org: repo_id = org_id = the o_ id in the body.
   string org_id = 12;
   string org_path = 13;
+  // CONTRACT §24, from ApprovalRequest: display labels (PERSON_*, DONOR_* of a person: the m_ id).
+  string person_id = 14;
+  string person_path = 15;
 }
 
 message SubmitEntryRequest {
@@ -279,4 +301,19 @@ message TrustOwnerKeyResponse {
   uint64 log_index = 2;            // its OWNER_KEY_ADDED entry
   bool revoked = 3;
   bool trusted = 4;                // acknowledged (false on a dry run)
+}
+
+message WatchRequest {}
+
+message WatchEvent {
+  int64 t_ms = 1;
+  // snapshot: something changed (or events were coalesced): re-read the state.
+  // served:   a request this device served (role worker) or a project of mine used (role gateway).
+  // pending:  the requests waiting for my signature or my claims' state changed (re-read Pending).
+  // donation: a donation's status changed (re-read Donations).
+  // alert:    a key-log monitor alert (`detail` = the alert JSON, as Status.alerts).
+  // link:     the relay link changed (`detail` = Status.link_state), or pause (`paused`) / resume.
+  string kind = 2;
+  JournalEntry served = 3;         // kind = served, without request/response bytes
+  string detail = 4;
 }
