@@ -1,5 +1,5 @@
 {
-  "description": "Organisations (CONTRACT §19, spec/KEYLOG.md §2c): ORG_CLAIMED, ORG_REPO_ADDED/REMOVED, DONOR_APPROVED on an o_ id. log: records (logged_at set) replayed in order with signature checks, want = rejection code. A265: an approval or coverage entry issued at or before the claim that set the current owner is a replay (#67–#69). sealable: sealable(device, repo) over the final state (code \"\" = allowed, then approval_idx). Monitors: me = the owner (device and owner key known); the org takeovers at log #39 and #50 (and the repo moves at #26, #49, #51), and the A265 round trip at #63/#64 alert; with the owner key unknown, every org entry signed by it alerts.",
+  "description": "Organisations (CONTRACT §19, spec/KEYLOG.md §2c): ORG_CLAIMED, ORG_REPO_ADDED/REMOVED, DONOR_APPROVED on an o_ id. log: records (logged_at set) replayed in order with signature checks, want = rejection code. donor_approved: DonorApproved(target, pseudonym) over the final state (an active DONOR_APPROVED by target's current owner; A269). A265: an approval or coverage entry issued at or before the claim that set the current owner is a replay (#67–#69). sealable: sealable(device, repo) over the final state (code \"\" = allowed, then approval_idx). Monitors: me = the owner (device and owner key known); the org takeovers at log #39 and #50 (and the repo moves at #26, #49, #51), and the A265 round trip at #63/#64 alert; with the owner key unknown, every org entry signed by it alerts.",
   "log": [
     {
       "note": "owner device",
@@ -526,5 +526,67 @@
         "r_01HZY000000000000000000007"
       ]
     }
-  }
+  },
+  "donor_approved": [
+    {
+      "target": "o_01HZG000000000000000000001",
+      "pseudonym": "ps_d0n0r00000000000",
+      "want": true,
+      "note": "approved for o1 (20)"
+    },
+    {
+      "target": "o_01HZG000000000000000000001",
+      "pseudonym": "ps_d0n0rtw000000000",
+      "want": false,
+      "note": "never approved for o1"
+    },
+    {
+      "target": "o_01HZG000000000000000000004",
+      "pseudonym": "ps_d0n0rtw000000000",
+      "want": false,
+      "note": "approved by o4's previous owner: dropped by the takeover"
+    },
+    {
+      "target": "o_01HZG000000000000000000006",
+      "pseudonym": "ps_d0n0r00000000000",
+      "want": false,
+      "note": "dropped by the takeover, not re-approved"
+    },
+    {
+      "target": "o_01HZG000000000000000000006",
+      "pseudonym": "ps_d0n0rtw000000000",
+      "want": true,
+      "note": "re-approved by the new owner (54)"
+    },
+    {
+      "target": "o_01HZG000000000000000000007",
+      "pseudonym": "ps_d0n0rtw000000000",
+      "want": true,
+      "note": "fresh approval after the A265 round trip (70)"
+    },
+    {
+      "target": "r_01HZY000000000000000000008",
+      "pseudonym": "ps_d0n0r00000000000",
+      "want": false,
+      "note": "revoked; the replayed approval was refused"
+    },
+    {
+      "target": "r_01HZY000000000000000000001",
+      "pseudonym": "ps_d0n0rthree000000",
+      "want": true,
+      "note": "a repo approval"
+    },
+    {
+      "target": "r_01HZY000000000000000000001",
+      "pseudonym": "ps_d0n0r00000000000",
+      "want": false,
+      "note": "covered through o1, but not approved on r1 itself"
+    },
+    {
+      "target": "o_01HZG000000000000000000005",
+      "pseudonym": "ps_d0n0r00000000000",
+      "want": false,
+      "note": "unclaimed org"
+    }
+  ]
 }
