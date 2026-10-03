@@ -59,6 +59,11 @@ service LocalControl {
   // NodeLink RPC; `request`/`response` are its link.proto messages' bytes. Ops: set_device_cap,
   // create_box_token, list_boxes, revoke_box.
   rpc LinkCall(LinkCallRequest) returns (LinkCallResponse);
+  // CONTRACT §20 (`moochy tui`): live dashboard events until the client hangs up. Bounded and
+  // rate-limited per watcher: at most 20 events per second plus one `snapshot` per 250 ms; what
+  // does not fit (burst, slow reader, lagged journal) is coalesced into one `snapshot` event, the
+  // signal to re-read Status / Pending / Donations / Journal. Metadata only, never content.
+  rpc Watch(WatchRequest) returns (stream WatchEvent);
 }
 
 message StatusRequest {}
@@ -81,6 +86,17 @@ message StatusResponse {
   uint32 provider_keys = 15;
   uint32 warm_adapters = 16;
   uint64 catalog_version = 17;
+  // CONTRACT §20: provider keys present on this device (names only: never values or URLs).
+  repeated ProviderKeyInfo keys = 18;
+  bool locked = 19;                // the background process locked itself down (§15.2)
+  // Recent key-log monitor alerts, oldest first (≤ 16), each `{"message","fields"}` JSON as
+  // logged; relay/peer-derived strings inside: clean before printing.
+  repeated string alerts = 20;
+}
+
+message ProviderKeyInfo {
+  string provider = 1;             // anthropic | openrouter | deepseek | openai | xai | local
+  repeated string models = 2;      // `local`: the public slugs it serves (`local/<slug>`)
 }
 
 message PoolSummary {
@@ -279,4 +295,19 @@ message TrustOwnerKeyResponse {
   uint64 log_index = 2;            // its OWNER_KEY_ADDED entry
   bool revoked = 3;
   bool trusted = 4;                // acknowledged (false on a dry run)
+}
+
+message WatchRequest {}
+
+message WatchEvent {
+  int64 t_ms = 1;
+  // snapshot: something changed (or events were coalesced): re-read the state.
+  // served:   a request this device served (role worker) or a project of mine used (role gateway).
+  // pending:  the requests waiting for my signature or my claims' state changed (re-read Pending).
+  // donation: a donation's status changed (re-read Donations).
+  // alert:    a key-log monitor alert (`detail` = the alert JSON, as Status.alerts).
+  // link:     the relay link changed (`detail` = Status.link_state); also sent on pause/resume.
+  string kind = 2;
+  JournalEntry served = 3;         // kind = served, without request/response bytes
+  string detail = 4;
 }
