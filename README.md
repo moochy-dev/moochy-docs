@@ -33,7 +33,7 @@ Open-source client (Apache-2.0) · 100% free.
 ## Files shared with other repositories
 
 - `spec/proto/` and `spec/vectors/` are produced in [moochy-cli](https://github.com/moochy-dev/moochy-cli), which keeps identical copies. Update them there first, then copy them here.
-- `docs/guides/integrations.md` and `docs/guides/donate-button.md` are written here and copied to moochy-cli: the app prints sections of the first (`moochy connect`) and its tests check the second.
+- `docs/guides/integrations.md` and `docs/guides/donate-button.md` are written here and copied to `cli/crates/node/assets/` in moochy-cli: the app prints sections of the first (`moochy connect`) and its tests check the second.
 - moochy.dev serves `docs/guides/` as its `/docs` pages and `/llms.txt`.
 
 ## Check

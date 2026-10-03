@@ -6,12 +6,12 @@ Normative for every implementer. The design rationale lives in `docs/plan/` (03 
 
 | Repository | Visibility | Paths | License |
 |---|---|---|---|
-| [`moochy-dev/moochy-cli`](https://github.com/moochy-dev/moochy-cli) | public | `cli/**`, client release tooling `deploy/client/**`; byte-identical copies of `spec/proto/**`, `spec/vectors/**`, `docs/guides/integrations.md`, `docs/guides/donate-button.md` (the build and its tests need them) | **Apache-2.0**, contributions with DCO sign-off (`Signed-off-by:`) |
+| [`moochy-dev/moochy-cli`](https://github.com/moochy-dev/moochy-cli) | public | `cli/**`, client release tooling `deploy/client/**`; byte-identical copies of `spec/proto/**`, `spec/vectors/**`, and of `docs/guides/integrations.md` and `docs/guides/donate-button.md` in `cli/crates/node/assets/` (the build and its tests need them); the crates are published on crates.io | **Apache-2.0**, contributions with DCO sign-off (`Signed-off-by:`) |
 | [`moochy-dev/moochy-docs`](https://github.com/moochy-dev/moochy-docs) | public | `docs/**`, `spec/**` | **Apache-2.0** for `docs/guides/**`, `spec/proto/**`, `spec/vectors/**`, `spec/protocol.md`, `spec/KEYLOG.md`; every other document is published to read, all rights reserved |
 | [`moochy-dev/moochy-skills`](https://github.com/moochy-dev/moochy-skills) | public | `skills/**` (agent skills, §18), at the repository root | **Apache-2.0** |
 | `moochy-dev/moochy-relay` | private | `relay/**` (incl. `relay/internal/web/**`), `e2e/**`, `deploy/**` except `deploy/client/**`; pins the three public repositories as submodules under `oss/` and links `cli`, `spec`, `docs`, `skills` at its root, so every path in this contract resolves in a relay checkout | Proprietary, all rights reserved |
 
-Paths in this contract are those of the development tree (the relay checkout). `spec/proto` and `spec/vectors` are produced in moochy-cli and copied to moochy-docs; the two guides are written in moochy-docs and copied to moochy-cli.
+Paths in this contract are those of the development tree (the relay checkout). `spec/proto` and `spec/vectors` are produced in moochy-cli and copied to moochy-docs; the two guides are written in moochy-docs and copied to `cli/crates/node/assets/` in moochy-cli.
 
 Rules: **open code never imports, links, or copies closed code** (the Rust client depends only on open crates and `spec/`); closed code may use open code. Everything that touches donor keys, maintainer code, or cryptography is in the open client, so users never need to trust the closed relay (it only sees ciphertext). Self-hosting the relay is **not** offered; the Node's relay URL stays configurable for development and tests. The product stays **100% free** (no fees, no commission, no paid tier). Public wording: **"Open-source client (Apache-2.0) · 100% free"** — never "100% open source".
 

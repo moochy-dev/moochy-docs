@@ -25,6 +25,8 @@ The Moochy app is open source (Apache-2.0). Each release of the public `moochy-d
 
 ```sh
 brew install moochy-dev/tap/moochy
+# or, with Rust installed:
+cargo install moochy --locked
 ```
 
 Or build it yourself (Rust stable):
