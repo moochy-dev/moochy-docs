@@ -25,6 +25,8 @@ service LocalControl {
   rpc Approve(ApproveRequest) returns (SignResponse);
   rpc Members(MembersRequest) returns (SignResponse);
   rpc Claim(ClaimRequest) returns (SignResponse);
+  // CONTRACT §19.3: ORG_REPO_ADDED / ORG_REPO_REMOVED previews (dry run only, like Claim).
+  rpc OrgRepo(OrgRepoRequest) returns (SignResponse);
   // Requests waiting for this owner's signature.
   rpc Pending(PendingRequest) returns (PendingResponse);
   // Owner key (CONTRACT §15.4, KEYLOG §4): the foreground CLI signed this key-log entry with the
@@ -111,11 +113,21 @@ message ApproveRequest {
   string donor = 2;                // donor username (CONTRACT §11 handle) or pseudonym
   bool dry_run = 3;
   bool revoke = 4;                 // DONOR_REVOKED instead of DONOR_APPROVED
+  string org = 5;                  // CONTRACT §19.4: "github/acme", "gitlab/group[/sub…]"; set = the org's approval (repo empty)
 }
 
 message ClaimRequest {
   string repo = 1;
   bool dry_run = 2;
+  string org = 3;                  // CONTRACT §19.2: set = ORG_CLAIMED of this org (repo empty)
+}
+
+// CONTRACT §19.3: which of the owner's projects an organisation's donations fund.
+message OrgRepoRequest {
+  string org = 1;                  // "github/acme", "gitlab/group[/sub…]"
+  string repo = 2;                 // a project in the link's canonical form
+  bool remove = 3;                 // ORG_REPO_REMOVED instead of ORG_REPO_ADDED
+  bool dry_run = 4;
 }
 
 // What the owner signs (or would sign), decoded from the exact body bytes.
@@ -131,11 +143,16 @@ message SignResponse {
   bool signed = 9;
   uint64 log_index = 10;           // once appended
   bytes body_to_sign = 11;         // the relay-proposed body (dry run), for the CLI to rebuild with the owner key
+  // CONTRACT §19, from ApprovalRequest: display labels only (the CLI binds the decoded body and the
+  // server's Lookup). ORG_CLAIMED: repo_id empty; ORG_REPO_*: repo_id = the project; DONOR_* of an
+  // org: repo_id = org_id = the o_ id in the body.
+  string org_id = 12;
+  string org_path = 13;
 }
 
 message SubmitEntryRequest {
   string request_id = 1;           // the pending request answered; empty for OWNER_KEY_ADDED
-  string kind = 2;                 // REPO_CLAIMED, DONOR_APPROVED/REVOKED, MEMBER_ADDED/REMOVED, OWNER_KEY_ADDED
+  string kind = 2;                 // REPO_CLAIMED, DONOR_APPROVED/REVOKED, MEMBER_ADDED/REMOVED, OWNER_KEY_ADDED, ORG_CLAIMED, ORG_REPO_ADDED/REMOVED
   bytes body = 3;                  // exact signed body (KEYLOG §2)
   repeated bytes sigs = 4;         // 64-byte Ed25519 signatures (owner key; rotation: new, previous)
 }
