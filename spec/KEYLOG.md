@@ -395,12 +395,17 @@ Queries:
   covers it (§2c) (`not_approved`) → `enc_pub`, key index, approval index: the repo's own approval
   when active, else the **smallest** index among the covering orgs' active approvals (deterministic,
   so the relay's `PoolWorker.approval_log_index` and the Gateway's mirror agree).
-- **sealable_for(worker_device, repo, gateway_device)** (§2d): `sealable(worker_device, repo)` when
-  it allows (same result). Else the worker passes the `sealable` device checks (`repo` must be an
-  `r_` id, `unclaimed` otherwise, but need not be claimed); the gateway passes the same device
-  checks with role `gateway`; then a person M owned by the gateway's pseudonym with `PERSON_REPO_ADDED(M, repo)` active and an active
-  `DONOR_APPROVED` for the worker's pseudonym on M (`not_approved`) → `enc_pub`, key index, the
-  **smallest** such approval index.
+- **person_sealable(worker_device, repo, gateway_device)** (§2d), the person rule alone (a person
+  donation: a repo or org approval never satisfies it): the worker passes the `sealable` device
+  checks (`repo` must be an `r_` id, `unclaimed` otherwise, but need not be claimed); the gateway
+  passes the same device checks with role `gateway`; then a person M owned by the gateway's
+  pseudonym with `PERSON_REPO_ADDED(M, repo)` active and an active `DONOR_APPROVED` for the worker's
+  pseudonym on M (`not_approved`) → `enc_pub`, key index, the **smallest** such approval index.
+- **sealable_for(worker_device, repo, gateway_device)**: `sealable` when it allows (same result),
+  else `person_sealable`.
+- **person_gateway_allowed(gateway_device, repo)** (the relay's submit path for a person donation):
+  the device checks with role `gateway`, then its pseudonym owns a person covering `repo`
+  (`not_member`). `gateway_allowed` is unchanged: person coverage never makes a member.
 - **gateway_allowed(gateway_device, repo)**: same device checks with role `gateway`, then the
   pseudonym is the repo owner or has an active `MEMBER_ADDED` (`not_member`). The Worker then checks
   the task signature with the returned `sign_pub` (03 §7.2).

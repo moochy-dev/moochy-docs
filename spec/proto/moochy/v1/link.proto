@@ -576,6 +576,7 @@ message Donation {
   string org = 17;                 // CONTRACT §19: set (and repo_slug empty) for a donation to an organisation
   string person = 18;              // CONTRACT §24: set (repo_slug and org empty) for a person sponsorship
   repeated RepoSpend per_repo = 19;  // org/person donations: this month's spend per served repo (§19.5, §24.5)
+  string person_id = 20;           // CONTRACT §24: the sponsored profile ("m_…"), so the donor's node binds the pledge to exactly one person
 }
 
 message RepoSpend {
