@@ -268,6 +268,17 @@ message LogEntryAck {
 // proposes automatically.
 message ApprovalRequests {
   repeated ApprovalRequest requests = 1;
+  // CONTRACT §19.2a: this owner's claims (repos and orgs) that are paused because they were not
+  // re-verified for 30 days, or close to it. Display only: the next web sign-in resumes them.
+  repeated ClaimStatus claims = 2;
+}
+
+message ClaimStatus {
+  string target_id = 1;            // "r_…" or "o_…"
+  string path = 2;                 // "github/owner/name", "gitlab/group/…", or the org path
+  int64 verified_at_ms = 3;        // last successful re-check at the provider
+  int64 paused_since_ms = 4;       // 0 = not paused (reminder window only)
+  int64 releases_at_ms = 5;        // day 90: the claim is released if still not re-verified
 }
 
 message ApprovalRequest {
