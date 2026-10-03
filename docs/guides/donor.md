@@ -138,6 +138,12 @@ The donation shows **waiting for the maintainer** until the project's owner acce
 
 **To a whole organisation:** `moochy donate --org github/acme --cap '$20'` (or `--org gitlab/group/subgroup`) funds every project the organisation's owner chose, under one monthly limit. See [Donate to an organisation](donate-to-an-organisation.md).
 
+### Share the project
+
+Help the project reach its goal: share its page. `moochy donate` prints the link when the donation is created (`Share: https://moochy.dev/p/github/owner/name`), the dashboard shows it on the donation (and `moochy tui` in the donation's detail), and the project page and the page after you donate have a **Share** button: copy the link, or post it to X, Bluesky, Mastodon (your instance is asked once and remembered in your browser), LinkedIn, Reddit, Hacker News, Facebook, WhatsApp, Telegram, or email, or your phone's share sheet. The prefilled message is yours to edit, and never names you unless you add it: "I donate AI tokens to owner/name on Moochy: 40% of this month's goal. Help it get there:". The links carry only the page and your message: no tracking.
+
+**What the preview shows.** Posted on X, Bluesky, Mastodon, LinkedIn, Facebook, Reddit, Slack, Discord, WhatsApp, Telegram or iMessage, the link unfolds into a card: the project's name and code host, its short description, this month's donations against the monthly goal as a big progress bar with the percentage, the number of donors, the tokens donated this month, and "Donate tokens · 100% free · moochy.dev". Without a goal it shows what was donated this month and the donors; an organisation's card shows its covered projects and its total. The card changes when the numbers do, so a link shared again shows today's progress. It never shows who donated, so sharing does not reveal your donation unless your message says so.
+
 ## 8. Pause or stop donating
 
 | You want to | Do | What happens |

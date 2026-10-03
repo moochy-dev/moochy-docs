@@ -94,6 +94,10 @@ To hand the organisation over, give the new person the owner role at the code ho
 
 Your app also warns you if the public key log ever shows an organisation entry for your account (claim, project added or removed, donor accepted) that you did not sign.
 
+## Keep the claim active
+
+Moochy keeps no code-host token. Your claim is re-checked each time you sign in on moochy.dev (your role: organisation admin or group Owner). Not signed in for **30 days**: the claim pauses (no new requests use its donations; donors, approvals and history stay), with an email a week before; signing in resumes it at once. Not signed in for **90 days**, or no longer an owner at a re-check: the claim ends, its approvals and covered projects drop, you get an email, and any current owner can claim it.
+
 ## Emails you get
 
 The same kinds as for a project, for the organisation: a donor is waiting, a donation accepted, refused, or expired, the organisation claimed, a project added or removed, and the security email above. Turn each optional kind off in Settings.

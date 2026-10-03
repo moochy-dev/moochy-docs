@@ -11,6 +11,8 @@
 > **Updated 2026-10-02 (CONTRACT §16–§17):** routes for decisions from email (`/decide`), boxes, email settings, and the Resend webhook; Activity → Decisions shows the decision history.
 >
 > **Updated 2026-10-03 (CONTRACT §9, §19):** Mint is the default and only palette (decision 8); organisations: `/org/github/{org}` and `/org/gitlab/{group}[/{sub}…]` with `donate`, `settings` and `button.svg` (after `/-/` on GitLab), `POST /claim/org`, `/api/v1/orgs/{provider}/{path…}`, "Also funded by" on project pages, an organisations leaderboard board, per-project spend on an organisation donation's page.
+>
+> **Updated 2026-10-03 (CONTRACT §21, §22, §24):** showcase charts `…/chart.svg` and `…/card` for projects, organisations and people, and the showcase studio (`/button`, tabs Button and Chart); Open Graph meta and `…/og.png` share cards with the Share menu on project, organisation and person pages; person pages `/people/{provider}/{login}` (`/-/` actions on GitLab) and `/api/v1/people/{provider}/{login}`.
 
 ---
 

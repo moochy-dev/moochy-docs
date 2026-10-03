@@ -40,6 +40,16 @@ Confirm the printed code in your browser (GitHub or GitLab sign-in). The first t
 
 Add a **Donate tokens** button to your README so donors find you: see [Add a "Donate tokens" button](donate-button.md).
 
+**Keep the claim active.** Moochy keeps no code-host token. Your claim is re-checked each time you sign in on moochy.dev (your role: admin of the repository). Not signed in for **30 days**: the claim pauses (no new requests use its donations; donors, approvals and history stay), with an email a week before; signing in resumes it at once. Not signed in for **90 days**, or no longer an admin at a re-check: the claim ends, its approvals drop, you get an email, and any current admin can claim it.
+
+### Share your project
+
+The link to share is your project's page itself, `https://moochy.dev/p/github/owner/repo` (`https://moochy.dev/p/gitlab/group/project` on GitLab, `https://moochy.dev/org/github/acme` for an organisation): no redirect, no tracking parameter. `moochy claim` prints it when the claim is done (`Share: https://moochy.dev/p/github/owner/repo`), and so do `moochy claim --org` and `moochy claim --person`.
+
+**What the preview shows.** Posted on X, Bluesky, Mastodon, LinkedIn, Facebook, Reddit, Slack, Discord, WhatsApp, Telegram or iMessage, the link unfolds into a card: the project's name and code host, its short description, this month's donations against the monthly goal as a big progress bar with the percentage, the number of donors, the tokens donated this month, and "Donate tokens · 100% free · moochy.dev". Without a goal it shows what was donated this month and the donors; an organisation's card shows its covered projects and its total. The card changes when the numbers do, so a link shared again shows today's progress. It never shows a donor's identity.
+
+**The Share button.** The project page, the organisation page, and the page you see after a claim have a **Share** button: copy the link, or post it to X, Bluesky, Mastodon (it asks for your instance once and remembers it in your browser), LinkedIn, Reddit, Hacker News, Facebook, WhatsApp, Telegram, or email. On a phone it opens your system's share sheet. The message is prefilled and you can edit it: "owner/repo accepts donated AI tokens on Moochy, 100% free. Donate yours:". The links are plain links to those sites, with only the page and your message: no third-party script, pixel, or tracking. It works without JavaScript.
+
 **Own a GitHub organisation or a GitLab group?** Claim it too, and one donation to the organisation funds every project you choose in it, with donors accepted once: see [Donations for your organisation](organisations.md).
 
 ## 3. Accept or refuse donations

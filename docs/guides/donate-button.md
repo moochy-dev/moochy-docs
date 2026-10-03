@@ -166,7 +166,115 @@ As for projects, GitLab actions come after `/-/`. The organisation path always s
 [![Donate tokens](https://moochy.dev/org/github/acme/button.svg)](https://moochy.dev/org/github/acme/donate)
 ```
 
-`moochy button` prints project buttons only; the organisation owner finds this snippet, with a copy button, in **Organisation settings → Donate button**.
+`moochy button` prints project buttons only (`moochy button --chart --org` prints the organisation's chart); the organisation owner finds this snippet, with a copy button, in **Organisation settings → Donate button**.
+
+## People
+
+A maintainer who claimed their own GitHub or GitLab profile can be sponsored: a sponsorship pays for that person's own requests on the public repos they maintain ([Sponsor a person](sponsor-a-person.md)). Their button goes in their personal profile README (GitHub: `README.md` of the repository named like the user, `LOGIN/LOGIN`; GitLab: the `README.md` of the project named like the user, `USERNAME/USERNAME`).
+
+| Person | Page | Image |
+|---|---|---|
+| GitHub user | `https://moochy.dev/people/github/LOGIN` | `https://moochy.dev/people/github/LOGIN/button.svg` |
+| GitLab user | `https://moochy.dev/people/gitlab/USERNAME` | `https://moochy.dev/people/gitlab/USERNAME/-/button.svg` |
+
+Check first and get the addresses with `curl -fsS "https://moochy.dev/api/v1/people/github/LOGIN"` (or `…/people/gitlab/USERNAME`): the same shape as the organisations API, and `404` means the person has not claimed their profile, so do not add the button. Use `button_url` and `donate_url` exactly as returned. Snippets, options and placement are those of steps 3 to 5.
+
+## Showcase charts
+
+Next to the button, a project, an organisation or a person can show a live **chart** of the tokens donated to it and used by it. It is an image, so it works in GitHub and GitLab READMEs like the button, and updates by itself (every five minutes at most). It shows totals per day only: never a donor, never an amount per donor.
+
+### Addresses
+
+| For | Image (README) | Card (website `<iframe>`) | Links to |
+|---|---|---|---|
+| GitHub project | `https://moochy.dev/p/github/OWNER/NAME/chart.svg` | `…/card` | `https://moochy.dev/p/github/OWNER/NAME` |
+| GitLab project | `https://moochy.dev/p/gitlab/GROUP/SUBGROUP/NAME/-/chart.svg` | `…/-/card` | `https://moochy.dev/p/gitlab/GROUP/SUBGROUP/NAME` |
+| GitHub organisation | `https://moochy.dev/org/github/ORG/chart.svg` | `…/card` | `https://moochy.dev/org/github/ORG` |
+| GitLab group | `https://moochy.dev/org/gitlab/GROUP/SUBGROUP/-/chart.svg` | `…/-/card` | `https://moochy.dev/org/gitlab/GROUP/SUBGROUP` |
+| Person | `https://moochy.dev/people/github/LOGIN/chart.svg` | `…/card` | `https://moochy.dev/people/github/LOGIN` |
+
+The chart links to the page (not to `/donate`), where visitors see the whole picture and the Donate button. The GitHub short form (`/p/OWNER/NAME/chart.svg`) works too. An organisation's chart sums the projects its donations serve.
+
+### `chart.svg` options
+
+All optional; the same rules as the button (any other key, a key given twice, or a value not listed answers `400` with an image reading "invalid chart options"):
+
+| Parameter | Values | Default | Meaning |
+|---|---|---|---|
+| `metric` | `tokens`, `dollars` | `tokens` | Count tokens, or their cost in dollars |
+| `series` | `both`, `donated`, `used` | `both` | Donated (mint, solid) against used (navy, dashed), or one of them |
+| `kind` | `area`, `bars`, `line`, `sparkline` | `area` | Chart type; `sparkline` is a thin strip without axes |
+| `period` | `7d`, `30d`, `90d`, `12m` | `30d` | Time span: one point per day (per week for `90d`, per month for `12m`) |
+| `theme` | `light`, `dark`, `auto` | `light` | `auto` follows the viewer's system setting inside the image; on GitHub prefer the `<picture>` snippet |
+| `size` | `s`, `m`, `l` | `m` | 320, 480 or 640 pixels wide (half as tall; a sparkline is an eighth) |
+| `label` | 1 to 40 characters: letters, digits, spaces, and `. , : ; ! ? ' ’ & + - ( ) / # @` | the project's name | The title above the chart. URL-encode it |
+| `goal` | `1` | off | Draw the monthly goal as a line (with `metric=dollars`, when a goal is set) |
+| `total` | `1` | off | Show the period's total as a headline number |
+
+A project that is not on Moochy, or not public, gets one neutral "not on moochy" image (HTTP `404`) instead of a chart.
+
+### Snippets
+
+`moochy button --chart` prints them for you, offline, with the same options (`--metric`, `--series`, `--kind`, `--period`, `--theme`, `--size`, `--label`, `--goal`, `--total`) and `--format markdown|html|rst|iframe`. Without `--repo` it reads the git remote, like `moochy button`; `--org ORG` and `--person PERSON` print the organisation's or the person's chart.
+
+```sh
+moochy button --chart                                             # this repository, Markdown
+moochy button --chart --kind bars --period 90d --metric dollars --goal --total
+moochy button --chart --format html                               # light and dark with <picture>
+moochy button --chart --org github/acme --format iframe           # the card, for a website
+moochy button --chart --person github/alice --kind sparkline --size s
+```
+
+**Markdown** (GitHub, GitLab):
+
+```markdown
+[![Tokens donated and used on Moochy](https://moochy.dev/p/github/tinyhttp/arrow/chart.svg)](https://moochy.dev/p/github/tinyhttp/arrow)
+```
+
+**HTML, light and dark** (GitHub; the `<source>` gets `theme=dark`):
+
+```html
+<a href="https://moochy.dev/p/github/tinyhttp/arrow">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://moochy.dev/p/github/tinyhttp/arrow/chart.svg?theme=dark">
+    <img alt="Tokens donated and used on Moochy" src="https://moochy.dev/p/github/tinyhttp/arrow/chart.svg">
+  </picture>
+</a>
+```
+
+**GitLab project, with options** (`/-/` before the action):
+
+```markdown
+[![Tokens donated and used on Moochy](https://moochy.dev/p/gitlab/group/sub/project/-/chart.svg?goal=1&kind=bars&metric=dollars&period=90d&total=1)](https://moochy.dev/p/gitlab/group/sub/project)
+```
+
+**Organisation** (its profile README):
+
+```markdown
+[![Tokens donated and used on Moochy](https://moochy.dev/org/github/acme/chart.svg)](https://moochy.dev/org/github/acme)
+```
+
+**reStructuredText**:
+
+```rst
+.. image:: https://moochy.dev/p/github/tinyhttp/arrow/chart.svg?metric=dollars
+   :target: https://moochy.dev/p/github/tinyhttp/arrow
+   :alt: Tokens donated and used on Moochy
+```
+
+**Card for a website** (not for READMEs: GitHub and GitLab strip iframes). No script, no cookie, one link that opens the project page in a new tab:
+
+```html
+<iframe src="https://moochy.dev/org/github/acme/card" title="Tokens donated and used on Moochy" width="480" height="240" style="border:0" loading="lazy"></iframe>
+```
+
+Card sizes: `s` 320×160, `m` 480×240, `l` 640×320; sparklines 320×40, 480×60, 640×80.
+
+Put the chart in the README right below the button row or in a "Support" section, never instead of the button; the placement rules of [step 4](#4-put-it-in-the-readme) apply. Keep the alt text (it is what screen readers announce); the image also carries its own text summary.
+
+### The showcase studio
+
+`https://moochy.dev/button` is the showcase studio: tab **Button** and tab **Chart**. Pick a project or organisation you can see, set every option above with a live preview in light and dark side by side, and copy the Markdown, HTML, reStructuredText or iframe snippet. The URLs are the canonical ones above (`/-/` on GitLab), exactly what `moochy button --chart` prints.
 
 ## Not on Moochy yet
 
@@ -184,13 +292,13 @@ Do not register the project or the organisation yourself, and do not run `moochy
 
 - **No secrets.** The button needs no API key, token, password, or Moochy account. Never put one in a README, a URL, or a commit, and never ask the maintainer for one to add the button.
 - **No tracking.** Do not add analytics or `utm_*` parameters, redirects, or link shorteners. Moochy does not track readers: it sees requests from GitHub's image proxy, not from visitors.
-- **No scripts or embeds.** No JavaScript, iframes, or inline SVG copies of the button.
+- **No scripts or embeds in a README.** No JavaScript, iframes (the chart card is for websites), or inline SVG copies of the button or chart.
 - **No donations or settings changes.** Adding a button never creates a donation, signs in, changes CI, or edits Moochy settings.
 - **No other files.** Only the README changes.
 
 ## The studio
 
-People can also build the button by hand: on moochy.dev, open the project and choose **Donate button** (or go to `https://moochy.dev/button`). Pick the label, style, theme, and size, see a live preview, and copy the Markdown or HTML. It produces exactly the snippets above.
+People can also build the button by hand: on moochy.dev, open the project and choose **Donate button** (or go to `https://moochy.dev/button`, tab **Button**). Pick the label, style, theme, and size, see a live preview, and copy the Markdown or HTML. It produces exactly the snippets above. Tab **Chart** builds the [showcase chart](#showcase-charts).
 
 ## For maintainers: tell your agents
 
