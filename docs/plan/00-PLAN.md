@@ -28,6 +28,8 @@ The draft had the right instincts: a Go + HTMX + SQLite monolith, a Rust client,
 
 Decisions taken after the review passes, while the implementation contract was written (ADR-01 revised, ADR-33 to ADR-42, [12](12-decisions-and-open-questions.md)):
 
+> **Repositories since 2026-10-03:** the project lives in four repositories under `moochy-dev`: `moochy-cli` (public, the client), `moochy-docs` (public, `docs/` and `spec/`), `moochy-skills` (public) and `moochy-relay` (private, relay + e2e + relay deployment). The layout below is the plan as written; [CONTRACT §0a](../../spec/CONTRACT.md#0a-source-boundary-product-owner-decisions-2026-10-01-repositories-since-2026-10-03) is current.
+
 - **Open-source client, closed-source core.** The `moochy` client, `spec/proto`, `spec/vectors`, the public protocol spec, and user guides are Apache-2.0 (DCO sign-off), published as `moochy-cli`. The relay and web are proprietary (`moochy-core`). Everything that touches keys, code, and cryptography runs in the open client, so nobody has to trust the closed relay: it only ever sees ciphertext plus the route header and accounting metadata. Self-hosting the relay is not offered.
 
 - **gRPC for every machine-to-machine link.** Node ↔ Relay is the `moochy.v1.NodeLink` service over HTTP/2 + TLS 1.3: one long-lived `Session` stream per connection, one `Submit` stream per task, one `Serve` stream per attempt. Cancellation, deadlines, and per-task flow control come from HTTP/2. The CLI and MCP shim reach the running Node through `LocalControl`, and operators reach the Relay through `RelayAdmin`, both over 0600 Unix sockets. Signed artifacts stay exact JSON bytes inside protobuf `bytes`.

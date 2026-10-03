@@ -267,6 +267,8 @@ flowchart LR
 
 Directory trees only.
 
+> **Repositories since 2026-10-03:** the project lives in four repositories under `moochy-dev`: `moochy-cli` (public, the client), `moochy-docs` (public, `docs/` and `spec/`), `moochy-skills` (public) and `moochy-relay` (private, relay + e2e + relay deployment). The layout below is the plan as written; [CONTRACT §0a](../../spec/CONTRACT.md#0a-source-boundary-product-owner-decisions-2026-10-01-repositories-since-2026-10-03) is current.
+
 The draft split the project into a closed-source `moochy-core` and an open-source `moochy-cli`. An earlier revision of this plan merged both into one public monorepo; the product owner restored the split (ADR-01, CONTRACT §0a). Development happens in one internal monorepo so that a protocol change touches the Go relay, the Rust client, and the shared test vectors in **one reviewable commit**. At release it is published as **two repositories**:
 
 ```

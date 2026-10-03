@@ -22,4 +22,4 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | [How Moochy protects you](threat-model.md) | The attacks Moochy is designed against, and where each defence lives |
 | [FAQ](faq.md) | Open source and free, privacy, how your key and code are protected |
 
-The network protocol the app speaks is specified in [`spec/protocol.md`](../../spec/protocol.md). To report a vulnerability, see [`cli/SECURITY.md`](../../cli/SECURITY.md).
+The network protocol the app speaks is specified in [`spec/protocol.md`](../../spec/protocol.md). To report a vulnerability, see [`cli/SECURITY.md`](https://github.com/moochy-dev/moochy-cli/blob/main/cli/SECURITY.md).

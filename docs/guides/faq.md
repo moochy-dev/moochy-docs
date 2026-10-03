@@ -141,4 +141,4 @@ Requests fail with normal provider errors that tools retry. Donors' receipts wai
 
 ### How do I report a vulnerability?
 
-Email security@moochy.dev, privately; do not open a public issue. The policy, with its scope, response times, and safe harbour for good-faith research, is in [`cli/SECURITY.md`](../../cli/SECURITY.md). A summary of the attacks Moochy is designed against is in [How Moochy protects you](threat-model.md).
+Email security@moochy.dev, privately; do not open a public issue. The policy, with its scope, response times, and safe harbour for good-faith research, is in [`cli/SECURITY.md`](https://github.com/moochy-dev/moochy-cli/blob/main/cli/SECURITY.md). A summary of the attacks Moochy is designed against is in [How Moochy protects you](threat-model.md).

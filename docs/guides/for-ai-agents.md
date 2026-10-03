@@ -15,7 +15,7 @@ Prefer the `.md` pages: they are the source of the HTML pages, with the same tex
 Three skills give your agent the exact steps, so it does not have to read the whole docs each time:
 
 ```sh
-npx skills add moochy-dev/moochy-cli
+npx skills add moochy-dev/moochy-skills
 ```
 
 | Skill | For |
@@ -24,7 +24,7 @@ npx skills add moochy-dev/moochy-cli
 | `moochy-use-donated-tokens` | Use a project's donated tokens: `moochy connect`, `moochy run`, `moochy_delegate` |
 | `moochy-donate` | Help a donor install the app, keep keys local, set limits, donate, pause, stop |
 
-They work with Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf, Cline, Amp, Antigravity, OpenClaw, Droid, Goose, Kilo Code, Kiro CLI, Hermes Agent, OpenCode, Roo Code, Trae, Zed, and Continue; per-agent notes and the skills themselves are on [Agent skills](https://moochy.dev/docs/skills) (source: [`skills/`](../../skills/README.md)). Each `SKILL.md` is also raw Markdown at `https://moochy.dev/docs/skills/<name>.md`.
+They work with Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf, Cline, Amp, Antigravity, OpenClaw, Droid, Goose, Kilo Code, Kiro CLI, Hermes Agent, OpenCode, Roo Code, Trae, Zed, and Continue; per-agent notes and the skills themselves are on [Agent skills](https://moochy.dev/docs/skills) (source: [`moochy-dev/moochy-skills`](https://github.com/moochy-dev/moochy-skills)). Each `SKILL.md` is also raw Markdown at `https://moochy.dev/docs/skills/<name>.md`.
 
 ## Common tasks
 
@@ -49,7 +49,7 @@ They work with Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf,
 
 - **MCP:** `moochy mcp --repo owner/name` (stdio) or `http://127.0.0.1:PORT/mcp` with a bearer token. Tools: `moochy_delegate` (hand a self-contained task to donated tokens) and `moochy_pool_status` (what is available). See [integrations](integrations.md#1-the-values-you-need).
 - **Provider-compatible API:** Anthropic Messages at `http://127.0.0.1:PORT`, OpenAI Chat Completions and OpenAI Responses (for Codex) at `http://127.0.0.1:PORT/v1`, on the maintainer's machine only. `moochy env --repo owner/name` prints the values.
-- **Protocol** (for implementers): `spec/protocol.md` in the public `moochy-dev/moochy-cli` repository.
+- **Protocol** (for implementers): `spec/protocol.md` in the public `moochy-dev/moochy-docs` repository.
 
 ## For maintainers: a snippet for your agents
 
