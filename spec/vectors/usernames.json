@@ -444,7 +444,8 @@
     "boxes",
     "outbox",
     "org",
-    "orgs"
+    "orgs",
+    "people"
   ],
   "skeletons": [
     {
