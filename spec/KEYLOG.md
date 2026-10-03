@@ -63,7 +63,7 @@ are raw. `owner_key_id(pub) = "ok_" + lowercase hex(SHA-256(pub)[0..16])`.
 | 1 | `KEY_ADDED` | `device_id, pseudonym, sign_pub(32), enc_pub(32), suite, roles, repo_scope`; box device (9 fields, §2b): `…, repo_scope, box_token_id, u64(expires_at_ms)` | PoP: `Ed25519(sign_key, lp("moochy/v1/key-pop", sign_pub, enc_pub, suite))` (`DeviceStartRequest.pop_sig`) |
 | 2 | `KEY_REVOKED` | `device_id, pseudonym, reason` | — (relay-asserted; only removes trust) |
 | 3 | `REPO_CLAIMED` | `repo_id, provider, provider_repo_id, owner_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
-| 4 / 5 | `DONOR_APPROVED` / `DONOR_REVOKED` | `repo_id` or `org_id` (§2c), `donor_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
+| 4 / 5 | `DONOR_APPROVED` / `DONOR_REVOKED` | `repo_id`, `org_id` (§2c) or `person_id` (§2d), `donor_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 6 / 7 | `MEMBER_ADDED` / `MEMBER_REMOVED` | `repo_id, member_pseudonym, signer = owner_key_id, u64(issued_at_ms)` | owner key |
 | 8 | `CATALOG` | `u64(version), sha256(catalog_json)(32), catalog_sig(1..128, opaque)` | — |
 | 9 | `MODERATION` | `subject_pseudonym, action, reason` | — |
@@ -72,20 +72,22 @@ are raw. `owner_key_id(pub) = "ok_" + lowercase hex(SHA-256(pub)[0..16])`.
 | 12 | `PAD` | empty | — (relay filler for the bundle budget, §1; no effect) |
 | 13 | `ORG_CLAIMED` | `org_id, provider, provider_org_id, owner_pseudonym, signer = owner_key_id, u64(issued_at_ms)` (§2c) | owner key |
 | 14 / 15 | `ORG_REPO_ADDED` / `ORG_REPO_REMOVED` | `org_id, repo_id, signer = owner_key_id, u64(issued_at_ms)` (§2c) | owner key |
+| 16 | `PERSON_CLAIMED` | `person_id, provider, provider_user_id, owner_pseudonym, signer = owner_key_id, u64(issued_at_ms)` (§2d) | owner key |
+| 17 / 18 | `PERSON_REPO_ADDED` / `PERSON_REPO_REMOVED` | `person_id, repo_id, signer = owner_key_id, u64(issued_at_ms)` (§2d) | owner key |
 
-Owner signature (kinds 3–7 and 13–15, "owner-signed kinds") and both signatures of kind 10, for an
+Owner signature (kinds 3–7 and 13–18, "owner-signed kinds") and both signatures of kind 10, for an
 Ed25519 owner key: `Ed25519(key, lp("moochy/v1/keylog-sig", u32(kind), body))`; for a passkey owner
 key, the owner-signed kinds carry a WebAuthn assertion over the same message instead (§4a). The state decides which form a
 signature has from the `signer`'s key type, never from its length.
 
 Field grammar (identical in both languages; anything else is refused):
-`device_id` = `d_` + ULID, `repo_id` = `r_` + ULID, `org_id` = `o_` + ULID (26 Crockford chars,
-uppercase, first ≤ `7`); the target of `DONOR_*` is a `repo_id` or an `org_id`, of `MEMBER_*` a
-`repo_id` only;
+`device_id` = `d_` + ULID, `repo_id` = `r_` + ULID, `org_id` = `o_` + ULID, `person_id` = `m_` + ULID
+(26 Crockford chars, uppercase, first ≤ `7`); the target of `DONOR_*` is a `repo_id`, an `org_id` or a
+`person_id`, of `MEMBER_*` a `repo_id` only;
 pseudonym = `ps_` + 16 lowercase Crockford base32 chars (`0-9a-hjkmnp-tv-z`); `roles` ∈
 {`gateway`, `worker`, `gateway,worker`}; `repo_scope` = `""` or a `repo_id`; `suite`, `reason`,
 `action` = `[a-z0-9._-]` (suite ≤ 64, others ≤ 32); `provider` ∈ {`github`, `gitlab`};
-`provider_repo_id`, `provider_org_id` = canonical decimal (1–20 digits, no leading 0); `signer` = `ok_` + 32 lowercase
+`provider_repo_id`, `provider_org_id`, `provider_user_id` = canonical decimal (1–20 digits, no leading 0); `signer` = `ok_` + 32 lowercase
 hex; `issued_at_ms` > 0; catalog `version` > 0; `owner_pub ≠ prev`.
 No usernames, emails, device names or repo slugs ever enter the log (06 §10.3).
 
@@ -153,6 +155,33 @@ log alone:
 
 Vectors: `spec/vectors/keylog/orgs.json` (siphoning through a foreign-claimed repo, a forged
 `ORG_REPO_ADDED`, replays, an org takeover, a repo changing owner, two orgs covering one repo).
+
+### 2d. People (CONTRACT §24)
+
+A person's sponsors pay for **that person's own requests** on the public repos they maintain; who
+may spend it is verifiable from the log alone:
+
+- **`PERSON_CLAIMED`** binds `person_id` (`m_` + ULID; a GitHub or GitLab **user**, the numeric
+  provider user id in `provider_user_id`) to `owner_pseudonym`, signed by that user's owner key. Rules
+  of `REPO_CLAIMED` (`repo_binding`, `replay`, signer codes), plus: **nobody else can ever claim it**
+  — a `PERSON_CLAIMED` naming another owner than the current one is `already_claimed` (no takeover,
+  unlike repos and orgs), and a provider user already bound to another `person_id` is
+  `repo_binding` (one profile per provider user). The relay appends it only when the user signed in
+  **as** that provider user (§24.2); Nodes alert on it (§9).
+- **`PERSON_REPO_ADDED(person, repo)`** / **`PERSON_REPO_REMOVED`** are signed by an owner key of the
+  person's owner. The repo need **not** be claimed on Moochy (any `r_` id): the relay checked the
+  person's maintainer role and that the repo is public (§24.3); the log cannot. Replay is per
+  (person, repo), and nothing issued at or before the person's claim counts (A265).
+- **`DONOR_APPROVED` / `DONOR_REVOKED` with a `person_id`** use the unchanged repo rules against
+  the person's claim: the person approves a sponsor once.
+- **Sealing** (§5 `sealable_for`): when `sealable` refuses, a worker of donor D may still be sealed
+  to for repo R on behalf of the requesting gateway device X when X's pseudonym owns a person M with `PERSON_CLAIMED(M)`,
+  `PERSON_REPO_ADDED(M, R)` active and D's `DONOR_APPROVED` on M active. Another member of R, or any
+  device of another account, never spends M's sponsorship. A person id is never a repo or an org.
+
+Vectors: `spec/vectors/keylog/people.json` (takeover refused, a second profile for the same provider
+user, coverage of an unclaimed repo, a forged `PERSON_REPO_ADDED`, replays, a foreign device, a
+member of a covered repo).
 
 ## 3. Labels
 
@@ -343,6 +372,8 @@ Node that finds one in the log raises an alert). Codes are shared strings.
 | `DONOR_*`, `MEMBER_*` | repo (or org, `DONOR_*` only) claimed (`unclaimed`); `signer` is an unrevoked owner key of the **current** owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); `issued_at` > previous for (repo, donor\|member, subject) and > the current owner's start (`replay`, A265: an owner round trip A→E→A never revives an old entry) | grant on/off, remembers the entry index |
 | `ORG_CLAIMED` | as `REPO_CLAIMED`, for the org id (codes included) | owner set; a **new** owner drops every org approval and covered repo |
 | `ORG_REPO_ADDED` / `_REMOVED` | org claimed (`unclaimed`); `signer` is an unrevoked owner key of the org's current owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); ADDED only: repo claimed (`unclaimed`) by the org's owner (`not_owner`) and `issued_at` > the repo's current owner's start; `issued_at` > previous for (org, repo) and > the org's current owner's start (`replay`, A265) | coverage on/off |
+| `PERSON_CLAIMED` | as `REPO_CLAIMED`, for the person id (codes included); the person unclaimed or already owned by `owner_pseudonym` (`already_claimed`); `(provider, provider_user_id)` not bound to another person id (`repo_binding`) | owner set (once, forever) |
+| `PERSON_REPO_ADDED` / `_REMOVED` | person claimed (`unclaimed`); `signer` an unrevoked owner key of the person's owner (`unknown_owner_key`/`revoked`/`not_owner`), signature (`bad_sig`); `issued_at` > previous for (person, repo) and > the person's claim (`replay`) | coverage on/off (the repo need not be claimed) |
 | `CATALOG` | version > previous (`catalog_version`) | version → sha256 |
 | `MODERATION` | well-formed | informational |
 | `PAD` | empty body and sig | none |
@@ -350,8 +381,8 @@ Node that finds one in the log raises an alert). Codes are shared strings.
 For a passkey `signer`, "signature" in the owner-signed kinds means the §4a verification with the credential's
 last counter; the counter moves only when the entry is accepted.
 
-Relay append also enforces `|issued_at − relay clock| ≤ 10 min` for kinds 3–7, 10 and 13–15 (`skew`),
-and takes org kinds 13–15 only after its own provider check (§19.2–19.3): a Node's
+Relay append also enforces `|issued_at − relay clock| ≤ 10 min` for kinds 3–7, 10 and 13–18 (`skew`),
+and takes org kinds 13–15 and person kinds 16–18 only after its own provider check (§19.2–19.3): a Node's
 `SignedLogEntry` of those kinds is refused with `ungated` unless the relay's gate admitted it. The
 owner's Node rebuilds a relay-proposed `ApprovalRequest.body_to_sign` with its own owner key id
 and current time before signing, after showing the user what it means.
@@ -364,6 +395,17 @@ Queries:
   covers it (§2c) (`not_approved`) → `enc_pub`, key index, approval index: the repo's own approval
   when active, else the **smallest** index among the covering orgs' active approvals (deterministic,
   so the relay's `PoolWorker.approval_log_index` and the Gateway's mirror agree).
+- **person_sealable(worker_device, repo, gateway_device)** (§2d), the person rule alone (a person
+  donation: a repo or org approval never satisfies it): the worker passes the `sealable` device
+  checks (`repo` must be an `r_` id, `unclaimed` otherwise, but need not be claimed); the gateway
+  passes the same device checks with role `gateway`; then a person M owned by the gateway's
+  pseudonym with `PERSON_REPO_ADDED(M, repo)` active and an active `DONOR_APPROVED` for the worker's
+  pseudonym on M (`not_approved`) → `enc_pub`, key index, the **smallest** such approval index.
+- **sealable_for(worker_device, repo, gateway_device)**: `sealable` when it allows (same result),
+  else `person_sealable`.
+- **person_gateway_allowed(gateway_device, repo)** (the relay's submit path for a person donation):
+  the device checks with role `gateway`, then its pseudonym owns a person covering `repo`
+  (`not_member`). `gateway_allowed` is unchanged: person coverage never makes a member.
 - **gateway_allowed(gateway_device, repo)**: same device checks with role `gateway`, then the
   pseudonym is the repo owner or has an active `MEMBER_ADDED` (`not_member`). The Worker then checks
   the task signature with the returned `sign_pub` (03 §7.2).
@@ -415,6 +457,8 @@ of my passkeys refused with `counter`: cloned authenticator or replay), `OwnerKe
 `KeyHijack` (my key under another pseudonym), `NotSignedByMe` (claim/approval/membership on a repo I
 own, an org claim, covered-repo change or approval on an org I own, or a repo/org claim naming me,
 signed by an owner key I do not know; `repo_id` is then the `o_` id for org entries),
+`NotSignedByMe` also covers people (§2d): a person claim naming me, or a covered-repo change or
+approval on a person I own, signed by an owner key I do not know (`repo_id` is then the `m_` id);
 `RepoClaimedByOther` (a repo or org I owned claimed by another account),
 `Rejected`/`Invalid` (an entry no valid signer made). Forks: a checkpoint whose root does not match
 the mirrored history, or a Git-anchor checkpoint that is not a prefix of it (`Fork`); an anchor
