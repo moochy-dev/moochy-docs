@@ -161,6 +161,17 @@ message PendingRequest {}
 
 message PendingResponse {
   repeated SignResponse requests = 1;
+  // CONTRACT §19.2a: this owner's claims paused (or close to it), as the relay last pushed them.
+  repeated ClaimState claims = 2;
+}
+
+// Link `ClaimStatus`, display only.
+message ClaimState {
+  string target_id = 1;            // "r_…" or "o_…"
+  string path = 2;
+  int64 verified_at_ms = 3;
+  int64 paused_since_ms = 4;       // 0 = not paused (reminder window only)
+  int64 releases_at_ms = 5;
 }
 
 message MembersRequest {
