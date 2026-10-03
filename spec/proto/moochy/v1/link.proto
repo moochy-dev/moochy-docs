@@ -66,6 +66,14 @@ service NodeLink {
   // decimal(issued_at_ms)), issued within 5 minutes, for a person with a donation or membership on
   // that repo, which `owner` must hold. Every refusal is NOT_FOUND, alike (no oracle).
   rpc Lookup(LookupRequest) returns (LookupResponse);
+
+  // CONTRACT §20 (the TUI), integrator 2026-10-03: read-only views for the session's user,
+  // authenticated like ListDonations. Bounded lists (≤ 256 entries), never another user's data.
+  // The devices of my account (never other accounts', never keys).
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  // What I own as a maintainer: claimed projects (r_), organisations (o_, §19) and my person
+  // profile (m_, §24), with this month's use and their covered repos.
+  rpc ListOwned(ListOwnedRequest) returns (ListOwnedResponse);
 }
 
 enum Role {
@@ -567,6 +575,50 @@ message Donation {
   int64 expires_at_ms = 16;        // pending: when the request expires unanswered
   string org = 17;                 // CONTRACT §19: set (and repo_slug empty) for a donation to an organisation
   string person = 18;              // CONTRACT §24: set (repo_slug and org empty) for a person sponsorship
+  repeated RepoSpend per_repo = 19;  // org/person donations: this month's spend per served repo (§19.5, §24.5)
+}
+
+message RepoSpend {
+  string repo_slug = 1;            // provider-qualified ("github/acme/widgets")
+  int64 spent_uusd = 2;
+}
+
+message ListDevicesRequest {}
+
+message DeviceInfo {
+  string device_id = 1;            // "d_…"
+  string name = 2;
+  repeated string roles = 3;       // donor | maintainer | box
+  bool online = 4;
+  int64 last_seen_ms = 5;
+}
+
+message ListDevicesResponse {
+  repeated DeviceInfo devices = 1;
+}
+
+message ListOwnedRequest {}
+
+message CoveredRepo {
+  string repo_slug = 1;            // provider-qualified
+  int64 used_uusd = 2;             // this month, drawn from the org's/person's donations
+  int64 share_cap_uusd = 3;        // 0 = no cap (§19.5)
+}
+
+message OwnedTarget {
+  string id = 1;                   // "r_…" | "o_…" | "m_…"
+  string path = 2;                 // "github/acme/widgets" | "github/acme" | "github/alice"
+  int64 month_uusd = 3;            // used this month
+  int64 goal_uusd = 4;             // 0 = no goal
+  int32 donors = 5;                // approved donors
+  int32 pending = 6;               // approval requests waiting
+  int64 paused_since_ms = 7;       // §19.2a, 0 = not paused
+  repeated CoveredRepo covered = 8;  // orgs and people only
+  repeated string funded_by = 9;   // projects only: orgs whose donations also serve it
+}
+
+message ListOwnedResponse {
+  repeated OwnedTarget owned = 1;
 }
 
 message DonationEvent {
