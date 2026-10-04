@@ -17,6 +17,6 @@ Rows WB7–WB10 and WB12 (sessions, OAuth, redirects, device approval) are owned
 | WB9 | OAuth: PKCE S256 + one-time `state` bound to a pre-login cookie; exact `redirect_uri`; reject a reused/mismatched `state` (RFC 9700) | A54 | U |
 | WB10 | Redirect targets (`next=`) accepted only when they start with a single `/` (not `//`, not `/\`); else `/` | A56 | U |
 | WB11 | Avatars via CSP `img-src` allowlist; if proxied, fixed host list, no redirects, size cap, `Content-Type` forced to `image/*` | A57 | U |
-| WB12 | Device-approval page shows device name, requested roles, requester IP country and the code's age, with "only approve a code shown in your own terminal"; codes expire 10 min; poll route rate-limited (`slow_down`) | A59 | U |
+| WB12 | Device-approval page shows device name, requested roles, the requester's network (IPv4 /24, IPv6 /48, kept in memory with the code only) with a warning when it is not the approver's network (F31), and the code's age, with "only approve a code shown in your own terminal"; codes expire 10 min; poll route rate-limited (`slow_down`) | A59 | U |
 | WB13 | Per-IP and per-session rate limits on POST routes and SSE; per-IP SSE cap (proposed 6) + global cap; SSE writes have a deadline and slow subscribers are dropped | A58, A227 | A227 |
 | WB14 | The exported `Source` interface is read-only; `mo-web` never writes the ledger and never sees content | A28 | E19 |

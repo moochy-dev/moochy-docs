@@ -455,7 +455,10 @@ settled receipt (idempotent per receipt). Receipts themselves never enter the lo
 maintainer holding a receipt proves it was logged with `(index, inclusion proof)` against a signed
 receipt-log checkpoint — the relay returns all three in `ReceiptAck` fields 3–5 (a few ms after
 settlement: receipts are logged in batches, one transaction and one checkpoint per batch); the relay can no longer silently omit a settled receipt from what it
-publishes once the parties check inclusion.
+publishes once the parties check inclusion. Because the checkpoint ships with the ack, it is not held
+back to the replicated size (§1 applies to the key log): a disaster restore can lose the receipt-log
+entries of its last second, and receipts replayed after it get new indices. The relay publishes the
+restore point (time and receipt-log size) so a donor can tell a restore from a fork.
 
 ## 9. Monitor rules (Node)
 

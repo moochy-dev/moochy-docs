@@ -198,7 +198,7 @@ sequenceDiagram
 | `AssignNotice{task, attempt}` | R → Worker | Open a `Serve` stream for this attempt. Sent only after the relay has durably reserved the cost |
 | `ReceiptDispute{task, attempt, code, gateway_sig}` | Gateway → R | §12.3 |
 | `ReplayReceipt{receipt}` | Worker → R | Resend a receipt from the outbox after a reconnect |
-| `ReceiptReplaySince{since_ms}` | R → Worker | After a relay restore: resend every receipt since that time, acknowledged or not |
+| `ReceiptReplaySince{since_ms}` | R → Worker | After a relay restore the operator marked as one (never on an ordinary restart): resend every receipt since that time, acknowledged or not |
 | `ReceiptAck{task, attempt, receipt_log_index, receipt_log_proof, receipt_log_checkpoint}` | R → Worker | The receipt is durably stored. The Worker marks the outbox entry acknowledged and keeps it 7 more days. The last three fields prove the receipt was appended to the public receipt log (§12.5); empty until it is |
 | `SignedLogEntry{request_id, kind, body, sigs}` / `LogEntryAck{request_id, index, error}` | Node → R / R → Node | Owner-signed key-log entries (claims, donor approvals and revocations, memberships, owner keys) and their position once appended (§13) |
 | `ApprovalRequests{requests[]}` | R → owner's Node | Requests waiting for the owner's signature. The Node parses `body_to_sign`, shows its meaning, and signs only after an explicit command and confirmation from the owner; `summary` is display text, never signed as-is |

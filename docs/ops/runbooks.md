@@ -39,11 +39,16 @@ Alerts: `RelayUnavailable`, `RelayScrapeDown`, `LitestreamLag`, `LitestreamDown`
 6. **VM lost / disk corrupt** (RTO < 30 min, RPO ≈ 1 s DB, 0 spend):
    1. Provision a VM from the recipe (`deploy/relay/README.md`), same region or the next one (region outage, RTO < 1 h).
    2. Copy `/etc/moochy/` (env files, `litestream.yml`, `tls/`) from the operators' vault, then **re-encrypt every credential on the new host** from the vault's offline copies (`enc …` in `deploy/relay/README.md`): a `.cred` only decrypts on the host (and TPM) that made it.
-   3. Restore and check:
+   3. Restore, then clone the public key-log anchor (so the first boot can refuse a database behind it) and mark the restore (so Workers may replay the receipts it lost; one boot uses the mark and deletes it):
       ```sh
       sudo -u moochy litestream restore -config /etc/moochy/litestream.yml -o /var/lib/moochy/relay.db /var/lib/moochy/relay.db
+      sudo -u moochy git clone -q https://github.com/moochy-dev/moochy-keylog-anchor.git /var/lib/moochy/anchor
+      #   then the push URL and core.sshCommand: deploy/relay/README.md "Key-log anchor", step 3; re-encrypt anchor-deploy-key from the vault copy
+      sudo -u moochy touch /var/lib/moochy/relay.db.restored
       ```
-   4. `systemctl enable --now moochy-litestream moochy-relay`; the relay sends `receipt.replay_since` to every Worker on reconnect (spend RPO 0).
+   4. `systemctl enable --now moochy-litestream moochy-relay`; the relay sends `receipt.replay_since` to every Worker that connects in the next 10 minutes (spend RPO 0). Without the mark it rebuilds no receipt (an ordinary restart lost nothing); if it crashed inside those 10 minutes, touch the mark again before the next start.
+      - It refuses to start with `key log vs /var/lib/moochy/anchor: … ahead of this log` or `… FORK …`: the replica lacks key-log entries the public anchor already shows. Stop there: never edit or force-push the anchor, never delete the clone to get past it; escalate as R6.
+      - Post the restore point in the status update: UTC time, `key_log_size`, and the receipt-log size (`sqlite3 -readonly /var/lib/moochy/relay.db "SELECT max(tree_size) FROM checkpoints WHERE log='receipts'"`). Receipt-log checkpoints go out in acks before replication (KEYLOG §8), so one from the lost last second can conflict with the restored log; the published point lets donors tell a restore from a fork.
    5. Point DNS at the new VM (TTL 60 s). Gateways reconnect at once, Workers with 0–10 s jitter.
    6. Verify: `M relay_build_info`, `M link_connections`, the probes recover, then run the audit (`$A audit` → `drift 0 uusd`, exit 0).
 7. Post the status update; postmortem.
@@ -92,7 +97,7 @@ Alerts: `BadEnvelopeSpike`.
 
 Alerts: `UnknownKeyAlert` (page), `CheckpointStale`, `CheckpointStalePage`.
 
-Stale checkpoint: `M 'checkpoint_age_s|anchor_lag_s|key_log_size'`; check that Litestream is current (checkpoints never get ahead of the replica, so replication lag blocks them: R1 step 5) and that the anchor push credentials work.
+Stale checkpoint: `M 'checkpoint_age_s|anchor_lag_s|key_log_size'`; check that Litestream is current (with `--litestream`, checkpoints never get ahead of the replica and trail the log by one to three minutes; replication lag blocks them: R1 step 5) and that the anchor push works (`journalctl -u moochy-relay | grep "key log"`; the deploy key and `/etc/moochy/anchor-known-hosts`, deploy/relay/README.md "Key-log anchor").
 
 Unknown key or suspected key compromise:
 1. Treat as compromise until proven otherwise. Page the two key holders (hardware tokens, plan 12 Q7).
