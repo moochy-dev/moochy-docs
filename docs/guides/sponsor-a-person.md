@@ -18,7 +18,7 @@ Only you can claim your own profile, and nobody can ever take it over.
    moochy claim --person github/alice    # or name it
    ```
 
-   As for a project, the app shows what it is about to sign, asks you to confirm, and asks for your owner key's passphrase (it creates the owner key first if you have none). Your signature goes into the public key log. The command then prints your page to share (`Share: https://moochy.dev/people/github/alice`) and the public repositories you maintain, each with the command that adds it.
+   As for a project, the app shows what it is about to sign, asks you to confirm, and asks for your owner key's passphrase (it creates the owner key first if you have none). Your signature goes into the public key log. The command then prints your page to share (`Share: https://moochy.dev/people/github/alice`). It does not add any repository: you choose them next.
 
 The owner key, the sign-in steps, and every error message are in [Claim your project, organisation or profile](claim.md#claim-your-profile).
 
@@ -26,12 +26,17 @@ Your page is `https://moochy.dev/people/github/LOGIN` (or `https://moochy.dev/pe
 
 ### Choose the repositories it serves
 
+The claim records the public repositories you maintain as candidates. It covers none of them. You choose:
+
 ```sh
-moochy person add tinyhttp/arrow           # your sponsors' tokens now serve your requests there
-moochy person add gitlab/group/tool
-moochy person list                         # what your sponsorships serve
-moochy person remove tinyhttp/arrow        # stop (add it back the same way)
+moochy person add tinyhttp/arrow gitlab/group/tool   # your sponsors' tokens now serve your requests there
+moochy person list                                   # what your sponsorships serve
+moochy person remove tinyhttp/arrow                  # stop (add it back the same way)
 ```
+
+You can name several repositories in one `add` or `remove`. The app checks each one with the Moochy server, shows the full list, asks you once, and asks for your owner key's passphrase once. Then it signs one key-log entry for each repository. If the server refuses one entry (for example, a role it can no longer see), the others still go through, and the command ends with an error that names the refused one.
+
+On the web, **Profile settings** (`https://moochy.dev/people/github/LOGIN/settings`) lists your candidates with a filter. Tick the repositories you want and press **Show the command**: the page gives you one `moochy person add` command for all of them. The page cannot sign: the owner key stays on your machine.
 
 Each `add` and `remove` is signed with your owner key. A repository can be added when:
 

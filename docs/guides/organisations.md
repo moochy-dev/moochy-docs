@@ -44,7 +44,7 @@ moochy org list --org github/acme              # what the organisation's donatio
 moochy org remove acme/api --org github/acme   # stop funding it (add it back the same way)
 ```
 
-Each `add` and `remove` shows what it will sign and asks for your passphrase, like a claim. **Organisation settings** on the organisation page lists the projects you can add (yours, inside the organisation, not added yet) with the exact command for each.
+Each `add` and `remove` shows what it will sign and asks for your passphrase, like a claim. You can name several projects in one command (`moochy org add acme/api acme/web --org github/acme`): the app shows them all, asks once, and asks for your passphrase once. **Organisation settings** on the organisation page lists the projects you can add (yours, inside the organisation, not added yet) with the exact command for each.
 
 A project of the organisation that **another account** registered is never funded by your organisation's donations, and neither is a project outside the organisation, whatever its name. This is checked by every member's app against the public key log, not only by Moochy's servers.
 

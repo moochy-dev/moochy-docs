@@ -136,7 +136,7 @@ The page of the organisation is `https://moochy.dev/org/github/acme`. Shared cap
 
 1. On moochy.dev, open [moochy.dev/claim](https://moochy.dev/claim#person) and go to **Your profile**.
 2. Choose GitHub or GitLab. Press **Check with my code host**.
-3. Approve the request at your code host. The page **Profile verified** lists the public repositories that you maintain. A repository counts when you can push to it (GitLab: Developer role or higher). Forks never count.
+3. Approve the request at your code host. The page **Profile verified** says how many public repositories you maintain. A repository counts when you can push to it (GitLab: Developer role or higher). Forks never count. Moochy records them as candidates. It covers none of them until you choose (step 5).
 4. Within one hour, run this command on your machine:
 
    ```sh
@@ -144,12 +144,14 @@ The page of the organisation is `https://moochy.dev/org/github/acme`. Shared cap
    moochy claim --person github/alice    # or names it
    ```
 
-5. Choose the repositories that your sponsors' tokens serve:
+5. Choose the repositories that your sponsors' tokens serve. Name one or several in one command. The app shows all of them, asks once, and asks for your owner key's passphrase once:
 
    ```sh
-   moochy person add tinyhttp/arrow
+   moochy person add tinyhttp/arrow tinyhttp/bow gitlab/group/tool
    moochy person list
    ```
+
+   On the web, **Profile settings** lists your candidates with a filter. Tick the ones you want and press **Show the command**. The page gives you the same `moochy person add` command for all of them.
 
 Your page is `https://moochy.dev/people/github/LOGIN`. The rest is in [Sponsor a person](sponsor-a-person.md).
 
