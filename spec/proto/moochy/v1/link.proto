@@ -463,7 +463,7 @@ message Assign {
   uint32 deadline_ack_ms = 7;
   uint64 body_len = 8;
   uint32 body_chunks = 9;
-  bytes pledge_policy = 10;        // exact pledge policy JSON (models, max_effort, dialects, flags, max_slots, schedule) for local enforcement
+  bytes pledge_policy = 10;        // exact pledge policy JSON (models, max_effort, dialects, flags, daily_limit_uusd, weekly_limit_uusd) for local enforcement; a Worker refuses a key it does not know
   int64 pledge_headroom_uusd = 11; // budget - spent - reserved at assignment (advisory; the Worker's local caps still rule)
   int64 per_task_cap_uusd = 12;
   uint64 catalog_version = 13;     // catalog version in effect at attempt start
@@ -545,6 +545,11 @@ message DonateRequest {
   // CONTRACT §24: sponsor a person ("github/{login}", "gitlab/{username}"); exactly one of
   // repo_slug, org and person is set.
   string person = 10;
+  // Optional stricter windows (0 = none), µ$, needs moochy >= 0.1.3 on the donor's devices:
+  // daily = the UTC calendar day, weekly = the ISO week (Monday 00:00 UTC). When set,
+  // 0 < daily <= weekly <= budget_uusd (INVALID_ARGUMENT otherwise).
+  int64 weekly_limit_uusd = 11;
+  int64 daily_limit_uusd = 12;
 }
 
 message DonationActionRequest {
@@ -578,6 +583,8 @@ message Donation {
   repeated RepoSpend per_repo = 19;  // org/person donations: this month's spend per served repo (§19.5, §24.5)
   string person_id = 20;           // CONTRACT §24: the sponsored profile ("m_…"), so the donor's node binds the pledge to exactly one person
   repeated int64 per_day_uusd = 21;  // spend of this donation, last 30 UTC days, oldest first, zero-filled (§20 TUI)
+  int64 weekly_limit_uusd = 22;    // 0 = none (DonateRequest.weekly_limit_uusd)
+  int64 daily_limit_uusd = 23;     // 0 = none
 }
 
 message RepoSpend {

@@ -82,7 +82,7 @@ The donor's app serves a request only if it is signed by a device of a member th
 
 Three separate limits stop spending, and the smallest one wins:
 
-1. the monthly limit of each donation, kept by Moochy;
+1. the limits of each donation: the monthly limit, and the optional weekly and daily limits. Moochy keeps them, and the app on your machine checks them again before every call;
 2. your **device's monthly limit**, checked by the app on your machine before every call, whatever the relay does;
 3. the **spending limit at your provider**, which does not depend on Moochy at all. Set it.
 

@@ -13,7 +13,7 @@ Sources of truth, in order:
 
 The words MUST, MUST NOT, SHOULD, and MAY are used as in RFC 2119.
 
-**Terms.** This is a technical document, so it uses the protocol's own names, which are also the identifiers in messages and signed fields. In the app and the guides they read differently: a *pledge* (`pledge_id`) is a **donation**; its *budget* is the **monthly limit**; the *per-task cap* is the **limit per request**; the *Node* (with its *Gateway* and *Worker* roles) is **the Moochy app** on a user's device; the *firewall* is the **safety checks**; a *projection* is a **public receipt**; amounts in µ$ are shown in dollars. The identifiers themselves never change.
+**Terms.** This is a technical document, so it uses the protocol's own names, which are also the identifiers in messages and signed fields. In the app and the guides they read differently: a *pledge* (`pledge_id`) is a **donation**; its *budget* is the **monthly limit**; `weekly_limit_uusd` and `daily_limit_uusd` are the optional **weekly limit** and **daily limit**; the *per-task cap* is the **limit per request**; the *Node* (with its *Gateway* and *Worker* roles) is **the Moochy app** on a user's device; the *firewall* is the **safety checks**; a *projection* is a **public receipt**; amounts in µ$ are shown in dollars. The identifiers themselves never change.
 
 ---
 
@@ -230,7 +230,7 @@ sequenceDiagram
 | Message | Direction | Meaning |
 |---|---|---|
 | `ServeOpen{task, attempt}` | W → R | First message, after `AssignNotice` |
-| `Assign{task, attempt, route, wrap, pledge_id, repo_id, deadline_ack_ms, body_len, body_chunks, pledge_policy, pledge_headroom_uusd, per_task_cap_uusd, catalog_version}` | R → W | First server message. `route` = the same bytes the Gateway sent; `wrap` = this Worker's wrap. `pledge_policy` is the exact policy JSON (models, maximum effort, dialects, flags, slots, schedule) the Worker enforces locally; `pledge_headroom_uusd` is advisory (the Worker's own caps still rule); `catalog_version` is the price catalog in effect at the start of the attempt |
+| `Assign{task, attempt, route, wrap, pledge_id, repo_id, deadline_ack_ms, body_len, body_chunks, pledge_policy, pledge_headroom_uusd, per_task_cap_uusd, catalog_version}` | R → W | First server message. `route` = the same bytes the Gateway sent; `wrap` = this Worker's wrap. `pledge_policy` is the exact policy JSON the Worker enforces locally (§9.1); `pledge_headroom_uusd` is advisory (the Worker's own caps still rule); `catalog_version` is the price catalog in effect at the start of the attempt |
 | `Chunk` (as `body`) | R → W | The sealed request chunks |
 | `Ack{r}` | W → R | Authentic, decrypted, firewall passed, local caps reserved, provider call starting. Carries the fresh salt `R`. Deadline: `deadline_ack_ms` after the last body chunk (default 500 ms) |
 | `Nack{r, code, retryable, retry_after_ms, sealed_detail}` | W → R | Refusal (§15). Details are sealed to the Gateway (§15.3) |
@@ -325,12 +325,31 @@ Before sending `Ack`, the Worker MUST, in this order:
 5. check freshness: the ULID timestamp of `task_id` is within ±10 minutes of the Worker's clock **and not earlier than the Worker process's own start time**;
 6. check that `(gateway_device, task_id)` was never served by this process (an in-memory set covering the freshness window). Together with rule 5, a task can never be replayed, even across Worker restarts, without any disk write in the hot path;
 7. run the request firewall (a strict allowlist of request fields and provider headers per provider) and the route-header checks of §7;
-8. reserve the worst-case cost locally against the device's monthly cap and per-pledge counters;
+8. reserve the worst-case cost locally against the device's monthly cap and per-pledge counters, including the pledge's daily and weekly limits when set (§9.1);
 9. draw `R` and send `Ack{r}`.
 
 Any failure is a `Nack` with the codes of §15. A malicious relay therefore cannot run its own inference on donor keys, replay genuine tasks, or move a task to another repo's pledge.
 
 **Development mode.** Until a deployment publishes owner-signed approvals in the key log, a Worker accepts relay-asserted membership and approvals **only** when started with `MOOCHY_INSECURE_DEV=1`. Production Workers never do.
+
+### 9.1 Pledge policy and limit windows
+
+`Assign.pledge_policy` is a JSON object with exactly these keys, all optional:
+
+| Key | Value |
+|---|---|
+| `models` | allowed public model ids; a trailing `*` matches a prefix; empty = any |
+| `max_effort` | `low` … `max`; empty = no bound |
+| `dialects` | allowed dialects; empty = any |
+| `flags` | the opt-in features the donor allowed (§7) |
+| `daily_limit_uusd` | integer µ$ > 0, the most the pledge may spend in one **UTC calendar day** (00:00 to 24:00 UTC); absent or 0 = none |
+| `weekly_limit_uusd` | integer µ$ > 0, the most the pledge may spend in one **ISO week** (Monday 00:00 UTC to the next Monday 00:00 UTC); absent or 0 = none |
+
+Each limit that is set is > 0 and no larger than a longer window's limit: daily ≤ weekly ≤ monthly budget (the relay refuses anything else). The monthly budget keeps its own period, anchored on the pledge's day of the month (05 §9).
+
+A Worker MUST refuse (`firewall`, not retryable) a policy with a key it does not know. A new limit is therefore never served by a client that would ignore it. Clients before 0.1.3 ignore unknown keys: the relay never assigns a pledge with a daily or weekly limit to a Worker whose `Auth.client_version` is older than 0.1.3, and it folds both windows into `pledge_headroom_uusd`, which every client checks.
+
+The relay enforces the windows across all of the donor's devices, like the monthly budget. Each Worker also counts its own spend per pledge per window, attributed to the attempt's start time, and refuses a task (`local_cap`) whose worst-case cost would pass a window's limit. The local counters are per device: they bound what one device serves, the relay bounds the sum. The policy is not signed: like the budget and `per_task_cap_uusd`, it is the relay's copy of what the donor set, so the device's monthly cap and the provider's spend limit (05 §6) stay the bounds that do not trust the relay.
 
 ---
 
@@ -467,7 +486,7 @@ Client duties:
 | `rate_limited` | yes | provider 429 (`retry_after_ms`) |
 | `overloaded` | yes | provider 529/503 |
 | `provider_error` | yes | provider 5xx or network error before start |
-| `local_cap` | yes | device monthly cap, pledge counter, or schedule window |
+| `local_cap` | yes | device monthly cap, pledge counter (monthly headroom, daily or weekly limit), or schedule window |
 | `model_unavailable` | yes | the key cannot use this model |
 | `firewall` | **no** | disallowed field, header, or feature (detail sealed to the Gateway) |
 | `route_mismatch` | **no** | route header ≠ body, or unknown route-header field |

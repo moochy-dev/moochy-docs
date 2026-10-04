@@ -246,6 +246,7 @@ Reclaim is instant because nothing was ever transferred. **"Donated tokens" neve
 ## 9. Periods and rollover
 
 - Monthly periods anchored per pledge (created on the 17th → periods run 17th to 16th). Member and device counters use calendar months.
+- Optional daily and weekly limits per pledge (CONTRACT D19a) use fixed UTC windows: the calendar day, and the ISO week from Monday 00:00 UTC. An attempt counts in the day and week it started in. Reservations open in any window count against every window's headroom.
 - At rollover (a timer event, or at boot for missed rollovers), the Scheduler closes the period: it writes the `pledge_periods` row (`budget`, `spent`, `tasks`) and starts the new period with `spent = 0`.
 - **Attribution to the start period.** An attempt that started before the rollover settles **into its start period's row**, even if that period is closed. The current period's `spent` changes only for attempts that started in it. Corrections follow the same rule. The nightly audit therefore matches exactly, and no negative values leak into a new period.
 - Open reservations from the previous period still count against headroom in the new period until they settle. That is conservative, and they resolve quickly.

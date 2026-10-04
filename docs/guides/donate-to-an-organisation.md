@@ -42,7 +42,7 @@ Your limits apply to all the organisation's covered projects **together**:
 - **Projects with their own donors:** a project's own donation is used first on a tie; yours fills the rest.
 - **When the owner changes the list:** a project added later is served by your donation; a project removed stops at once.
 
-The most you can spend stays the smallest of: this donation's monthly limit, your device's monthly limit, and your provider's spending limit.
+The most you can spend stays the smallest of: this donation's limits (monthly, and weekly and daily if you set them), your device's monthly limit, and your provider's spending limit.
 
 ## 4. See where it went
 

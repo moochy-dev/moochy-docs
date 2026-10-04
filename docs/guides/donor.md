@@ -103,7 +103,7 @@ If you use several devices, each has its own limit, and they add up.
 
 The most you can spend is the **smallest** of three separate limits:
 
-1. the monthly limit of each donation, kept by Moochy;
+1. the limits of each donation (monthly, and the optional weekly and daily limits), kept by Moochy and checked again by the app on your machine;
 2. this device's monthly limit, checked by the app on your machine;
 3. your spending limit at the provider, kept by your provider.
 
@@ -124,6 +124,7 @@ Open a project on moochy.dev and press **Donate tokens**, or from the terminal:
 
 ```sh
 moochy donate --repo owner/name --cap '$20'     # up to $20 a month; asks you to confirm
+moochy donate --repo owner/name --cap '$20' --weekly-limit '$8' --daily-limit '$2'   # also at most $8 a week and $2 a day
 ```
 
 Write the amount with a dollar sign, in single quotes so your shell keeps the `$`. From the terminal, the limit per request is the default ($5) and every model your key offers is allowed; change those on the website. A donation has:
@@ -131,12 +132,16 @@ Write the amount with a dollar sign, in single quotes so your shell keeps the `$
 | Setting | Meaning |
 |---|---|
 | Monthly limit | The most this project can use per month, in dollars, shown with an approximate token count. Not a payment: nothing leaves your account until a request is served |
+| Weekly limit | Optional. The most this project can use in one week. A week starts on Monday at 00:00 UTC. No weekly limit by default |
+| Daily limit | Optional. The most this project can use in one day. A day starts at 00:00 UTC. No daily limit by default |
 | Limit per request | The most one request may cost. Default $5. A request that could cost more is refused |
 | Models | Which models the project may use with your key (whole families allowed, for example all Claude Sonnet models) |
 | Maximum reasoning effort | `low` … `max` |
 | Extras | Opt-ins such as images, documents, long context, fast mode |
 | Schedule | Optional: only serve at certain times, for example nights and weekends. Outside those times your device simply gets no requests |
 | On public pages | **Show my handle**, **Show a pseudonym**, or **Hide me** |
+
+On the website, the weekly and daily limits are under **More limits**. A daily limit cannot be higher than the weekly limit, and neither can be higher than the monthly limit. The monthly limit starts again on the day of the month you donated. Weekly and daily limits need Moochy 0.1.3 or later on your devices. An older version does not serve a donation that has them.
 
 The donation shows **waiting for the maintainer** until the project's owner accepts you, with a signature made on their own machine. Then your device starts serving.
 

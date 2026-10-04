@@ -29,7 +29,7 @@ The header shows the hamster (it reacts to new requests and dozes when the app i
 | # | Tab | What it shows | Keys |
 |---|---|---|---|
 | 1 | **Overview** | This month's donations and use, the latest requests, what needs you, alerts | `d` donations, `v` live requests, `n` decisions, `a` activity |
-| 2 | **Donations** | Your donations: status, monthly limit, spent, schedule, models; for an organisation donation, what each project used; the project's share link | `p` pause/resume, `-` lower the limit, `x` stop |
+| 2 | **Donations** | Your donations: status, monthly limit, spent, what is left today and this week when the donation has daily or weekly limits, schedule, models; for an organisation donation, what each project used; the project's share link | `p` pause/resume, `-` lower the limit, `x` stop |
 | 3 | **Served** | Live requests your devices serve and the ones your projects use: model, project, tokens, cost, latency, outcome | `g` back to the newest (live) |
 | 4 | **Projects** | Your registered projects: donors, waiting requests, members, settings summary | `a` accept, `r` refuse |
 | 5 | **Organisations** | Your organisations: covered projects, share caps, donors | `a` add a project or accept a donor, `x` remove a project, `r` refuse |

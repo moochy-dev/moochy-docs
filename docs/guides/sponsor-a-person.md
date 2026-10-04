@@ -57,7 +57,7 @@ One acceptance covers every repository you add, now and later. Refusing needs no
 ### What a sponsorship pays for
 
 - **Your requests only.** Only requests from **your own devices** (signed in to your account) on a covered repository use your sponsors' tokens. Other members of those repositories never spend them, and every member's app checks this against the public key log.
-- **One limit for all your repositories.** A sponsor's monthly limit, limit per request, models, effort, and schedule apply to all your covered repositories together.
+- **One limit for all your repositories.** A sponsor's monthly limit, weekly and daily limits, limit per request, models, effort, and schedule apply to all your covered repositories together.
 - **Projects and organisations first.** When a repository also has its own donors or an organisation's, they are used first on a tie: project, then organisation, then person.
 - **No self-sponsoring.** You cannot sponsor yourself: Moochy refuses (`self_donation`) a sponsorship between accounts that are the same, share a linked GitHub or GitLab identity, a confirmed email address, or a device.
 

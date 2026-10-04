@@ -33,7 +33,7 @@ To report a weakness, see [`cli/SECURITY.md`](https://github.com/moochy-dev/mooc
 
 - The donor's app serves a request only if it is signed by a member the owner accepted, is fresh, was never served before (also across restarts), and its visible routing data matches the encrypted body exactly. Otherwise it refuses before calling the provider ([`spec/protocol.md`](../../spec/protocol.md) §9).
 - Safety checks compare every field of the request with a strict list of what is allowed: no server-side tools, code execution, remote MCP servers, provider file storage, or paid extras unless the donor allowed them.
-- The donor's app enforces its own monthly limit and the limit per request (default $5) before every call, even if the relay ignores limits. A spending limit at the provider bounds everything else.
+- The donor's app enforces this device's monthly limit before every call, even if the relay ignores limits. It also checks each donation's limit per request (default $5) and its weekly and daily limits, as the relay sent them. A spending limit at the provider bounds everything else.
 - The donor's machine never executes anything: the background app locks itself down after start-up (no starting programs, only its own state folder, connections only to the provider and Moochy), and each request is checked in a throwaway process with no files, network, or keys.
 
 ### Output from a donor cannot take over the maintainer's machine

@@ -67,7 +67,7 @@ moochy decisions --org github/acme                   # what was decided, who, wh
 
 The app shows exactly what it will sign (the organisation, the donor, your owner key) and asks for your passphrase. You can also refuse from **Organisation settings → Waiting donors** or from the email Moochy sends you; refusing needs no signature. Accepting always happens on your own device.
 
-The donor's limits (monthly limit, limit per request, models, effort, schedule) apply to all your covered projects **together**. When a project also has its own donors, the project's own donation is used first on a tie; the organisation's donation fills the rest.
+The donor's limits (monthly limit, optional weekly and daily limits, limit per request, models, effort, schedule) apply to all your covered projects **together**. When a project also has its own donors, the project's own donation is used first on a tie; the organisation's donation fills the rest.
 
 ## 5. The button and the organisation page
 
