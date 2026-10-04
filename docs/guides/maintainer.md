@@ -62,7 +62,7 @@ New donations show **waiting for the maintainer**. Each request shows the donor'
 
 ```sh
 moochy pending                                       # donors and members waiting for you
-moochy accept ps_7hc2qz… --repo owner/repo           # or the donor's handle; `moochy approve` is the same command
+moochy accept ps_7hc2qz… --repo owner/repo           # or the donor's handle, or the request id (p_…) that `moochy pending` shows; `moochy approve` is the same command
 moochy accept ps_7hc2qz… --repo owner/repo --revoke  # remove a donor you accepted
 ```
 
@@ -176,7 +176,7 @@ Errors come back in the provider's own format, so agents react sensibly:
 moochy status                  # donations available to your projects, requests in progress
 moochy pending                 # anything waiting for your signature
 moochy journal --follow        # requests you made: model, cost, status
-moochy verify <receipt_ref>    # check a public receipt of one of your requests: donor signature, link to the signed receipt, public key log
+moochy verify <receipt_ref>    # check a public receipt of one of your requests (r_… as the public page shows it, or the bare reference): donor signature, link to the signed receipt, public key log
 ```
 
 Project settings show how much donors gave this month and how much was used, usage per member and per model, the cache hit rate, and models your members asked for that no donor offers.

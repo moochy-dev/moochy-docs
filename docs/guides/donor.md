@@ -60,7 +60,7 @@ read -rs KEY                                       # paste the key, press Enter 
 printf '%s' "$KEY" | moochy keys add anthropic --key-stdin && unset KEY
 ```
 
-Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`, and `local` for your own GPU ([guide](local-gpu.md)). `moochy keys list` shows your keys; `moochy keys remove <provider>` deletes one. `moochy keys rotate` gives this device new keys of its own (not provider keys); the old ones stop working 24 hours later.
+Providers: `anthropic`, `openai`, `openrouter`, `deepseek`, `xai`, and `local` for your own GPU ([guide](local-gpu.md)). `moochy keys list` shows your keys; `moochy keys remove <provider>` deletes one. The app reads your keys when it starts: if it is already running, restart it with `moochy down && moochy up` to use a new key. The command tells you so. `moochy keys rotate` gives this device new keys of its own (not provider keys); the old ones stop working 24 hours later.
 
 The app checks the key with a free call to the provider's model list, and offers exactly the models the key can use.
 
@@ -99,6 +99,8 @@ moochy config set slots_max 4                        # requests served at the sa
 moochy config show                                   # check your settings
 ```
 
+The limit is more than $0. To stop donating from this device, use `moochy pause`, or remove the key. A running app uses a new limit after a restart (`moochy down && moochy up`).
+
 If you use several devices, each has its own limit, and they add up.
 
 The most you can spend is the **smallest** of three separate limits:
@@ -110,9 +112,9 @@ The most you can spend is the **smallest** of three separate limits:
 ## 6. Start the app
 
 ```sh
-moochy up                      # start in the background
+moochy up                      # start in the background (if it already runs, it says so and shows its status)
 moochy status                  # connection, slots in use, donations
-moochy doctor                  # keychain, connection, clock, provider keys, lockdown
+moochy doctor                  # keychain, connection, clock, provider keys, lockdown; exit code 10 if a check fails
 moochy service install         # start it at login (systemd user unit or launchd agent); --print shows the unit first
 ```
 

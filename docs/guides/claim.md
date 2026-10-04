@@ -60,7 +60,7 @@ The command prints a code, such as `BCDF-GHJK`, and a link that already carries 
 moochy up
 ```
 
-`moochy claim` talks to the running app. If the app is not running, the command stops with `moochy node is not running (start it with moochy up)`.
+`moochy claim` talks to the running app. If the app is not running, the command stops with `the Moochy app is not running: start it with moochy up`.
 
 ### 5. Create your owner key
 
@@ -72,7 +72,7 @@ The owner key is a separate key for your decisions as an owner: claims, accepted
 
 The owner key exists so that nobody, not even Moochy's servers, can claim your project or accept a donor in your name. Every member's app checks these signatures in the public key log.
 
-For your first owner key, Moochy emails your confirmed address a link that names the key id. Open the link while you are signed in on moochy.dev, and confirm within 10 minutes. If you already have a passkey on Moochy, approve the key with the passkey on moochy.dev instead.
+For your first owner key, Moochy emails your confirmed address a link that names the key id. Open the link while you are signed in on moochy.dev, and confirm within 10 minutes. If you already have a passkey on Moochy, approve the key with the passkey on moochy.dev instead. When the key is in the public key log, the command says how the log bound it, for example `bound with your confirmed email` (`"proof":"email"`); this can take up to a minute.
 
 `moochy owner status` shows your owner key, how the log bound it, and the organisations and profiles it holds. If you skip this step, `moochy claim` offers to create the key first.
 
@@ -209,8 +209,10 @@ Messages in the terminal:
 
 | Message | What it means and what to do |
 |---|---|
-| `moochy node is not running (start it with moochy up)` | Run `moochy up`, then the command again. |
-| `no pending REPO_CLAIMED request for owner/repo` (or `ORG_CLAIMED`) | No web check is waiting for this name. Do the web step again, then run the command within one hour. Use the name that the web page shows. |
+| `the Moochy app is not running: start it with moochy up` | Run `moochy up`, then the command again. |
+| `not logged in: run moochy login first` | Sign in this device with `moochy login`, start the app with `moochy up`, then run the command again. |
+| `this claim's GitHub check expired (1 hour), or it was never started` (GitLab: `GitLab check`) | No web check is waiting for this name, or it is more than one hour old. Do the web step again, then run the command within one hour. Use the name that the web page shows. `moochy pending` marks such a claim `"expired": true`. |
+| `no pending ORG_CLAIMED request for github/org` | No web check is waiting for this organisation. Do the web step again, then run the command within one hour. |
 | `no profile claim is waiting: sign in on the web and choose Claim your profile` | Do the web step for your profile, then run the command within one hour. |
 | `email_required` | Your account has no confirmed email. Confirm one in **Settings** on moochy.dev, then run `moochy owner init` again. |
 | `your email address changed less than 72 hours ago` | Wait 72 hours after an email change, or approve the key with a passkey that you already have. |
