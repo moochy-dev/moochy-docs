@@ -7,6 +7,7 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | Guide | For |
 |---|---|
 | [Donate tokens](donor.md) | Install the app, add a provider key, set your limits, donate, pause, stop donating, see what your key was used for |
+| [Claim your project, organisation or profile](claim.md) | Sign in, add your device, create your owner key, then claim a repository, an organisation, or your own profile; check the claim; error messages |
 | [Use donated tokens in your project](maintainer.md) | Register a project, accept donors, add members, connect your tools |
 | [Donations for your organisation](organisations.md) | Claim a GitHub organisation or GitLab group, choose the projects it funds, share caps, accept donors once, owner changes |
 | [Sponsor a person](sponsor-a-person.md) | Sponsor a maintainer's own requests on the repos they maintain; claim your profile and choose the repos |

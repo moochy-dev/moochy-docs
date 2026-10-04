@@ -10,8 +10,8 @@ The first half of this guide is for the person being sponsored, the second for s
 
 Only you can claim your own profile, and nobody can ever take it over.
 
-1. On moochy.dev, sign in with the GitHub or GitLab account of the profile, and choose **Claim your profile**. Moochy checks that the account you just signed in with *is* that user (by the code host's numeric user id, not the name, so a renamed or re-registered login inherits nothing). Organisation and bot accounts cannot be claimed as a person.
-2. Confirm on your own machine, within the hour:
+1. On moochy.dev, sign in with the GitHub or GitLab account of the profile. Open **Repositories**, then **Add a repository**, and go to **Your profile** ([moochy.dev/claim#person](https://moochy.dev/claim#person)). Press **Check with my code host**. The account must be at least 30 days old. Moochy checks that the account you just signed in with *is* that user (by the code host's numeric user id, not the name, so a renamed or re-registered login inherits nothing). Organisation and bot accounts cannot be claimed as a person.
+2. Confirm on your own machine, within the hour, with the app running (`moochy up`):
 
    ```sh
    moochy claim --person                 # finds the claim you started on the web
@@ -19,6 +19,8 @@ Only you can claim your own profile, and nobody can ever take it over.
    ```
 
    As for a project, the app shows what it is about to sign, asks you to confirm, and asks for your owner key's passphrase (it creates the owner key first if you have none). Your signature goes into the public key log. The command then prints your page to share (`Share: https://moochy.dev/people/github/alice`) and the public repositories you maintain, each with the command that adds it.
+
+The owner key, the sign-in steps, and every error message are in [Claim your project, organisation or profile](claim.md#claim-your-profile).
 
 Your page is `https://moochy.dev/people/github/LOGIN` (or `https://moochy.dev/people/gitlab/USERNAME`), linked from your Moochy profile.
 
@@ -82,7 +84,7 @@ Always write `--person` with the code host. `--repo alice/tool` is a project and
 
 - The page lists the repositories a sponsorship serves. `moochy person list --person github/alice` shows the same.
 - The sponsorship waits until the person accepts you, once. Then your device serves their requests on those repositories, within your one monthly limit.
-- **Not on Moochy yet?** You can still sponsor a GitHub or GitLab user who has not claimed their profile: the sponsorship waits, and nobody is contacted. It is tied to the account's numeric id at the code host, so only that account can ever claim it, even if the login is renamed and taken by someone else.
+- **Not on Moochy yet?** A person must claim their profile before anyone can sponsor them: `moochy donate --person` answers `not_found` until then. Ask them to read [Claim your project, organisation or profile](claim.md).
 - `moochy donations` lists it (with its id) next to your other donations; the dashboard shows what each repository used; every receipt names the repository served and the sponsorship that paid. Pause and stop work as for any donation ([Donate tokens](donor.md#8-pause-or-stop-donating)).
 
 The person's profile README can carry a **Donate tokens** button and a live chart: see [Add a "Donate tokens" button](donate-button.md#people).

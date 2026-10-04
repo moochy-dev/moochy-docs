@@ -125,6 +125,10 @@ Anything that speaks MCP, and anything that lets you set an Anthropic- or OpenAI
 
 Anthropic, OpenAI, OpenRouter, DeepSeek, and xAI (Grok), with an API key; never chat-subscription logins. Donors can also donate from a model on their own GPU through Ollama, LM Studio, vLLM, or llama.cpp ([Donate from your own GPU](local-gpu.md)).
 
+### How do I put my project on Moochy?
+
+Claim it. Your code host confirms on moochy.dev that you are an admin, then `moochy claim owner/repo` signs the claim on your machine. Organisations and personal profiles work the same way. See [Claim your project, organisation or profile](claim.md).
+
 ### Can I donate to a whole organisation?
 
 Yes: to a GitHub organisation or a GitLab group whose owner claimed it on Moochy. One monthly limit then covers every project the owner added, and the owner accepts you once ([Donate to an organisation](donate-to-an-organisation.md)). Only projects registered by the organisation's owner themselves can use it, so someone else's repository under the organisation's name never does ([for owners](organisations.md)).

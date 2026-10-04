@@ -21,13 +21,15 @@ It takes about 5 minutes.
 
 ## 1. Install
 
-The Moochy app is open source (Apache-2.0). Each release of the public `moochy-dev/moochy-cli` repository publishes signed archives for macOS and Linux, a shell installer, a Homebrew formula, and the npm package `moochy`. Moochy runs on macOS and Linux.
+The Moochy app is open source (Apache-2.0). It runs on Linux and macOS. Each release of the public `moochy-dev/moochy-cli` repository publishes signed archives for both.
 
 ```sh
-brew install moochy-dev/tap/moochy
-# or, with Rust installed:
-cargo install moochy --locked
+curl -fsSL https://moochy.dev/install.sh | sh
 ```
+
+The script downloads the release archive for your system, checks its SHA-256 checksum, and puts `moochy` in `~/.local/bin`. It never uses `sudo` and never edits your shell files. It tells you if `~/.local/bin` is not in your `PATH`. `MOOCHY_VERSION=vX.Y.Z` installs one release; `MOOCHY_INSTALL_DIR=DIR` installs into another folder.
+
+With Rust installed, you can also run `cargo install moochy --locked`, or download an archive from the [releases page](https://github.com/moochy-dev/moochy-cli/releases). Homebrew and npm packages are coming soon.
 
 Or build it yourself (Rust stable):
 
@@ -45,7 +47,7 @@ You can check what you run: release files are signed with Sigstore, carry SLSA p
 moochy login --roles worker
 ```
 
-The command prints a short code such as `WXYZ-1234` and a link. Open the link, sign in with GitHub or GitLab, and enter the code. The first time, you choose your **handle** (see [Your handle](#10-your-handle)). This device then gets its own keys, which never leave it. `--name laptop` gives the device a name you will recognise in your list of devices.
+The command prints a short code such as `BCDF-GHJK` and a link that already carries it (`https://relay.moochy.dev/device?code=BCDF-GHJK`). On a desktop it opens the link in your browser; over SSH, in a container or with `--no-browser` it only prints it. Sign in with GitHub or GitLab, check that the code matches, and press **Add this device**. The code works for 10 minutes. The first time, you choose your **handle** (see [Your handle](#10-your-handle)). This device then gets its own keys, which never leave it. `--name laptop` gives the device a name you will recognise in your list of devices.
 
 `--roles worker` lets this device serve your donations. Use `--roles gateway,worker` if you also want to use donated tokens from it.
 

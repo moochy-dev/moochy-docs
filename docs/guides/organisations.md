@@ -11,15 +11,15 @@ This guide is for the organisation's owner. Donors: see [Donate to an organisati
 | Code host | Organisation | You must be |
 |---|---|---|
 | GitHub | an organisation, `github/acme` | an **admin** of the organisation (its owner role) |
-| GitLab | a group or a subgroup, `gitlab/group` or `gitlab/group/subgroup` | an **Owner** of the group (directly or inherited from a parent group) |
+| GitLab | a **public** group or subgroup, `gitlab/group` or `gitlab/group/subgroup` | an **Owner** of the group (directly or inherited from a parent group) |
 
 Personal accounts are not organisations: on a personal account, register each repository (see [Use donated tokens in your project](maintainer.md)). One Moochy account holds an organisation's claim at a time.
 
 ## 1. Claim the organisation
 
-1. Sign in on moochy.dev with the GitHub or GitLab account that owns the organisation.
-2. Open **Claim** and choose **Organisation**. Enter it as `github/acme` or `gitlab/group[/subgroup…]`. Moochy asks your code host, once, whether you are an owner. On GitHub this asks for the `read:org` permission; the token is used for that check and not stored. The page then lists the organisation's public repositories you administer.
-3. Confirm on your own machine, within the hour:
+1. Sign in on moochy.dev with the GitHub or GitLab account that owns the organisation. The account must be at least 30 days old.
+2. Open **Repositories**, then **Add a repository**, and go to **Organisation** ([moochy.dev/claim#org](https://moochy.dev/claim#org)). Choose GitHub or GitLab, type `acme` (GitLab: `group` or `group/subgroup`), and press **Check with my code host**. Moochy asks your code host, once, whether you are an owner. On GitHub this asks for the `read:org` permission; the token is used for that check and not stored. The page then lists the organisation's public repositories you administer. They are verified at the same time, so `moochy claim` works for each of them in the next hour.
+3. Confirm on your own machine, within the hour, with the app running (`moochy up`):
 
    ```sh
    moochy claim --org github/acme
@@ -27,7 +27,7 @@ Personal accounts are not organisations: on a personal account, register each re
 
    The app checks the organisation with the Moochy server, shows what it is about to sign (the organisation, its id at the code host, your owner key), asks you to confirm, and asks for your owner key's passphrase. If you have no owner key yet, it creates one first. Your signature (`ORG_CLAIMED`) goes into the public key log.
 
-`moochy owner status` lists the organisations your owner key holds. The organisation page is public from then on: `https://moochy.dev/org/github/acme`, or `https://moochy.dev/org/gitlab/group/subgroup` on GitLab.
+Error messages and their meaning are in [Claim your project, organisation or profile](claim.md#troubleshooting). `moochy owner status` lists the organisations your owner key holds. The organisation page is public from then on: `https://moochy.dev/org/github/acme`, or `https://moochy.dev/org/gitlab/group/subgroup` on GitLab.
 
 ## 2. Choose the projects it funds
 

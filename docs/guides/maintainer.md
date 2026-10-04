@@ -21,18 +21,20 @@ Confirm the printed code in your browser (GitHub or GitLab sign-in). The first t
 
 ## 2. Register your repository
 
+You need to be an admin of the public repository (GitLab: Maintainer or Owner), and your code-host account must be at least 30 days old. The full steps, with every error message, are in [Claim your project, organisation or profile](claim.md#claim-a-repository).
+
 1. Create your **owner key**, once per account:
 
    ```sh
    moochy owner init
    ```
 
-   It is a separate key that signs only your decisions as an owner (claims, accepted donors, members). It is encrypted with its own passphrase, which you type in the terminal, and it is used only by the commands below, never by the app running in the background. Keep the passphrase somewhere safe. `moochy owner rotate` replaces a key you still have; if you lose the key or its passphrase, it can be revoked after you sign in again on moochy.dev, and you create a new one with `moochy owner init`. Your other devices warn you if an owner key appears on your account that you did not create.
-2. On moochy.dev, open **Claim** and pick the repository. Moochy asks your code host, once, whether you are an **admin** of it. The sign-in token is used for that check and not stored.
-3. Confirm on your own machine, in the repository folder:
+   It is a separate key that signs only your decisions as an owner (claims, accepted donors, members). It is encrypted with its own passphrase, which you type in the terminal, and it is used only by the commands below, never by the app running in the background. Moochy emails your confirmed address a link to confirm the first key; confirm within 10 minutes. Keep the passphrase somewhere safe. `moochy owner rotate` replaces a key you still have; if you lose the key or its passphrase, it can be revoked after you sign in again on moochy.dev, and you create a new one with `moochy owner init`. Your other devices warn you if an owner key appears on your account that you did not create.
+2. On moochy.dev, open **Repositories**, then **Add a repository**. Type `owner/name` and press **Check with my code host**. Your code host confirms, once, that you are an **admin** of the repository. Moochy uses the token for that check and does not keep it.
+3. Within one hour, confirm on your own machine, with the app running (`moochy up`):
 
    ```sh
-   moochy claim --repo owner/repo
+   moochy claim owner/repo
    ```
 
    The app shows what it is about to sign, asks you to confirm, and asks for your owner key's passphrase. Your signature goes into the public key log. From then on, every donor or member accepted for this repository needs your signature.
