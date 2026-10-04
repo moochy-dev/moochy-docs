@@ -18,10 +18,10 @@ Without a desktop keychain, the app keeps its keys in a file encrypted with a pa
 ```sh
 read -rs MOOCHY_PASSPHRASE && export MOOCHY_PASSPHRASE    # type it; stays out of history
 moochy --home /var/lib/moochy login --roles worker --headless
-# {"event":"device_code","user_code":"WXYZ-1234"}
+# {"event":"device_code","user_code":"WXYZ-1234","verification_url":"https://relay.moochy.dev/device?code=WXYZ-1234"}
 ```
 
-Confirm the code from any browser where you are signed in to moochy.dev. The command then prints `{"event":"logged_in","device_id":"d_…"}`.
+Open the printed link on any device, for example your laptop or phone, sign in to moochy.dev, check that the code matches, and press **Add this device**. `--headless` (or `--no-browser`) only stops the app from trying to open a browser on the server. The command then prints `{"event":"logged_in","device_id":"d_…"}`.
 
 ### 1.2 Provider key and limits
 

@@ -70,7 +70,7 @@ With a hosted provider, the provider counts tokens and bills you, so usage is ba
 
 - token counts are labelled **self-reported** wherever they appear;
 - they count toward a project's goal in **tokens**, and toward a separate local leaderboard, never toward dollar totals or the money leaderboard;
-- receipts settle at $0, and your monthly limit in dollars is not used;
+- receipts settle at $0, and your limits in dollars (monthly, weekly, daily) are not used;
 - the maintainer's app still checks each receipt against what it received (visible output within ±25%) and files a signed dispute when it does not match.
 
 Where the server reports usage (forced on for every request), Moochy uses it. llama.cpp's timing counters give exact numbers too; otherwise usage is estimated from the streamed output and marked as estimated.

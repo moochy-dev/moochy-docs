@@ -46,7 +46,7 @@ No. Only public repositories can receive donations: Moochy exists for open sourc
 |---|---|
 | Which repository a request is for, the model, reasoning effort, the maximum output length, a size estimate, whether it streams | Your prompts, system prompts, code, files, tools, or responses |
 | Sizes and timing of encrypted pieces | Your provider API key |
-| Tokens used and cost of each request (to keep monthly limits) | Error details (they are encrypted for the maintainer) |
+| Tokens used and cost of each request (to keep the limits) | Error details (they are encrypted for the maintainer) |
 | Your account, your devices' public keys, your donations | The provider's request id (only a salted hash) |
 
 Request details (model, sizes, cost) are kept 90 days, then only daily totals. Connection logs with IP addresses are kept 7 days.
@@ -135,7 +135,13 @@ Yes: to a GitHub organisation or a GitLab group whose owner claimed it on Moochy
 
 ### Why does my agent get a 400 or 403 instead of a retry?
 
-On purpose. When a request could cost more than the donors' limit per request (400), or your monthly limit is used (403), retrying will not help, and agents retry 429 in a loop. Temporary problems, such as a busy or rate-limited donor, are retried on another donor automatically, and come back as 429 or 529 only if every donor failed.
+On purpose. When a request could cost more than the donors' limit per request (400), or your monthly limit or the donations' limits are used up (403), retrying will not help, and agents retry 429 in a loop. The 403 also comes from donors' weekly and daily limits: a daily limit starts again at 00:00 UTC, a weekly one on Monday at 00:00 UTC. Temporary problems, such as a busy or rate-limited donor, are retried on another donor automatically, and come back as 429 or 529 only if every donor failed.
+
+### A form on moochy.dev says "Something changed". What happened?
+
+You opened the page before you last signed in, for example in another tab, so its form expired. Nothing was changed. Open the page again and retry. The page answers with HTTP 409 and says "This page was opened before you last signed in…" or "This form came from another page or has expired…".
+
+"Not allowed here" (403) is different: the form was sent from another site, or without its token. Start again from the Moochy page.
 
 ### What happens if moochy.dev is down?
 

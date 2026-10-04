@@ -17,7 +17,7 @@ moochy login --roles gateway
 moochy up
 ```
 
-Confirm the printed code in your browser (GitHub or GitLab sign-in). The first time, you choose your handle (rules in the [donor guide](donor.md#10-your-handle)). `--roles gateway` lets this device use donated tokens.
+`moochy login` prints a code and a link that already carries it, and opens the link in your browser when it can (on a server, open the link on another device). Sign in with GitHub or GitLab and confirm the code. The first time, you choose your handle (rules in the [donor guide](donor.md#10-your-handle)). `--roles gateway` lets this device use donated tokens.
 
 ## 2. Register your repository
 
@@ -166,7 +166,7 @@ Errors come back in the provider's own format, so agents react sensibly:
 |---|---|---|
 | A donor is busy or rate-limited | Sent to another donor automatically; if all fail, 429 or 529 | yes |
 | The request could cost more than the donors' limit per request | 400 `invalid_request_error` | no |
-| Your monthly limit or the project's donations are used up | 403 `permission_error` | no |
+| Your monthly limit, or the donations' monthly, weekly or daily limits, are used up | 403 `permission_error` | no |
 | No donor offers that model | 404 | no |
 | Something donors' safety checks do not allow (for example server-side tools, file ids, remote MCP servers inside the request) | 400 with the reason | no |
 

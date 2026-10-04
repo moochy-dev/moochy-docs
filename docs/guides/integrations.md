@@ -1029,6 +1029,6 @@ litellm.completion(model="openai/anthropic/claude-sonnet-5", api_base="http://12
 
 - Send `max_tokens` (the Moochy app adds the model's default if your tool leaves it out, and tells you once).
 - The donor's app runs safety checks against a strict list of what is allowed. Server-side tools, remote MCP servers inside the request, provider file ids, URL images, and `n > 1` are refused with a 400 that says why.
-- Refusals that a retry cannot fix are never 429, so agents do not retry them in a loop: over the donors' limit per request → 400, monthly limit used → 403.
+- Refusals that a retry cannot fix are never 429, so agents do not retry them in a loop: over the donors' limit per request → 400, your monthly limit or the donations' monthly, weekly or daily limits used up → 403.
 - `POST /v1/messages/count_tokens` is answered locally (no donor involved) with a deliberately pessimistic estimate.
 - Responses carry `x-moochy-task`, `x-moochy-donor` (pseudonym), and `x-moochy-cost-uusd` (cost in millionths of a dollar) headers.

@@ -276,6 +276,14 @@ Put the chart in the README right below the button row or in a "Support" section
 
 `https://moochy.dev/button` is the showcase studio: tab **Button** and tab **Chart**. Pick a project or organisation you can see, set every option above with a live preview in light and dark side by side, and copy the Markdown, HTML, reStructuredText or iframe snippet. The URLs are the canonical ones above (`/-/` on GitLab), exactly what `moochy button --chart` prints.
 
+## Sharing the donate link
+
+The donate link (`donate_url`, the button's target) also works on its own, for example in a post. On X, Bluesky, Mastodon, LinkedIn, Facebook, Reddit, Slack, Discord, WhatsApp, Telegram or iMessage it unfolds into a card: the avatar of the owner, organisation or person (initials when there is none), the name and the description, a **Donate tokens** button (**Sponsor tokens** for a person), and this month's numbers: what was donated, against the monthly goal when one is set, and the number of donors. Slack also shows "Donated this month" and "Donors" under the preview. The page link (the same address without `/donate`) unfolds into a similar card, without the button.
+
+- Only claimed projects, organisations and people get this card. Unclaimed, private and unknown ones get one generic Moochy card.
+- The card images are `…/og.png?v=…` for the page and `…/donate.png?v=…` for the donate link (GitLab: `…/-/og.png` and `…/-/donate.png`). `v` changes when the numbers change, so a link shared again shows the current numbers. These images are for link previews: in a README, use the button.
+- Share the link exactly as the API returns it, without tracking parameters or a link shortener.
+
 ## Not on Moochy yet
 
 If the project is not registered, give the maintainer this message (replace `PATH` with the path from step 1):

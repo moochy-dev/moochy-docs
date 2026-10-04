@@ -1,6 +1,6 @@
 # Moochy guides
 
-Moochy lets you donate tokens to open-source projects from your own LLM API account, with a monthly limit you choose. Maintainers use those tokens from the AI tools they already have. Your key never leaves your machine, and every request is end-to-end encrypted.
+Moochy lets you donate tokens to open-source projects from your own LLM API account, with a monthly limit you choose (and, if you want, weekly and daily limits). Maintainers use those tokens from the AI tools they already have. Your key never leaves your machine, and every request is end-to-end encrypted.
 
 Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid tier. You pay your own provider for what your donations actually use; Moochy never touches money.
 

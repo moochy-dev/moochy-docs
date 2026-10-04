@@ -160,7 +160,7 @@ Help the project reach its goal: share its page. `moochy donate` prints the link
 | Stop serving from this device now | `moochy pause` (`moochy resume` to undo) | Immediate, works offline, no sign-in needed. This device takes no new requests |
 | See your donations | `moochy donations` (or the Dashboard) | What each project used this month, and each donation's id |
 | Pause one donation | `moochy donations pause <id>` (`resume` to undo), or Dashboard → the donation → **Pause** | No new requests for that project until you resume |
-| Give less | Lower the donation's monthly limit | Takes effect within milliseconds |
+| Give less | Lower the donation's monthly limit | Takes effect within milliseconds. A weekly or daily limit above the new monthly limit comes down to it |
 | Stop donating to a project | `moochy donations stop <id>`, or Dashboard → **Stop donating** | The donation ends. No new requests; requests in progress finish and are recorded |
 | Remove this device | `moochy logout` | Its keys are revoked, then deleted from the device |
 | Remove another device | `moochy keys revoke <device id>`, or the Devices page on moochy.dev | Its keys stop working immediately |
