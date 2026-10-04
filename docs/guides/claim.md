@@ -25,7 +25,7 @@ Do these steps once. They are the same for the three kinds of claim.
 curl -fsSL https://moochy.dev/install.sh | sh
 ```
 
-Other ways to install are in the [donor guide](donor.md#1-install).
+This runs a script that moochy.dev serves. To check the app before it runs (crates.io, or a release archive checked with `gh attestation verify`), follow the [donor guide](donor.md#1-install).
 
 ### 2. Sign in on moochy.dev
 

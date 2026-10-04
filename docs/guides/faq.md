@@ -102,7 +102,22 @@ The repository owner's **owner key** signs every accepted donor and member. It i
 
 ### How do I check the app I run?
 
-- Release files are signed with Sigstore and carry SLSA build provenance. Check them with `gh attestation verify <file> --repo moochy-dev/moochy-cli`, or with `cosign verify-blob` and the `.sigstore.json` bundle attached to the release.
+- Every release file carries SLSA build provenance, signed with Sigstore by the release workflow of the tag. Check a file with:
+
+  ```sh
+  gh attestation verify <file> --repo moochy-dev/moochy-cli \
+    --signer-workflow moochy-dev/moochy-cli/.github/workflows/release.yml --source-ref refs/tags/vX.Y.Z
+  ```
+
+- The two Linux musl archives also have a `.sigstore.json` bundle. It is signed only after an independent rebuild of the tag gave the same bytes. Check it with cosign:
+
+  ```sh
+  cosign verify-blob <file> --bundle <file>.sigstore.json \
+    --certificate-identity 'https://github.com/moochy-dev/moochy-cli/.github/workflows/attest-release.yml@refs/tags/vX.Y.Z' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  ```
+
+  Bundles of v0.1.5 and earlier name `attest-release.yml@refs/heads/main` instead; they do not name a tag.
 - `moochy update --from-file <file>` installs a release only if its signature checks out.
 - Builds are reproducible: build the tagged source yourself and compare.
 - Or build from source and run your own build.

@@ -63,7 +63,12 @@ A box never gets a copy of your device's keys. Instead:
 ### Sandboxing inside a box
 
 - **In a full VM** (boat.dev, E2B, Morph, Lambda, Daytona and Modal VM classes): `moochy run -- <agent>` works as on any Linux machine. Run `moochy doctor` first; it says what is missing, such as the Ubuntu AppArmor profile.
-- **In a container or a gVisor sandbox** where user namespaces or Landlock are not available (Modal's default runtime, some container platforms): `moochy doctor` names what is missing. If the box is used only for this agent, `moochy run --box-is-sandbox -- <agent>` treats the box itself as the sandbox. The agent still gets a clean environment, the per-run token, and hidden secret files, and the app prints a warning. Tool calls from donated tokens reach such a session only if the project allows platform sandboxes (Project settings; on by default for box devices).
+- **In a container or a gVisor sandbox** where user namespaces or Landlock are not available (Modal's default runtime, some container platforms): `moochy doctor` names what is missing. `moochy run --box-is-sandbox -- <agent>` treats the box itself as the sandbox. The agent still gets a clean environment, the per-run token, and hidden secret files, and the app prints a warning. Tool calls from donated tokens reach such a session only if the project allows platform sandboxes (Project settings; on by default for box devices).
+- **What `--box-is-sandbox` exposes.** Nothing isolates a donor's tool call from the rest of the box. It runs as the box's user, so it can read every file and the environment of every process of that user, including the `MOOCHY_ENROLL` token, and it can send them anywhere. Use the flag only in a box that holds no other credential: no `GITHUB_TOKEN`, no git credential helper, no cloud or registry keys. Create its enrollment token with the default `--max-boxes 1` and a short `--ttl`, so a token read after enrollment cannot enroll another box.
+- **Never in GitHub Codespaces or a devcontainer.** A codespace always holds a `GITHUB_TOKEN` that can push to the repository, and a git credential helper. A donor's tool call could take them and push to your project. There, and in any box with credentials, do one of these instead:
+  - Use a VM box (for example boat.dev, E2B, or the Daytona and Modal VM classes) where `moochy doctor` says that plain `moochy run` works.
+  - Run the agent without donated tool calls: `moochy connect <agent>` or the `moochy_delegate` tool. Donated tokens still answer, and tool calls from them are replaced by a `[moochy]` notice.
+  - Turn off platform sandboxes in the project's settings, so that no `--box-is-sandbox` session receives tool calls.
 
 ### Lifetimes and idle timers
 
@@ -135,7 +140,7 @@ sandbox.process.exec("~/.local/bin/moochy up --headless")
 ```
 
 - On the lower Daytona tiers, outbound traffic is limited to a fixed list of services and cannot be changed per sandbox; Moochy cannot connect there. `moochy doctor` shows it.
-- In containers, check `moochy doctor`; use `--box-is-sandbox` if user namespaces are missing. VM sandboxes support fork, which copies the identity: re-enroll.
+- In containers, check `moochy doctor`. If user namespaces are missing, use a VM sandbox, or `--box-is-sandbox` only if the sandbox holds no credential other than `MOOCHY_ENROLL` ([what it exposes](#sandboxing-inside-a-box)). VM sandboxes support fork, which copies the identity: re-enroll.
 
 ### Modal
 
@@ -155,7 +160,7 @@ sb = modal.Sandbox.create(image=image, app=app, timeout=24 * 3600,
 sb.exec("bash", "-lc", "~/.local/bin/moochy up --headless")
 ```
 
-- gVisor has no Landlock and only part of seccomp, so `moochy run` reports what is missing: use `moochy run --box-is-sandbox` (the gVisor sandbox is the boundary), or the VM runtime.
+- gVisor has no Landlock and only part of seccomp, so `moochy run` reports what is missing. Use the VM runtime, or `moochy run --box-is-sandbox` (the gVisor sandbox is the boundary) only if the sandbox holds no secret other than `moochy-enroll` ([what it exposes](#sandboxing-inside-a-box)).
 - Sandboxes live at most 24 hours. Memory snapshots copy the identity: re-enroll.
 - `outbound_domain_allowlist` allows port 443 only; to restrict traffic and still reach the relay, use `outbound_cidr_allowlist`.
 
@@ -212,7 +217,7 @@ gh secret set MOOCHY_ENROLL --user        # or for one repository: --app codespa
 - The `secrets` block only reminds people to set the secret; `gh secret set` stores it. New secrets apply after the codespace restarts.
 - Codespaces stop after the idle timeout (30 minutes by default) and live at most 12 hours.
 - Prebuilds share one image between many codespaces: install there, but enroll only in `postStartCommand`, as above.
-- Inside the codespace's container, check `moochy doctor`; use `--box-is-sandbox` if user namespaces are not available.
+- Inside the codespace's container, check `moochy doctor`. If `moochy run` cannot sandbox there, do not use `--box-is-sandbox`: the codespace's `GITHUB_TOKEN` can push to the repository. Use `moochy connect <agent>` or `moochy_delegate` instead (no donated tool calls), or a VM box ([details](#sandboxing-inside-a-box)).
 
 ---
 
@@ -279,10 +284,10 @@ Start the server with a key: `vllm serve <model> --api-key "$SERVER_KEY"`. Ollam
 | boat.dev | Ubuntu 24.04 VM | Yes, with the AppArmor profile | `fork`, templates | Auto-stop 1 h by default |
 | E2B | Firecracker microVM | Yes | `fork`, snapshots, every template | Up to 24 h; enroll in the sandbox, not the template |
 | Daytona | Container, or VM | Container: check `doctor`; VM: yes | VM `fork` | Lower tiers cannot reach Moochy |
-| Modal | gVisor, or VM | gVisor: `--box-is-sandbox`; VM: check `doctor` | Memory snapshots | Up to 24 h; domain allow-list is port 443 only |
+| Modal | gVisor, or VM | gVisor: `--box-is-sandbox` if it holds no other secret; VM: check `doctor` | Memory snapshots | Up to 24 h; domain allow-list is port 443 only |
 | Morph Cloud | VM | Check `doctor` | `branch` | No secret store |
 | Fly Machines | Firecracker microVM | Check `doctor` | `machine clone` (new empty volume) | Keep the home on a volume |
-| GitHub Codespaces | Container on a VM | Check `doctor` | Prebuilds share an image | Up to 12 h |
+| GitHub Codespaces | Container on a VM | Check `doctor`; never `--box-is-sandbox` | Prebuilds share an image | Up to 12 h |
 | RunPod | Container | Donors only | — | No UDP; proxy times out after 100 s |
 | Vast.ai | Container, or KVM VM | Donors only | — | Use a VM for systemd |
 | Lambda | Ubuntu VM | Donors only | — | Inbound SSH only by default |

@@ -27,9 +27,28 @@ The Moochy app is open source (Apache-2.0). It runs on Linux and macOS. Each rel
 curl -fsSL https://moochy.dev/install.sh | sh
 ```
 
-The script downloads the release archive for your system, checks its SHA-256 checksum, and puts `moochy` in `~/.local/bin`. It never uses `sudo` and never edits your shell files. It tells you if `~/.local/bin` is not in your `PATH`. `MOOCHY_VERSION=vX.Y.Z` installs one release; `MOOCHY_INSTALL_DIR=DIR` installs into another folder.
+The script downloads the release archive for your system from GitHub and checks its SHA-256 checksum. If the GitHub CLI (`gh`) is signed in, it also checks the archive's build attestation and refuses a file that fails. Then it puts `moochy` in `~/.local/bin`. It never uses `sudo` and never edits your shell files. It tells you if `~/.local/bin` is not in your `PATH`. `MOOCHY_VERSION=vX.Y.Z` installs one release; `MOOCHY_INSTALL_DIR=DIR` installs into another folder.
 
-With Rust installed, you can also run `cargo install moochy --locked`, or download an archive from the [releases page](https://github.com/moochy-dev/moochy-cli/releases). Homebrew and npm packages are coming soon.
+This one-line command runs a script that moochy.dev serves before you can read it. To check everything first, use one of these instead:
+
+- **From crates.io**, with Rust installed: `cargo install moochy --locked`.
+- **A release archive checked before you unpack it** (Linux x86_64 here; the others are `aarch64-unknown-linux-musl`, `aarch64-apple-darwin`, `x86_64-apple-darwin`):
+
+  ```sh
+  f=moochy-x86_64-unknown-linux-musl
+  gh release download --repo moochy-dev/moochy-cli --pattern "$f.tar.xz"
+  gh attestation verify "$f.tar.xz" --repo moochy-dev/moochy-cli --signer-workflow moochy-dev/moochy-cli/.github/workflows/release.yml
+  tar -xJf "$f.tar.xz" && mkdir -p ~/.local/bin && install -m 0755 "$f/moochy" ~/.local/bin/moochy
+  ```
+
+- **The same install script, read first**, from GitHub instead of moochy.dev:
+
+  ```sh
+  curl -fsSLo install.sh https://raw.githubusercontent.com/moochy-dev/moochy-cli/main/deploy/client/install.sh
+  less install.sh && sh install.sh
+  ```
+
+Homebrew and npm packages are coming soon.
 
 Or build it yourself (Rust stable):
 
