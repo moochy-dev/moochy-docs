@@ -166,7 +166,7 @@ Errors come back in the provider's own format, so agents react sensibly:
 |---|---|---|
 | A donor is busy or rate-limited | Sent to another donor automatically; if all fail, 429 or 529 | yes |
 | The request could cost more than the donors' limit per request | 400 `invalid_request_error` | no |
-| Your monthly limit, or the donations' monthly, weekly or daily limits, are used up | 403 `permission_error` | no |
+| The request could cost more than what is left of your monthly limit, or of a donation's monthly, weekly or daily limit (the message names the limit and when it starts again) | 403 `permission_error` | no |
 | No donor offers that model | 404 | no |
 | Something donors' safety checks do not allow (for example server-side tools, file ids, remote MCP servers inside the request) | 400 with the reason | no |
 

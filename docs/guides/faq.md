@@ -135,7 +135,7 @@ Yes: to a GitHub organisation or a GitLab group whose owner claimed it on Moochy
 
 ### Why does my agent get a 400 or 403 instead of a retry?
 
-On purpose. When a request could cost more than the donors' limit per request (400), or your monthly limit or the donations' limits are used up (403), retrying will not help, and agents retry 429 in a loop. The 403 also comes from donors' weekly and daily limits: a daily limit starts again at 00:00 UTC, a weekly one on Monday at 00:00 UTC. Temporary problems, such as a busy or rate-limited donor, are retried on another donor automatically, and come back as 429 or 529 only if every donor failed.
+On purpose. When a request could cost more than the donors' limit per request (400), or it could cost more than what is left of your monthly limit or of the donations' limits (403; the message names the limit and when it starts again), retrying will not help, and agents retry 429 in a loop. The 403 also comes from donors' weekly and daily limits: a daily limit starts again at 00:00 UTC, a weekly one on Monday at 00:00 UTC. Temporary problems, such as a busy or rate-limited donor, are retried on another donor automatically, and come back as 429 or 529 only if every donor failed.
 
 ### A form on moochy.dev says "Something changed". What happened?
 
