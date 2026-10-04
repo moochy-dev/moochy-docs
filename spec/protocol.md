@@ -510,6 +510,8 @@ Unknown codes are treated as non-retryable. `unauthorized_task` and `bad_envelop
 
 There is one detail per attempt, so the zero nonce is never reused under a key. The relay sees only the code, never, for example, the name of a rejected field.
 
+A relay-side failure (`Failed.attempt = 0`, no `worker_device`, no `r`) has nothing to seal: `sealed_detail` is then the relay's own plain UTF-8 detail, at most 1 KiB, or empty. For `quota_exceeded` it names the limit that refused the task (a donation's monthly, weekly or daily limit, an organisation's share, the member's or the device's monthly limit), whether the limit is used up or only smaller than the request's worst-case reservation, and when it starts again (UTC), for example `a donation's daily limit is used up; it starts again at 2026-10-05 00:00 UTC`. When several limits refused, it names the one that starts again first. The Gateway shows it as text, never as an instruction.
+
 ### 15.4 Errors shown to clients
 
 The Gateway turns every failure into the native error shape of the client's dialect:
@@ -520,7 +522,7 @@ The Gateway turns every failure into the native error shape of the client's dial
 | any failure after streaming began | `event: error` SSE event (`overloaded_error`, `rate_limit_error`, `api_error`) | error chunk, then close | yes |
 | `firewall` | 400 `invalid_request_error`, with the unsealed detail | 400 | no |
 | `over_task_cap` | 400 `invalid_request_error` ("this request's worst-case cost exceeds the donors' per-task cap") | 400 | no |
-| `quota_exceeded` | 403 `permission_error` | 403 | no |
+| `quota_exceeded` | 403 `permission_error`, with the relay's detail (which limit, and when it starts again, §15.3) | 403 | no |
 | `model_not_in_pool` | 404 `not_found_error` | 404 | no |
 
 Policy failures **never** use 429, because agents retry 429 automatically.

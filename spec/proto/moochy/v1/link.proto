@@ -357,7 +357,7 @@ message Failed {
   string code = 1;                 // CONTRACT / plan 03 §10.2-10.3 codes
   bool retryable = 2;
   uint32 retry_after_ms = 3;
-  bytes sealed_detail = 4;         // detail sealed to the Gateway (Relay sees only `code`)
+  bytes sealed_detail = 4;         // detail sealed to the Gateway (Relay sees only `code`); attempt = 0: the relay's own plain UTF-8 detail (protocol §15.3)
   uint32 attempt = 5;              // attempt whose Worker produced sealed_detail (0 = relay-side failure)
   string worker_device = 6;        // needed with `r` to derive K_det (CONTRACT §3)
   bytes r = 7;                     // the attempt's response salt
