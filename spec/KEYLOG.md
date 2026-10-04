@@ -48,6 +48,15 @@ CONTRACT §15.4.
   relay refuses to anchor, and to boot, when the anchored or signed checkpoint is not a prefix of
   its database. Anyone can verify the whole public history: every commit's note is signed by the
   log key, sizes never decrease, and each is a prefix of the current log (`VerifyAnchorHistory`).
+  The default relay's anchor is the public repository `github.com/moochy-dev/moochy-keylog-anchor`;
+  every client build has it compiled in (F05) and reads
+  `https://raw.githubusercontent.com/moochy-dev/moochy-keylog-anchor/HEAD/checkpoint` (the default
+  branch) once an hour: the exact signed note bytes the relay serves for `checkpoint` (≤ 8192
+  bytes, origin `moochy.dev/keylog`, signed by the pinned log key, witness lines allowed), HTTP 200
+  over TLS 1.3, no redirect to another site. `log_anchor_url` overrides it (a
+  `https://github.com/<owner>/<repo>` URL is read the same way; any other URL is the base of
+  `<url>/checkpoint`). A check that cannot read the anchor raises an `anchor_unreadable` alert and
+  changes nothing else (split-view protection is off until a check reads it).
 
 ## 2. Record (tree leaf data)
 
@@ -127,7 +136,9 @@ signs its keys, the relay asserts the token, scope and expiry, which only narrow
 - **Monitors.** A user's box devices are listed apart from their devices (`State::boxes`); a box
   on my account raises `BoxEnrolled` (never `UnknownKey`: its keys are made in the box), and
   `BoxOutsideRepo` (security) when its repo is one I neither own nor am an active member of at
-  that point of the log.
+  that point of the log. The box id, scope and expiry are the relay's word, so the Node shows
+  `BoxEnrolled` as a security alert unless the box token was created on that machine (`moochy box
+  token create` records its `bt_` id; F10).
 
 Vectors: `spec/vectors/keylog/boxes.json`.
 
@@ -462,7 +473,11 @@ approval on a person I own, signed by an owner key I do not know (`repo_id` is t
 `RepoClaimedByOther` (a repo or org I owned claimed by another account),
 `Rejected`/`Invalid` (an entry no valid signer made). Forks: a checkpoint whose root does not match
 the mirrored history, or a Git-anchor checkpoint that is not a prefix of it (`Fork`); an anchor
-ahead of what the relay serves (`Rollback`); an older checkpoint than one already served (`Stale`).
+ahead of what the relay serves (`Rollback`: the gate is stale, so nothing is sealed or accepted,
+until the relay serves at least the anchored size, F24); an older checkpoint than one already
+served (`Stale`). A Node that restarts re-applies its persisted records with every signature
+checked again (F04): an entry rejected live stays without authority. A Worker prices a task only
+with a catalog whose `CATALOG` entry (version, SHA-256) is in its verified mirror (F11).
 
 ## 10. Attacks and counters (research summary)
 
@@ -470,7 +485,7 @@ ahead of what the relay serves (`Rollback`); an older checkpoint than one alread
 |---|---|---|
 | Fork / history rewrite | Nodes keep the whole mirror; a new checkpoint must reproduce the root over the mirrored history; fork evidence (two signed notes) is persisted | Go sumdb client (`SECURITY ERROR` with both trees), Rekor consistency proofs |
 | Split view (different logs to different users) | public Git anchor every hour + witness cosignatures (k-of-n); Nodes compare relay checkpoints with both | sumdb "gossip" via proxies and witnesses; Sigstore/Rekor with witnesses (omniwitness) |
-| Rollback / freeze (serve an old tree) | no going back (`Stale`), anchor ahead of the relay (`Rollback`), 10-min freshness for sealing | sumdb `latest` cache; witness cosignature timestamps |
+| Rollback / freeze (serve an old tree) | no going back (`Stale`), anchor ahead of the relay (`Rollback`, gate stale until the relay catches up), 10-min freshness for sealing (a re-served old checkpoint refreshes it: only the anchor or witness timestamps catch a freeze) | sumdb `latest` cache; witness cosignature timestamps |
 | Tile substitution / truncation | every record hashed into the verified root before use; bounded parsing | C2SP tlog-tiles clients |
 | Unsigned / forged approvals | owner-key signature checked by every Node and the relay; device keys cannot approve | — |
 | Rogue keys on a user's account | own-account monitors (`unknown_key`, `unknown_owner_key`, `OwnerKeyRevoked`) | CT monitors for own domains |

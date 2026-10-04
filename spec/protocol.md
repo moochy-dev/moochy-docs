@@ -383,7 +383,7 @@ The Gateway holds each tool-call block until it ends, runs its local checks, and
 
 ### 11.1 Sandboxed sessions
 
-By default the Gateway releases tool calls from donated tokens only to **sandboxed sessions**: requests that carry a run token minted for a live `moochy run` sandbox. Other clients receive the text and a visible `[moochy]` notice in place of each tool call, unless the project's `allow_unsandboxed_tools` setting (in `PoolSync`) is on. This is local client behaviour; nothing about it travels on the wire except that setting.
+By default the Gateway releases tool calls from donated tokens only to **sandboxed sessions**: requests that carry a run token minted for a live `moochy run` sandbox. Other clients receive the text and a visible `[moochy]` notice in place of each tool call, unless the project's `allow_unsandboxed_tools` setting (in `PoolSync`) is on **and** the machine's own `allow_unsandboxed_tools` names the project: the relay's flag alone never releases them (F06). Only the `PoolSync` of a repo that the user owns or is a member of in the verified key log counts, not another `repo_id` the relay names with the same slug. This is local client behaviour; nothing about it travels on the wire except that setting.
 
 ---
 

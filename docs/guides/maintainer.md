@@ -113,7 +113,7 @@ Give a CI or container agent its **own device** with its own monthly limit, so a
 moochy run -- claude          # or opencode, aider, goose, …
 ```
 
-**Tool calls from donated tokens only reach agents inside `moochy run`.** The sandbox lets your agent work on this repository and nothing else: no access to your other files or keys, and no network except Moochy. A tool started without `moochy run` still gets text answers, but each tool call is replaced by a `[moochy]` notice, unless you allow it for this project (`moochy config set allow_unsandboxed_tools owner/repo`, with a warning at every start). Details: [Run your agent safely with `moochy run`](run.md).
+**Tool calls from donated tokens only reach agents inside `moochy run`.** The sandbox lets your agent work on this repository and nothing else: no access to your other files or keys, and no network except Moochy. A tool started without `moochy run` still gets text answers, but each tool call is replaced by a `[moochy]` notice, unless the project allows it (Project settings) and you allow it on this machine too (`moochy config set allow_unsandboxed_tools owner/repo`, with a warning at every start). Details: [Run your agent safely with `moochy run`](run.md).
 
 ## 6. Connect your tools
 

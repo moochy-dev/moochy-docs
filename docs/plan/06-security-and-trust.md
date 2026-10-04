@@ -196,7 +196,7 @@ The draft's claim "text-only, zero arbitrary execution" is **not automatically t
 | `container`, skills | **deny** | Server-side execution environment |
 | Server-side model fallbacks on refusal | **deny** | Would bill a model outside the pledge allowlist |
 | `speed: fast` | deny unless the pledge has the `fast` flag | Price multiplier |
-| `service_tier`, `inference_geo` | deny unless explicitly allowed in policy | Price and data-residency are the donor's call |
+| `service_tier`, `inference_geo` | deny unless explicitly allowed in policy; `inference_geo` only `global` (a regional value costs a premium the catalog does not price, F20) | Price and data-residency are the donor's call |
 
 **Safe mutations** (the only ones the Worker performs; `req_commit` is computed over the body *before* them):
 - set `metadata.user_id` to a pseudonymous `H(repo_id ‖ member_id)`, so the donor's provider account can attribute abuse to a specific end user;

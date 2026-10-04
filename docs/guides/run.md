@@ -19,14 +19,14 @@ moochy run -- claude               # or: opencode, aider, goose, any command-lin
 | | Inside `moochy run` |
 |---|---|
 | **Your project** | Read and write the project's folder (the git worktree). Use `--worktree DIR` to pick another one |
-| **Secrets in the project** | Hidden: `.env` and `.env.*`, `*.pem`, `*.key`, `id_*`, `.npmrc`, `.netrc`, `.pypirc`, `credentials*`, cloud tool folders (`.aws`, `.gcloud`, `.azure`, `.kube`, `.docker`, `.ssh`), and every file ignored by git. The agent sees an empty file in their place |
+| **Secrets in the project** | Hidden: `.env` and `.env.*`, `*.pem`, `*.key`, `id_*`, `.npmrc`, `.netrc`, `.pypirc`, `credentials*`, cloud tool folders (`.aws`, `.gcloud`, `.azure`, `.kube`, `.docker`, `.ssh`), every file ignored by git, and a git config that holds a credential (a token in a remote URL, a CI `extraheader`). The agent sees an empty file in their place. A file hidden once stays hidden in later runs, even if the agent edits a `.gitignore` or renames its folder (Moochy keeps the list in `~/.config/moochy/state/masks/`; delete it to start over). If the project is a git repository and `git` is missing, `moochy run` refuses to start |
 | **Git** | Read `git status`, `git log`, and `git diff` as usual. Every `.git` folder is **read-only** inside by default, so the agent cannot commit, rewrite history, or plant a hook or setting that your own git would run later. You review the changes and commit them yourself after the run. `--git-writable` lets the agent commit to the project's own repository; `hooks/`, `config`, and submodules stay read-only even then. If git metadata changes in a way the sandbox cannot block (a new `.git` folder created somewhere inside), `moochy run` tells you after the run so you can review it |
 | **The rest of your computer** | Not there: your real home folder, `~/.ssh`, `~/.aws`, your keychain, browser profiles, other repositories, and Moochy's own keys and settings do not exist inside. System folders (`/usr`, `/bin`, `/etc`, …) are read-only. `$HOME` and `/tmp` are empty, private, and deleted at the end |
 | **Network** | Nothing except Moochy, and the hosts you allow with `--allow-host` (below). The agent reaches donated tokens through the usual base URLs; every other address fails |
 | **Environment** | Clean: only `PATH`, `HOME`, `TMPDIR`, `USER`, `TERM`, and the Moochy settings for the agent. Your shell's tokens and variables are not passed in |
 | **Processes** | Cannot see or signal processes outside, cannot gain privileges, and has limits on memory, open files, and process count. Stopping `moochy run`, even with `kill -9`, stops everything inside |
 
-**Tool calls from donated tokens only reach agents inside `moochy run`.** If you connect a tool to Moochy without `moochy run`, it still gets the text of each response, but each tool call is replaced by a visible `[moochy]` notice. A project can turn this off for itself with `moochy config set allow_unsandboxed_tools owner/name` (a comma-separated list of projects); the app then warns you at every start. Use it only if you run your agent in your own sandbox.
+**Tool calls from donated tokens only reach agents inside `moochy run`.** If you connect a tool to Moochy without `moochy run`, it still gets the text of each response, but each tool call is replaced by a visible `[moochy]` notice. To change this for a project, two settings are needed: the project allows it (Project settings on moochy.dev), and you allow it on this machine with `moochy config set allow_unsandboxed_tools owner/name` (a comma-separated list of projects). The project's setting alone, which comes from the server, never does it. The app warns you at every start. Use it only if you run your agent in your own sandbox.
 
 ## Tools installed in your home folder
 
@@ -71,7 +71,7 @@ Then load it with `sudo apparmor_parser -r /etc/apparmor.d/moochy`. Do not turn 
 
 ## macOS
 
-The sandbox uses macOS's built-in Seatbelt, the same mechanism other coding-agent tools use. Everything is blocked unless allowed: the agent can read system folders and your project, write only to your project and a private scratch folder, and connect only to Moochy on your machine, plus the allowed-hosts proxy when you use `--allow-host`. Writes to any `.git` folder are refused, at any depth.
+The sandbox uses macOS's built-in Seatbelt, the same mechanism other coding-agent tools use. Everything is blocked unless allowed: the agent can read system folders and your project, write only to your project and a private scratch folder, and connect only to Moochy on your machine, plus the allowed-hosts proxy when you use `--allow-host`. Writes to any `.git` folder are refused, at any depth. A folder that contains a hidden file cannot be renamed or removed during the run (Seatbelt hides files by path). The data and config folders of Homebrew and MacPorts (`/opt/homebrew/var`, `/opt/homebrew/etc`, `/usr/local/var`, `/usr/local/etc`, `/opt/local/var`, `/opt/local/etc`) are not visible, except their certificate bundles. A git config that holds a credential is not readable at all on macOS, so git commands inside fail in that checkout.
 
 ## Windows
 
