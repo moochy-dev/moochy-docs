@@ -2,7 +2,7 @@
 
 Plan 10 §8, made executable. Closed source (CONTRACT §0a). Every alert in `deploy/relay/prometheus/alerts.yml` carries a `runbook` label pointing here.
 
-Conventions: run on the relay VM as root unless stated. `A="/opt/moochy/bin/relay admin --socket /run/moochy/admin.sock"`. `M() { curl -fsS 127.0.0.1:9100/metrics | grep -E "^$1"; }`. Never paste prompts, outputs, keys or tokens into tickets or chat: the relay never has plaintext and the operators never ask for it. Every admin action is audit-logged by the relay; public ones (catalog, moderation) also go to the key log.
+Conventions: run on the relay VM as root unless stated. `A="/opt/moochy/bin/relay admin --socket /run/moochy/admin.sock"`. `M() { curl -fsS --unix-socket /run/moochy/metrics.sock http://relay/metrics | grep -E "^$1"; }` (the relay's metrics are a 0600 Unix socket, G17; Prometheus reads them through `moochy-metrics-proxy.socket` on `127.0.0.1:9100`). Never paste prompts, outputs, keys or tokens into tickets or chat: the relay never has plaintext and the operators never ask for it. Every admin action is audit-logged by the relay; public ones (catalog, moderation) also go to the key log.
 
 Always: open an incident note (time, alert, who), post a status update within 15 min for anything user-visible, write a postmortem for every page.
 
@@ -26,16 +26,17 @@ Alerts: `RelayUnavailable`, `RelayScrapeDown`, `LitestreamLag`, `LitestreamDown`
    ```sh
    . /etc/moochy/relay.env
    echo | openssl s_client -connect "$RELAY_WEB_DOMAIN:443" -servername "$RELAY_WEB_DOMAIN" 2>/dev/null | openssl x509 -noout -dates
-   echo | openssl s_client -connect "$RELAY_LINK_DOMAIN:8443" -servername "$RELAY_LINK_DOMAIN" -alpn h2 -tls1_3 2>/dev/null | grep -E 'ALPN|Verify'
+   echo | openssl s_client -connect "$RELAY_LINK_DOMAIN:443" -servername "$RELAY_LINK_DOMAIN" -alpn h2 -tls1_3 2>/dev/null | grep -E 'ALPN|Verify'
+   M 'tls_cert_expiry_timestamp_s|acme_errors_total'   # expiry (Unix time) per name; handshakes that got no certificate
    ```
-   Expired → check port 443 reachable from the internet (TLS-ALPN challenge) and the rate limits in the log. The ACME cache is `/var/lib/moochy/autocert` (0700); `acme-v02.api.letsencrypt.org` must be in `/etc/moochy/egress.hosts`.
+   Alerts `TLSCertExpiring` (ticket, < 21 days) and `TLSCertExpiringPage` (page, < 7 days): autocert renews 30 days before expiry, so renewal has been failing for a week or more. `ACMEErrors`: handshakes for a configured name got no certificate. Expired or failing → check port 443 reachable from the internet (TLS-ALPN challenge) and the rate limits in the log. The ACME cache is `/var/lib/moochy/autocert` (0700); `acme-v02.api.letsencrypt.org` must be in `/etc/moochy/egress.hosts`.
 4. **Restart** (process wedged but VM healthy):
    ```sh
-   deploy/relay/scripts/drain-restart.sh --restart-only        # drains first if the admin socket answers
+   deploy/relay/scripts/drain-restart.sh --restart-only        # drains first if the admin socket answers; add --no-replica on a host without Litestream
    systemctl restart moochy-relay                               # only if the socket is dead
    ```
-   Crash loops: `journalctl -u moochy-relay -b | grep -m1 -i -E 'panic|fatal|migrat'`. Migration refused because the DB needs a newer binary → install that binary; never edit the schema by hand.
-5. **Replication unhealthy** (`LitestreamLag`/`LitestreamDown`): `systemctl restart moochy-litestream`; check bucket credentials and endpoint with `journalctl -u moochy-litestream -n 100`. Do not upgrade the relay while replication lags (the drain script refuses).
+   Crash loops: `journalctl -u moochy-relay -b | grep -m1 -i -E 'panic|fatal|migrat|not a socket|moochy_egress'`. `… exists and is not a socket`: a file sits where a relay socket goes in `/run/moochy`; find out who put it there (only root or moochy can), then remove it. `Error: No such file or directory` from `nft -t list table inet moochy_egress`: the egress allowlist is not loaded; `systemctl start moochy-egress`, never remove the start check. Migration refused because the DB needs a newer binary → install that binary; never edit the schema by hand.
+5. **Replication unhealthy** (`LitestreamLag`/`LitestreamDown`): `systemctl restart moochy-litestream`; check bucket credentials and endpoint with `journalctl -u moochy-litestream -n 100`, and what the relay reads: `sudo -u moochy curl -fsS --unix-socket /run/moochy-litestream/litestream.sock http://litestream/list` (`last_sync_at` of `/var/lib/moochy/relay.db`). `litestream: no replica sync time` in the relay journal means it cannot read that socket. Do not upgrade the relay while replication lags: the drain script refuses, `--force` only during this runbook. With `moochy-litestream` inactive it refuses even `--force`; `--no-replica` says the host has no replica at all (G33).
 6. **VM lost / disk corrupt** (RTO < 30 min, RPO ≈ 1 s DB, 0 spend):
    1. Provision a VM from the recipe (`deploy/relay/README.md`), same region or the next one (region outage, RTO < 1 h).
    2. Copy `/etc/moochy/` (env files, `litestream.yml`, `tls/`) from the operators' vault, then **re-encrypt every credential on the new host** from the vault's offline copies (`enc …` in `deploy/relay/README.md`): a `.cred` only decrypts on the host (and TPM) that made it.
