@@ -4,6 +4,14 @@ You give an open-source project a monthly limit on **your own** LLM API account.
 
 It takes about 5 minutes.
 
+**Quickest path.** Install the app ([step 1](#1-install)), then run:
+
+```sh
+moochy start
+```
+
+It signs you in (one browser visit), asks for your provider key with hidden input, does the safety step, starts the app, and asks which project to donate to and how much. It skips the steps that are done, so you can run it again. The sections below explain each step. On a server, use [Docker Compose](headless-node.md#14-in-a-container).
+
 > **Your API keys stay on your machine.** Moochy never stores your API keys online. They stay in your machine's keychain, used only by the Moochy app on that machine, and are never sent to Moochy's servers, not even encrypted.
 >
 > How: `moochy keys add` puts the key in your machine's keychain (on a server without one, in a file on that server encrypted with your passphrase, see [Run a headless node](headless-node.md)). The Moochy app on that machine reads it only to call your provider. Requests and answers travel encrypted between the apps on each side, so Moochy's servers see neither your keys nor the prompts.

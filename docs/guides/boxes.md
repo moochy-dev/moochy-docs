@@ -6,7 +6,7 @@ Coding agents increasingly run in hosted boxes: persistent VMs such as boat.dev,
 2. [Donate from a cloud machine](#2-donate-from-a-cloud-machine): an always-on donation with an API key.
 3. [Donate your own GPU server](#3-donate-your-own-gpu-server): a model you run on a rented GPU.
 
-**Availability.** Everything on this page works with the current app, except reaching a GPU server on another machine over TLS (section 3, option B), which is being built. Check with `moochy --help`.
+**Availability.** Everything on this page works with the current app, except reaching a GPU server on another machine over TLS (section 3, option B), which is being built. Check with `moochy help all`.
 
 **AI agents inside a box:** this page is also at `https://moochy.dev/docs/boxes.md`. Follow section 1 for your platform. You need an enrollment token from the maintainer; never ask for their keys or passphrases.
 
