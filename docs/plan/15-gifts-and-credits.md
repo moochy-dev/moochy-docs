@@ -2,6 +2,8 @@
 
 > Product owner, 2026-10-28: "at the end of the day it should be extremely easy to give away some tokens just by generating a link or a QR code and that can be scanned; carefully plan all that." "For people that don't have the compute but still want to donate real money that will actually be used in AI tokens compute; plan the best way to handle that and review carefully." Clarification: "it should be possible to add credits in the platform dashboard and/or give away an amount of AI tokens from a QR code, one-time scan of course."
 >
+> **Product owner decision 2026-10-28 (overrides OQ3 and OQ4).** Gifts and credits can be received by anyone with a Moochy account, for their own AI use on any project, public or private, not only open source. Open-source repos, orgs and maintainers stay valid targets. A new **personal** target is the recipient account itself (id: its pseudonym, `ps_` + 16 characters). A personal donation serves requests from the recipient's own devices on any repo or none (route `repo_id` = the own pseudonym). Sealing gate: a separate predicate in Go and Rust (§24.4 pattern, never widening the repo/org predicates): the donor (or Moochy Credits) is approved by a `DONOR_APPROVED` naming the `ps_` target, signed by an owner key or passkey of that same pseudonym, and the requesting gateway belongs to the recipient's account. The claim page always offers "For my own use" first. Limits for personal targets: a linked GitHub/GitLab identity at least 30 days old, self-claim and credits to oneself refused, 3 claims a day, 10 live gift donations, $2 per request by default. Copy: "Give AI tokens with a link or a QR code" / "For my own use". Specified in CONTRACT §25.5 (E153–E156) and ADR-55. ADR-51 below is recorded as ADR-54 (ADR-51 was taken).
+>
 > Nothing in the trust model changes. The relay still sees only ciphertext. Every donation still needs the maintainer's `DONOR_APPROVED` (owner key or passkey). Donors' device caps still apply, and the key-log format is unchanged. Credits add one new actor: **Moochy Credits**, a donor account run by Moochy, with Moochy's own provider key, on its own hosts.
 
 ## 1. Decisions
@@ -222,8 +224,8 @@ Built and tested now: everything in §5 behind `--credits` (off), fake Stripe in
 |---|---|---|
 | OQ1 | Gift link expiry | 30 days, max 90 |
 | OQ2 | Spend window | 12 months |
-| OQ3 | Eligibility | Public, not a fork, not archived, ≥ 30 days old; no license check |
-| OQ4 | What a claimer may pick | Own repos, orgs, own person profile |
+| OQ3 | Eligibility | Public, not a fork, not archived, ≥ 30 days old; no license check. **Overridden 2026-10-28:** also the personal target (see the note at the top) |
+| OQ4 | What a claimer may pick | Own repos, orgs, own person profile. **Overridden 2026-10-28:** "For my own use" first, then these |
 | OQ5 | QR module | `rsc.io/qr` with the AGENTS amendment |
 | OQ6 | Terminal QR | No |
 | OQ7 | Credits provider | OpenRouter (one key, all models, exact cost) |

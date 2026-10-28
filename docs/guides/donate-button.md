@@ -274,7 +274,35 @@ Put the chart in the README right below the button row or in a "Support" section
 
 ### The showcase studio
 
-`https://moochy.dev/button` is the showcase studio: tab **Button** and tab **Chart**. Pick a project or organisation you can see, set every option above with a live preview in light and dark side by side, and copy the Markdown, HTML, reStructuredText or iframe snippet. The URLs are the canonical ones above (`/-/` on GitLab), exactly what `moochy button --chart` prints.
+`https://moochy.dev/button` is the showcase studio: tabs **Button**, **Chart** and **QR code** ([QR code](#qr-code)). Pick a project or organisation you can see, set every option above with a live preview in light and dark side by side, and copy the Markdown, HTML, reStructuredText or iframe snippet. The URLs are the canonical ones above (`/-/` on GitLab), exactly what `moochy button --chart` prints.
+
+## QR code
+
+Every donate link has a QR code: the same address with `qr.svg` in place of `button.svg`. Use it on slides, posters, stickers and printed pages. Scanning it opens the donate page.
+
+| For | QR code | Opens |
+|---|---|---|
+| GitHub project | `https://moochy.dev/p/github/OWNER/NAME/qr.svg` | `https://moochy.dev/p/github/OWNER/NAME/donate` |
+| GitLab project | `https://moochy.dev/p/gitlab/GROUP/SUBGROUP/NAME/-/qr.svg` | `https://moochy.dev/p/gitlab/GROUP/SUBGROUP/NAME/-/donate` |
+| GitHub organisation | `https://moochy.dev/org/github/ORG/qr.svg` | `https://moochy.dev/org/github/ORG/donate` |
+| GitLab group | `https://moochy.dev/org/gitlab/GROUP/SUBGROUP/-/qr.svg` | `https://moochy.dev/org/gitlab/GROUP/SUBGROUP/-/donate` |
+| Person | `https://moochy.dev/people/github/LOGIN/qr.svg` (GitLab: `…/people/gitlab/USERNAME/-/qr.svg`) | the person's donate page |
+
+The GitHub short form (`/p/OWNER/NAME/qr.svg`) works too. The code always holds the canonical `https://moochy.dev/…/donate` address.
+
+- The only option is `size`: `s` (128 px), `m` (256 px) or `l` (512 px). Any other parameter answers `400`.
+- The image is always dark on light, because scanners read inverted codes badly.
+- A target that is not on Moochy also gets a QR code. Its donate page then says that it is not on Moochy yet. Check the target first (step 2).
+
+From the terminal, `moochy button --qr` prints the QR code address and a Markdown snippet (offline, from the git remote; `--repo P`, `--org ORG` or `--person PERSON` for another target):
+
+```markdown
+[![Scan to donate tokens to tinyhttp/arrow](https://moochy.dev/p/github/tinyhttp/arrow/qr.svg)](https://moochy.dev/p/github/tinyhttp/arrow/donate)
+```
+
+In the [showcase studio](#the-showcase-studio), tab **QR code** shows a preview, **Download SVG**, a card that prints alone, and the Markdown and HTML snippets. The share menu on project, organisation and person pages also has a **QR code** item.
+
+To give tokens with a link or a QR code that a person claims one time, see [Give AI tokens with a link or a QR code](gift-tokens.md).
 
 ## Sharing the donate link
 
