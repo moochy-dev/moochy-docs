@@ -419,7 +419,6 @@
     "settings",
     "signin",
     "theme",
-    "lang",
     "studio",
     "overview",
     "repositories",
@@ -446,7 +445,10 @@
     "outbox",
     "org",
     "orgs",
-    "people"
+    "people",
+    "g",
+    "gifts",
+    "credits"
   ],
   "skeletons": [
     {
