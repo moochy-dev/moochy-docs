@@ -77,19 +77,35 @@ sudo -u moochy moochy --home /var/lib/moochy journal --follow
 
 ### 1.4 In a container
 
-The public repository ships a `Containerfile` (`deploy/client/container/`): the app alone on an empty base image, running as an unprivileged user, with its state in the `/data` volume. Build it, then run it with the passphrase from your platform's secret store:
+`deploy/client/compose/` in the public repository runs a donor node with Docker Compose. It uses the release image `ghcr.io/moochy-dev/moochy` (the app alone on an empty base, an unprivileged user, state in a volume). Two profiles:
+
+- `api`: you donate with a provider API key.
+- `gpu`: you donate with your own NVIDIA GPU. Ollama runs next to the app and listens on loopback only.
+
+Get `compose.yaml` and `.env.example` from that folder, then:
 
 ```sh
-docker build -f deploy/client/container/Containerfile -t moochy .
-docker run --rm -it -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy login --roles worker --headless
-docker run --rm -i  -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy keys add anthropic --key-stdin < key.txt
-docker run --rm     -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy config set monthly_limit 25
-docker run -d --name moochy --restart unless-stopped -v moochy-data:/data -e MOOCHY_PASSPHRASE moochy up --foreground
+cp .env.example .env                       # set MOOCHY_MONTHLY_LIMIT, and MOOCHY_PROVIDER or OLLAMA_MODEL
+mkdir -m 700 secrets
+(umask 022; head -c 32 /dev/urandom | base64 > secrets/passphrase)
+(umask 022; read -rs -p 'Provider API key: ' k && printf '%s\n' "$k" > secrets/provider-key; unset k; echo)
+docker compose --profile api up -d         # or: --profile gpu
+docker compose logs moochy                 # gpu: moochy-gpu
 ```
 
-The image already passes `--home /data`. Delete `key.txt` afterwards, or pipe the key from your secret store instead.
+The log shows a code and a link. Open the link, sign in and confirm the code. That is the only manual step.
 
-A machine that only donates needs **outgoing** HTTPS (to moochy.dev and to your provider) and opens no incoming port. The local API and MCP endpoints listen on `127.0.0.1` inside the container and are not used when you only donate.
+The container runs `moochy start --headless`. At each start it skips what is done:
+
+1. Sign in, when this device is new.
+2. Add the key from the secret file (`--key-file`), or the model server (`--local URL --model local/<id>=<server id>`).
+3. The safety step, from `MOOCHY_MONTHLY_LIMIT`. Setting it confirms that you set a spend limit at your provider, or that you accept the risk.
+4. Donate, when `MOOCHY_DONATE` (a project) and `MOOCHY_DONATE_CAP` (dollars a month) are set and no such donation exists.
+5. Run the app in the foreground, locked down as with `moochy up --foreground`.
+
+Keep `secrets/passphrase`: it unlocks the keystore in the `moochy-data` volume. To change the key, write the new one to `secrets/provider-key` and restart.
+
+A machine that only donates needs **outgoing** HTTPS (to moochy.dev and to your provider) and opens no incoming port. The compose file publishes no port.
 
 ---
 
