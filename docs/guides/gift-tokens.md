@@ -87,13 +87,13 @@ The gift is not kept for you until you press **Accept the gift**. Another person
 ### In the terminal
 
 ```sh
-moochy gift claim https://moochy.dev/g/… --personal          # for your own use
-moochy gift claim https://moochy.dev/g/… --repo owner/name    # for a project you claimed
-moochy gift claim https://moochy.dev/g/… --org github/acme    # for an organisation you claimed
-moochy gift claim https://moochy.dev/g/… --person github/you  # for your profile
+moochy gift claim --personal          # for your own use
+moochy gift claim --repo owner/name   # for a project you claimed
+moochy gift claim --org github/acme   # for an organisation you claimed
+moochy gift claim --person github/you # for your profile
 ```
 
-You can give the link or only the token after `/g/`. The command accepts the donation at once when your owner key is on this machine. It asks for the owner key's passphrase one time. Without an owner key, it prints the page where you accept with your passkey.
+The command asks for the link. Paste the link or only the token after `/g/`. The command reads it from stdin, so the link does not show in the process list or in your shell history. A script can send it with `printf '%s\n' "$LINK" | moochy gift claim - --personal`. The old form with the link as an argument still works. The command accepts the donation at once when your owner key is on this machine. It asks for the owner key's passphrase one time. Without an owner key, it prints the page where you accept with your passkey.
 
 ### Which targets can receive a gift
 
