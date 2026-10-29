@@ -4,7 +4,7 @@ Donors give your project a monthly token limit on their own LLM API accounts. Yo
 
 Once a first donor is accepted, getting an agent running on donated tokens takes about 3 minutes.
 
-Only **public** repositories can be registered.
+Only **public** repositories can be registered. To get tokens for your own work on any repository, public or private, claim a gift **For my own use** ([Give AI tokens with a link or a QR code](gift-tokens.md)).
 
 ---
 

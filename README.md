@@ -2,7 +2,7 @@
 
 Guides, protocol specification and design documents for [Moochy](https://moochy.dev).
 
-Moochy lets you donate tokens to open-source projects from your own LLM API account, with a monthly limit you choose (and, if you want, weekly and daily limits). Maintainers use those tokens from the AI tools they already have. Your key never leaves your machine, and every request is end-to-end encrypted.
+Moochy lets you give AI tokens from your own LLM API account or your own GPU. Donate tokens to open-source projects, organisations and maintainers, with a monthly limit you choose (and, if you want, weekly and daily limits). Or gift a fixed amount to anyone with a link or a QR code. The people who get the tokens use them from the AI tools they already have. Your key never leaves your machine, every request is end-to-end encrypted, and every request has a signed public receipt.
 
 Open-source client (Apache-2.0) · 100% free.
 
@@ -10,7 +10,7 @@ Open-source client (Apache-2.0) · 100% free.
 
 | You want to | Read |
 |---|---|
-| Donate tokens, or use donated tokens in your project | [`docs/guides/`](docs/guides/README.md), also on [moochy.dev/docs](https://moochy.dev/docs) |
+| Donate or gift tokens, or use the tokens given to you | [`docs/guides/`](docs/guides/README.md), also on [moochy.dev/docs](https://moochy.dev/docs) |
 | Let an AI agent set Moochy up | [`docs/guides/for-ai-agents.md`](docs/guides/for-ai-agents.md) |
 | Implement the protocol | [`spec/protocol.md`](spec/protocol.md), [`spec/KEYLOG.md`](spec/KEYLOG.md), [`spec/proto/`](spec/proto/), [`spec/vectors/`](spec/vectors/) |
 | Know how Moochy defends you | [`docs/guides/threat-model.md`](docs/guides/threat-model.md), [`docs/security/`](docs/security/README.md) |
@@ -20,7 +20,7 @@ Open-source client (Apache-2.0) · 100% free.
 
 | Path | What |
 |---|---|
-| `docs/guides/` | User guides (donors, maintainers, organisations, integrations, donate button, cloud boxes) |
+| `docs/guides/` | User guides (donors, maintainers, organisations, gifts, integrations, donate button, cloud boxes) |
 | `docs/brand/` | Voice and vocabulary for every user-facing word |
 | `docs/plan/` | Design plan: architecture, wire protocol, routing, ledger, security, client, web, data model, operations, roadmap, decisions |
 | `docs/security/` | Attack catalog and per-component hardening checklists |
@@ -49,4 +49,4 @@ python3 scripts/check-links.py   # every relative Markdown link resolves
 ## Related repositories
 
 - [moochy-cli](https://github.com/moochy-dev/moochy-cli): the open-source `moochy` app.
-- [moochy-skills](https://github.com/moochy-dev/moochy-skills): agent skills for donating tokens and using donated tokens.
+- [moochy-skills](https://github.com/moochy-dev/moochy-skills): agent skills for donating and gifting tokens and for using the tokens given to you.

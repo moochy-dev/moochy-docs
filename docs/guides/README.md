@@ -1,6 +1,6 @@
 # Moochy guides
 
-Moochy lets you donate tokens to open-source projects from your own LLM API account, with a monthly limit you choose (and, if you want, weekly and daily limits). Maintainers use those tokens from the AI tools they already have. Your key never leaves your machine, and every request is end-to-end encrypted.
+Moochy lets you give AI tokens from your own LLM API account or your own GPU. Donate tokens to open-source projects, organisations and maintainers, with a monthly limit you choose (and, if you want, weekly and daily limits). Or gift a fixed amount to anyone with a link or a QR code. The people who get the tokens use them from the AI tools they already have. Your key never leaves your machine, every request is end-to-end encrypted, and every request has a signed public receipt.
 
 Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid tier. You pay your own provider for what your donations actually use; Moochy never touches money.
 
@@ -13,7 +13,6 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | [Sponsor a person](sponsor-a-person.md) | Sponsor a maintainer's own requests on the repos they maintain; claim your profile and choose the repos |
 | [Donate to an organisation](donate-to-an-organisation.md) | `moochy donate --org`, the organisation page, one limit across its projects, what each project used |
 | [Give AI tokens with a link or a QR code](gift-tokens.md) | Make a one-time gift link, print its QR code, claim a gift for a project or for your own use |
-| [Moochy Credits](credits.md) | Give AI tokens without your own API key: card payment, fees, where the credits go, refunds (not available yet) |
 | [Donate from your own GPU](local-gpu.md) | Ollama, LM Studio, vLLM, or llama.cpp instead of an API key |
 | [The dashboard in your terminal: `moochy tui`](tui.md) | Tabs, keys, command palette and filter, themes, `NO_COLOR`, `--ascii`, demo and snapshot mode |
 | [Run your agent safely with `moochy run`](run.md) | The sandbox your coding agent runs in: what it can reach, Linux and macOS notes |
@@ -23,6 +22,6 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | [Use Moochy in cloud boxes](boxes.md) | Agents in boat.dev, E2B, Daytona, Modal, Morph, Fly, Codespaces; donating from cloud machines and rented GPUs |
 | [Run Moochy on a server or in CI](headless-node.md) | An always-on donation from a machine you control; agents in CI |
 | [How Moochy protects you](threat-model.md) | The attacks Moochy is designed against, and where each defence lives |
-| [FAQ](faq.md) | Open source and free, privacy, how your key and code are protected |
+| [FAQ](faq.md) | Open source and free, gifts, privacy, how your key and code are protected |
 
 The network protocol the app speaks is specified in [`spec/protocol.md`](../../spec/protocol.md). To report a vulnerability, see [`cli/SECURITY.md`](https://github.com/moochy-dev/moochy-cli/blob/main/cli/SECURITY.md).

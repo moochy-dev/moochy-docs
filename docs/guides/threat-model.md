@@ -48,6 +48,7 @@ To report a weakness, see [`cli/SECURITY.md`](https://github.com/moochy-dev/mooc
 - Accepting a donor, adding a member, and claiming a repository are signed with the owner's **owner key**: a key separate from every device key, encrypted with its own passphrase, used only by a command the owner types and confirms. The background app never reads it.
 - These signatures go into a public, append-only key log. Every app keeps a copy, checks it, and warns its user about any key, approval, or claim they did not make. Checkpoints are published hourly to a public Git repository, so a rewritten history is visible to anyone.
 - Organisations follow the same rules: the claim, each project an organisation funds, and each donor accepted for it are owner-key signatures in the log. An organisation's donations serve only projects registered by the organisation's own owner and checked to belong to it at the code host, so a look-alike or someone else's repository cannot draw on them ([Donations for your organisation](organisations.md)). A claim moves to another account only when the code host says the previous holder is no longer an owner, and the move drops every donor and project the previous holder signed.
+- A gift claimed **For my own use** follows the same rules. The claimer accepts it with their own owner key or passkey, and it serves only requests from the claimer's own devices. Nodes refuse an approval for that target signed by any other key, and a member of the claimer's projects cannot spend it ([Give AI tokens with a link or a QR code](gift-tokens.md)).
 
 ### Money records cannot be faked or hidden
 
@@ -75,4 +76,5 @@ To report a weakness, see [`cli/SECURITY.md`](https://github.com/moochy-dev/mooc
 - Text in a response can still try to talk a person into running something. Inside `moochy run` the agent cannot do lasting damage; outside it, you are the safeguard.
 - Local GPU donations report their own token counts, which cannot be checked; they are labelled self-reported and never counted as money ([Donate from your own GPU](local-gpu.md)).
 - Malware already running as your user, or as root, is out of scope.
+- A gift link works for the first person who claims it, like cash. Moochy keeps only a hash of the link and never writes it in its logs, but it cannot stop a link that was shared by mistake. Revoke or replace it before somebody claims it.
 - The relay can refuse service. It cannot read your prompts or spend beyond your limits, but it can stop working.

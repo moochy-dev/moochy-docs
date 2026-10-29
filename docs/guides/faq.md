@@ -36,7 +36,7 @@ No. Moochy runs one service, at moochy.dev, and does not offer self-hosting. The
 
 ### Are private repositories supported?
 
-No. Only public repositories can receive donations: Moochy exists for open source, and public use can be checked by anyone.
+Not for donations to a project. Only public repositories can be claimed, so anyone can check how they use donated tokens. A gift claimed **For my own use** is the exception: it pays for your own requests on any repository, public or private ([details](gift-tokens.md#use-a-gift-for-your-own-work)).
 
 ## Privacy
 
@@ -147,6 +147,14 @@ Claim it. Your code host confirms on moochy.dev that you are an admin, then `moo
 ### Can I donate to a whole organisation?
 
 Yes: to a GitHub organisation or a GitLab group whose owner claimed it on Moochy. One monthly limit then covers every project the owner added, and the owner accepts you once ([Donate to an organisation](donate-to-an-organisation.md)). Only projects registered by the organisation's owner themselves can use it, so someone else's repository under the organisation's name never does ([for owners](organisations.md)).
+
+### Can I give tokens to someone who is not a maintainer?
+
+Yes. Make a gift: a fixed amount of tokens behind a single-use link, which you send or print as a QR code. The first person who claims it chooses where the tokens go: **For my own use**, or a project, organisation or profile they claimed. For their own use, the tokens pay for requests from their own devices, on any repository, public or private. Their GitHub or GitLab account must be at least 30 days old. Your key stays on your machine, as for any donation. See [Give AI tokens with a link or a QR code](gift-tokens.md).
+
+### What is a gift link?
+
+A link of the form `https://moochy.dev/g/…` that holds one gift. The first claim wins, and the link then stops working. It expires after 30 days by default. Moochy keeps only a hash of the link and shows it to you one time only, so treat it like cash. Until somebody claims the gift, you can revoke it or replace the link (`moochy gift revoke`). After the claim, the gift is a donation with a total, for example "Total $20 · ends 2027-10-28", and you can pause or stop it like any donation.
 
 ### Why does my agent get a 400 or 403 instead of a retry?
 
