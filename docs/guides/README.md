@@ -12,6 +12,8 @@ Open-source client (Apache-2.0) · 100% free. No fees, no commission, no paid ti
 | [Donations for your organisation](organisations.md) | Claim a GitHub organisation or GitLab group, choose the projects it funds, share caps, accept donors once, owner changes |
 | [Sponsor a person](sponsor-a-person.md) | Sponsor a maintainer's own requests on the repos they maintain; claim your profile and choose the repos |
 | [Donate to an organisation](donate-to-an-organisation.md) | `moochy donate --org`, the organisation page, one limit across its projects, what each project used |
+| [Give AI tokens with a link or a QR code](gift-tokens.md) | Make a one-time gift link, print its QR code, claim a gift for a project or for your own use |
+| [Moochy Credits](credits.md) | Give AI tokens without your own API key: card payment, fees, where the credits go, refunds (not available yet) |
 | [Donate from your own GPU](local-gpu.md) | Ollama, LM Studio, vLLM, or llama.cpp instead of an API key |
 | [The dashboard in your terminal: `moochy tui`](tui.md) | Tabs, keys, command palette and filter, themes, `NO_COLOR`, `--ascii`, demo and snapshot mode |
 | [Run your agent safely with `moochy run`](run.md) | The sandbox your coding agent runs in: what it can reach, Linux and macOS notes |

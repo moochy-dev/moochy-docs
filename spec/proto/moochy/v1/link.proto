@@ -74,6 +74,20 @@ service NodeLink {
   // What I own as a maintainer: claimed projects (r_), organisations (o_, §19) and my person
   // profile (m_, §24), with this month's use and their covered repos.
   rpc ListOwned(ListOwnedRequest) returns (ListOwnedResponse);
+
+  // Gift links (plan 15 §3), authenticated like Donate. CreateGift is the only answer that carries
+  // the link (Gift.url); the relay keeps only SHA-256 of its token. Errors as Donate, plus
+  // RESOURCE_EXHAUSTED (20 open gifts, 3 claims a day, 10 live gift donations) and
+  // FAILED_PRECONDITION "self_gift" / "not_eligible" / "already_donating".
+  rpc CreateGift(CreateGiftRequest) returns (Gift);
+  rpc ListGifts(ListGiftsRequest) returns (ListGiftsResponse);
+  // An open gift: revoke it, or with replace = true rotate its token (Gift.url is the new link).
+  rpc RevokeGift(RevokeGiftRequest) returns (Gift);
+  // The session's user claims a gift for a target they own, or for their own use (personal).
+  // Unknown, used, expired and revoked tokens are all NOT_FOUND, alike.
+  rpc ClaimGift(ClaimGiftRequest) returns (Donation);
+  // Credits (plan 15 §5): UNIMPLEMENTED unless the relay runs with --credits.
+  rpc GetCredits(GetCreditsRequest) returns (Credits);
 }
 
 enum Role {
@@ -550,6 +564,9 @@ message DonateRequest {
   // 0 < daily <= weekly <= budget_uusd (INVALID_ARGUMENT otherwise).
   int64 weekly_limit_uusd = 11;
   int64 daily_limit_uusd = 12;
+  // Plan 15 §5: pay from the donor's Moochy Credits balance instead of their own key. budget_uusd
+  // is then a one-off amount (a total), served by Moochy Credits; schedule and windows are ignored.
+  bool credits = 13;
 }
 
 message DonationActionRequest {
@@ -585,6 +602,15 @@ message Donation {
   repeated int64 per_day_uusd = 21;  // spend of this donation, last 30 UTC days, oldest first, zero-filled (§20 TUI)
   int64 weekly_limit_uusd = 22;    // 0 = none (DonateRequest.weekly_limit_uusd)
   int64 daily_limit_uusd = 23;     // 0 = none
+  // Plan 15 §4: a total donation (gifts, credits): budget_uusd is the lifetime total, it never
+  // rolls over, and it ends at ends_at_ms.
+  bool total = 24;
+  int64 ends_at_ms = 25;
+  string gift_id = 26;             // "gf_…": the gift this donation came from
+  bool credits = 27;               // served by Moochy Credits (plan 15 §5)
+  // The recipient's own use (plan 15, product owner 2026-10-28): set (repo_slug, org and person
+  // empty) when the target is an account itself; it serves that account's own devices on any repo.
+  bool personal = 28;
 }
 
 message RepoSpend {
@@ -721,4 +747,95 @@ message LookupResponse {
   string repo_id = 2;
   string handle = 3;               // canonical; handle lookups only
   string pseudonym = 4;            // handle lookups only
+}
+
+// ---------------------------------------------------------- Gifts (plan 15 §3)
+
+message CreateGiftRequest {
+  string request_id = 1;           // idempotency key (ULID); the gift id is "gf_" + request_id
+  string source = 2;               // tokens (the giver's own key) | credits (the giver's balance)
+  int64 amount_uusd = 3;           // tokens: $1 .. $1,000; credits: up to the available balance
+  int64 per_task_cap_uusd = 4;     // 0 = the default
+  repeated string models = 5;      // empty = any in the catalog
+  string max_effort = 6;
+  string visibility = 7;           // public (default) | pseudonymous | anonymous
+  string note = 8;                 // <= 140 characters, shown to the claimer
+  uint32 expires_days = 9;         // 0 = 30; at most 90
+}
+
+message Gift {
+  string gift_id = 1;              // "gf_" + ULID
+  string url = 2;                  // the link: CreateGift and RevokeGift{replace} only, never stored
+  string source = 3;               // tokens | credits
+  int64 amount_uusd = 4;
+  int64 per_task_cap_uusd = 5;
+  repeated string models = 6;
+  string max_effort = 7;
+  string visibility = 8;
+  string note = 9;
+  string status = 10;              // open | claimed | revoked | expired
+  int64 created_at_ms = 11;
+  int64 expires_at_ms = 12;
+  int64 claimed_at_ms = 13;
+  string claimer = 14;             // the claimer's handle (claimed only)
+  string target = 15;              // provider-qualified project, org/…, people/… or "personal"
+  string pledge_id = 16;           // the donation the claim made
+  bool existing = 17;              // a retried CreateGift: the link cannot be shown again
+}
+
+message ListGiftsRequest {}
+
+message ListGiftsResponse {
+  repeated Gift gifts = 1;
+}
+
+message RevokeGiftRequest {
+  string gift_id = 1;
+  bool replace = 2;                // rotate the token instead: the old link dies, Gift.url is the new one
+}
+
+message ClaimGiftRequest {
+  string token = 1;                // the 22-character token, or the whole https://…/g/{token} link
+  // Exactly one target: a project, an organisation or a person profile the user owns, or personal.
+  string repo_slug = 2;
+  string org = 3;
+  string person = 4;
+  bool personal = 5;               // for the user's own use (any repo, their own devices)
+}
+
+// ---------------------------------------------------------- Credits (plan 15 §5)
+
+message GetCreditsRequest {}
+
+message CreditPurchase {
+  string id = 1;                   // "cp_…"
+  int64 amount_cents = 2;
+  int64 stripe_fee_cents = 3;
+  int64 provider_fee_uusd = 4;
+  int64 credits_uusd = 5;
+  string status = 6;               // pending | held | available | refunded | disputed | expired
+  int64 paid_at_ms = 7;
+  int64 available_at_ms = 8;
+  int64 refunded_cents = 9;
+}
+
+message CreditAllocation {
+  string id = 1;                   // "ca_…"
+  string target = 2;               // provider-qualified project, org/…, people/… or "personal"
+  int64 amount_uusd = 3;
+  int64 used_uusd = 4;
+  string gift_id = 5;
+  int64 ends_at_ms = 6;
+  int64 ended_at_ms = 7;           // 0 = live
+  string pledge_id = 8;            // the target's Moochy Credits donation
+}
+
+message Credits {
+  int64 available_uusd = 1;
+  int64 held_uusd = 2;             // paid, still in the 72 h hold
+  int64 allocated_uusd = 3;        // in live allocations, not used yet
+  bool frozen = 4;
+  repeated CreditPurchase purchases = 5;
+  repeated CreditAllocation allocations = 6;
+  string add_url = 7;              // the web page that takes the card (never the CLI)
 }

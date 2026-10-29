@@ -446,7 +446,10 @@
     "outbox",
     "org",
     "orgs",
-    "people"
+    "people",
+    "g",
+    "gifts",
+    "credits"
   ],
   "skeletons": [
     {
